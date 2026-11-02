@@ -1,0 +1,6 @@
+{
+  "routes": [
+    { "path": "/", "title": "Shattered Realms: Echoes Beyond" },
+    { "path": "/odyssey", "title": "Shattered Realms: Echoes Beyond — Jogar" }
+  ]
+}
