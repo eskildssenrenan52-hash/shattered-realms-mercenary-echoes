@@ -2,7 +2,7 @@
 
 O APK é uma casca Android nativa que inclui a distribuição estática completa do jogo em `android/app/src/main/assets/game/`. A activity abre `https://appassets.androidplatform.net/assets/game/index.html` por meio do `WebViewAssetLoader`; essa origem é servida somente a partir dos assets empacotados no próprio APK. Não há site hospedado, login, permissão de Internet ou aplicativo de terceiros necessário para iniciar e jogar. O Android fornece o WebView do sistema.
 
-Ao abrir o app, ele inicia uma campanha ou retoma o save local automaticamente. O site continua mantendo seu menu inicial normal. O progresso fica no armazenamento local privado do app; desinstalar o APK apaga esses saves.
+Ao abrir o app, aparece a tela de título do jogo, com as opções Nova jornada e Continuar quando existe um save local. O progresso fica no armazenamento local privado do app; desinstalar o APK apaga esses saves.
 
 ## Requisitos de build
 

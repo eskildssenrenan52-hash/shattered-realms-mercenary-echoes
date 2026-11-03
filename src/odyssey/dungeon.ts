@@ -8,6 +8,7 @@ export const ABYSS_FLOORS = 100;
 export const ABYSS_ENTRY = { x: 141, y: 145, w: 7, h: 5 };
 export const ABYSS_DOOR = { tx: ABYSS_ENTRY.x + 3, ty: ABYSS_ENTRY.y + ABYSS_ENTRY.h - 1 };
 const OX = 4, OY = 4;
+export type DungeonStyle = 'classic' | 'labyrinth' | 'gauntlet' | 'vault' | 'mirror';
 
 export interface Theme { name: string; floor: number; wall: number; deco: number; biome: Biome; enemies: EnemyKind[]; color: string; lore: string }
 /** Dez estratos de dez andares cada, cada um com sua própria arquitetura e fauna. */
@@ -73,12 +74,12 @@ export interface Room { x: number; y: number; w: number; h: number }
 export interface FloorSpawn { kind: EnemyKind; tx: number; ty: number; level: number; elite: boolean }
 export interface FloorChest { id: string; tx: number; ty: number; gold: number; item: string; qty: number }
 export interface DungeonFloor {
-  floor: number; theme: Theme; world: World; w: number; h: number; ox: number; oy: number; rooms: Room[];
+  floor: number; theme: Theme; style: DungeonStyle; world: World; w: number; h: number; ox: number; oy: number; rooms: Room[];
   start: { tx: number; ty: number }; stairs: { tx: number; ty: number }; spawns: FloorSpawn[]; chests: FloorChest[]; boss: BossDef | null;
   /** Tochas de parede (poucas): as únicas luzes fixas do andar. */
   torches: { tx: number; ty: number }[];
 }
-export interface FloorOptions { theme: Theme; seed: number; size: { w: number; h: number }; level: number; idPrefix: string; eliteBonus?: number; guardian?: boolean; finalArena?: boolean }
+export interface FloorOptions { theme: Theme; seed: number; size: { w: number; h: number }; level: number; idPrefix: string; eliteBonus?: number; guardian?: boolean; finalArena?: boolean; style?: DungeonStyle }
 
 function rng(seed: number) {
   let a = seed >>> 0;
@@ -89,7 +90,7 @@ export const floorSize = (floor: number) => ({ w: Math.round(70 + floor * 1.3), 
 const LOOT_TIERS = [['potion', 'ether', 'herb', 'iron_ore'], ['hi_potion', 'ether', 'mana_shard', 'crystal_ore'], ['hi_potion', 'elixir', 'crystal_ore', 'mana_shard'], ['elixir', 'eco_shard', 'crystal_ore'], ['elixir', 'eco_shard', 'void_essence']];
 
 export function generateFloor(floor: number, opts?: FloorOptions): DungeonFloor {
-  const theme = opts?.theme ?? themeOf(floor), r = rng(opts?.seed ?? floor * 7919 + 13);
+  const theme = opts?.theme ?? themeOf(floor), r = rng(opts?.seed ?? floor * 7919 + 13), style = opts?.style ?? 'classic';
   const { w, h } = opts?.size ?? floorSize(floor);
   const tiles = new Uint8Array(W * H).fill(theme.wall);
   const biomes = new Uint8Array(W * H).fill(Math.max(0, BIOME_LIST.indexOf(theme.biome)));
@@ -104,11 +105,17 @@ export function generateFloor(floor: number, opts?: FloorOptions): DungeonFloor 
     rooms.push({ x: OX + 6, y: OY + Math.floor(h / 2) - 5, w: 12, h: 10 });
     rooms.push({ x: OX + Math.floor(w / 2) - 34, y: OY + Math.floor(h / 2) - 26, w: 68, h: 52 });
   } else {
-    const target = Math.min(36, 8 + Math.floor(floor / 3));
+    const target = style === 'gauntlet' ? 6 : style === 'vault' ? 17 : style === 'mirror' ? 14 : style === 'labyrinth' ? Math.min(42, 22 + Math.floor(floor / 4)) : Math.min(36, 8 + Math.floor(floor / 3));
     for (let tries = 0; rooms.length < target && tries < 900; tries++) {
-      const rw = 7 + Math.floor(r() * 11), rh = 6 + Math.floor(r() * 8);
+      const rw = style === 'gauntlet' ? 16 + Math.floor(r() * 8) : style === 'labyrinth' ? 5 + Math.floor(r() * 5) : 7 + Math.floor(r() * 11);
+      const rh = style === 'gauntlet' ? 13 + Math.floor(r() * 7) : style === 'labyrinth' ? 5 + Math.floor(r() * 4) : 6 + Math.floor(r() * 8);
       const room = { x: OX + 3 + Math.floor(r() * (w - rw - 6)), y: OY + 3 + Math.floor(r() * (h - rh - 6)), w: rw, h: rh };
-      if (!overlaps(room)) rooms.push(room);
+      if (overlaps(room)) continue;
+      rooms.push(room);
+      if (style === 'mirror' && rooms.length < target) {
+        const mirrored = { ...room, x: OX + w - (room.x - OX) - room.w };
+        if (Math.abs(mirrored.x - room.x) > 3 && !overlaps(mirrored)) rooms.push(mirrored);
+      }
     }
     if (guardian) {
       // A sala do guardião é uma arena ampla no canto mais distante.
@@ -121,7 +128,7 @@ export function generateFloor(floor: number, opts?: FloorOptions): DungeonFloor 
   for (const room of rooms) carve(room.x, room.y, room.w, room.h);
   // Corredores: cada sala liga-se à anterior (ordem espacial) e há atalhos extras formando laços.
   const order = rooms.map((room, i) => ({ room, i })).sort((a, b) => (a.room.x + a.room.y * 0.6) - (b.room.x + b.room.y * 0.6));
-  const cw = floor > 60 ? 3 : 2;
+  const cw = style === 'labyrinth' ? 1 : floor > 60 ? 3 : 2;
   const corridor = (a: Room, b: Room) => {
     const p = center(a), q = center(b), horizontalFirst = r() < 0.5;
     const hor = (y: number, x0: number, x1: number) => { for (let x = Math.min(x0, x1); x <= Math.max(x0, x1); x++) for (let k = 0; k < cw; k++) set(x, y + k, theme.floor); };
@@ -129,7 +136,7 @@ export function generateFloor(floor: number, opts?: FloorOptions): DungeonFloor 
     if (horizontalFirst) { hor(p.y, p.x, q.x); ver(q.x, p.y, q.y); } else { ver(p.x, p.y, q.y); hor(q.y, p.x, q.x); }
   };
   for (let i = 1; i < order.length; i++) corridor(order[i - 1]!.room, order[i]!.room);
-  for (let i = 0; i < Math.floor(rooms.length / 4); i++) corridor(rooms[Math.floor(r() * rooms.length)]!, rooms[Math.floor(r() * rooms.length)]!);
+  if (style !== 'labyrinth') for (let i = 0; i < Math.floor(rooms.length / (style === 'gauntlet' ? 2 : 4)); i++) corridor(rooms[Math.floor(r() * rooms.length)]!, rooms[Math.floor(r() * rooms.length)]!);
 
   const startRoom = final ? rooms[0]! : order[0]!.room;
   const endRoom = final || guardian ? rooms[rooms.length - 1]! : order[order.length - 1]!.room;
@@ -154,7 +161,8 @@ export function generateFloor(floor: number, opts?: FloorOptions): DungeonFloor 
   const level = opts?.level ?? floorLevel(floor);
   const spawns: FloorSpawn[] = [];
   if (!final) {
-    const count = Math.min(95, 16 + Math.floor(floor * 0.8));
+    const baseCount = 16 + Math.floor(floor * 0.8);
+    const count = Math.min(95, style === 'gauntlet' ? Math.round(baseCount * 1.65) : style === 'vault' ? Math.round(baseCount * 0.65) : baseCount);
     const pool = theme.enemies;
     for (let i = 0, tries = 0; spawns.length < count && tries < count * 20; tries++, i++) {
       const room = rooms[Math.floor(r() * rooms.length)]!;
@@ -166,7 +174,7 @@ export function generateFloor(floor: number, opts?: FloorOptions): DungeonFloor 
     }
   }
   const chests: FloorChest[] = [];
-  const nChests = final ? 0 : 1 + Math.floor(r() * 3) + (guardian ? 2 : 0);
+  const nChests = final ? 0 : 1 + Math.floor(r() * 3) + (guardian ? 2 : 0) + (style === 'vault' ? 5 : 0);
   const tier = LOOT_TIERS[Math.min(LOOT_TIERS.length - 1, Math.floor(floor / 21))]!;
   for (let i = 0, tries = 0; chests.length < nChests && tries < 200; tries++) {
     const room = guardian && i < 2 ? endRoom : rooms[Math.floor(r() * rooms.length)]!;
@@ -186,7 +194,7 @@ export function generateFloor(floor: number, opts?: FloorOptions): DungeonFloor 
     const tx = room.x + 1 + Math.floor(r() * (room.w - 2)), ty = room.y - 1;
     if (tiles[ty * W + tx] === theme.wall) torches.push({ tx, ty });
   }
-  return { floor, theme, world: { tiles, biomes, nodes: [] }, w, h, ox: OX, oy: OY, rooms, start, stairs: end, spawns, chests, boss, torches };
+  return { floor, theme, style, world: { tiles, biomes, nodes: [] }, w, h, ox: OX, oy: OY, rooms, start, stairs: end, spawns, chests, boss, torches };
 }
 
 /** Verdadeiro se é possível caminhar do início até a escada (usado em testes). */

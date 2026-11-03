@@ -29,7 +29,7 @@ const SIEGE_TEMPLE: Temple = { id: 'siege_aurelia', biome: 'plains', name: 'Cida
 function floorData(): DungeonFloor {
   return {
     floor: 1, theme: { name: 'Campos de Aurélia', floor: T.GRASS, wall: T.TREE, deco: T.ROCK, biome: 'plains', enemies: [], color: '#ffd060', lore: '' },
-    world: siegeWorld(), w: SW, h: SH, ox: SX, oy: SY, rooms: [],
+    style: 'classic', world: siegeWorld(), w: SW, h: SH, ox: SX, oy: SY, rooms: [],
     start: { tx: PLAYER_START.tx + SX, ty: PLAYER_START.ty + SY - 1 }, stairs: { tx: GATE.tx + SX, ty: GATE.ty + SY },
     spawns: [], chests: [], boss: null, torches: [],
   };

@@ -4,6 +4,7 @@ import { ITEMS, BIOME_NAMES, type NpcDef } from './data';
 import { TEMPLES, type Temple } from './depths';
 import { generateFloor, type DungeonFloor } from './dungeon';
 import { TS, W, H, solidAt, type World } from './world';
+import { MAP_SECRET_TOTAL, mapSecretsInRect, type MapSecret } from './map-secrets';
 import {
   SECRETS, REALMS, HEART_REALM, ALL_REALMS, stepKey, stepOf, chainDone, circleDone, realmOpen, clueFor,
   type SecretChain, type SecretStep, type RealmDef,
@@ -13,6 +14,7 @@ const SAGE: NpcDef = { id: 'secret_rune', name: 'Runa Oculta', title: 'Cântico 
 const anchorName = (i: number) => BIOME_NAMES[TEMPLES[i % TEMPLES.length]!.biome];
 const itemName = (id: string) => ITEMS[id]?.name ?? id;
 export const secretClue = (s: SecretStep) => clueFor(s, anchorName, itemName);
+export const TOTAL_SECRET_DISCOVERIES = SECRETS.length + MAP_SECRET_TOTAL;
 
 /* ───────────── Posições (resolvidas uma vez, longe de paredes e templos) ───────────── */
 const posCache = new Map<string, { tx: number; ty: number }>();
@@ -51,9 +53,11 @@ const isDay = (g: Game) => g.time >= 0.375 && g.time <= 0.67;
 
 export function secretStats(g: Game) {
   const has = (k: string) => g.discoveries.has(k);
-  const done = SECRETS.filter((c) => chainDone(c, has)).length;
+  const chainsDone = SECRETS.filter((c) => chainDone(c, has)).length;
+  let mapFound = 0;
+  for (const key of g.discoveries) if (key.startsWith('map-secret:')) mapFound++;
   const realms = ALL_REALMS.filter((r) => g.openedChests.has(`realm_${r.id}-relic`)).length;
-  return { done, total: SECRETS.length, realms, totalRealms: ALL_REALMS.length };
+  return { done: chainsDone + mapFound, total: TOTAL_SECRET_DISCOVERIES, chainsDone, chainsTotal: SECRETS.length, mapFound, mapTotal: MAP_SECRET_TOTAL, realms, totalRealms: ALL_REALMS.length };
 }
 
 function advance(g: Game, a: Active) {
@@ -62,11 +66,11 @@ function advance(g: Game, a: Active) {
   const nextIdx = a.step + 1;
   if (nextIdx >= c.steps.length) {
     g.p.gold += c.reward.gold; g.gainXp(c.reward.xp); g.addItem(c.reward.item, c.reward.qty);
-    const r = REALMS[c.circle]!, n = circleDone(c.circle, (k) => g.discoveries.has(k));
+    const r = REALMS[c.circle]!, n = Math.min(r.need, circleDone(c.circle, (k) => g.discoveries.has(k)));
     let text = `✦ Segredo desvendado: ${c.name}.\n${c.lore}\n\n+${c.reward.gold} ouro · +${c.reward.xp} XP · ${c.reward.qty}× ${itemName(c.reward.item)}\n\nCírculo do ${r.name}: ${n}/${r.need} para abrir o portal.`;
     if (n === r.need) text += `\n\n🌀 O ${r.name} despertou! ${secretClue({ kind: 'touch', anchor: r.anchor, dx: r.dx, dy: r.dy }).split('.')[0]}.`;
     g.dialog = { npc: SAGE, text, choices: [{ label: 'Fechar', act: () => { g.dialog = null; } }] };
-    g.toast(`✦ ${c.name} (${secretStats(g).done}/${SECRETS.length})`, '#c0d0ff');
+    g.toast(`✦ ${c.name} (${secretStats(g).done}/${TOTAL_SECRET_DISCOVERIES})`, '#c0d0ff');
   } else {
     const next = c.steps[nextIdx]!;
     g.dialog = { npc: SAGE, text: `${c.name} · etapa ${nextIdx}/${c.steps.length} concluída.\n\nPróxima pista: ${secretClue(next)}`, choices: [{ label: 'Guardar a pista', act: () => { g.dialog = null; } }] };
@@ -94,6 +98,19 @@ function tryStep(g: Game, a: Active) {
   advance(g, a);
 }
 
+function claimMapSecret(g: Game, secret: MapSecret) {
+  if (g.discoveries.has(secret.key)) return;
+  if (!ITEMS[secret.item] || !g.addItem(secret.item, secret.qty)) return;
+  g.discoveries.add(secret.key);
+  activeCache = null;
+  g.p.gold += secret.gold;
+  g.gainXp(secret.xp);
+  g.audio.sfx('pickup');
+  g.burst(g.p.x, g.p.y - 12, secret.color, 20, 55, 2, -30);
+  g.dialog = { npc: SAGE, text: `${secret.name}\n\n${secret.lore}\n\n+${secret.gold} ouro · +${secret.xp} XP · ${secret.qty}× ${itemName(secret.item)}`, choices: [{ label: 'Guardar a lembrança', act: () => { g.dialog = null; } }] };
+  g.save();
+}
+
 function cluesDialog(g: Game) {
   const list = actives(g).filter((a) => a.step > 0).slice(0, 6);
   const s = secretStats(g);
@@ -115,7 +132,7 @@ export function realmFloor(r: RealmDef): DungeonFloor {
   const i = ALL_REALMS.indexOf(r);
   return generateFloor(Math.min(99, 20 + i * 6), {
     theme: { name: r.name, floor: r.floor, wall: r.wall, deco: r.deco, biome: r.biome, enemies: [...r.enemies], color: r.color, lore: r.lore },
-    seed: 77003 + i * 31337, size: { w: 84 + (i % 4) * 8, h: 64 + (i % 3) * 6 }, level: r.level, idPrefix: `realm_${r.id}`, eliteBonus: 0.12,
+    seed: 77003 + i * 31337, size: { w: 84 + (i % 4) * 8, h: 64 + (i % 3) * 6 }, level: r.level, idPrefix: `realm_${r.id}`, eliteBonus: 0.12, style: r.dungeonStyle ?? 'classic',
   });
 }
 export const realmDefOf = (t?: Temple) => ALL_REALMS.find((r) => t && `realm_${r.id}` === t.id);
@@ -129,6 +146,15 @@ export function secretSurfaceAction(g: Game, run: boolean, enterRealm: (r: Realm
     if (!realmOpen(r, has, relic)) continue;
     const p = realmPortalPos(g.overworld, r);
     if (near(g, p.tx, p.ty, 22)) { if (run) enterRealm(r); return `E · Portal do ${r.name} (Nv ${r.level}+)`; }
+  }
+  if (!g.interior && !g.depth && !g.island) {
+    const tx = g.p.x / TS, ty = g.p.y / TS;
+    const cache = mapSecretsInRect(g.overworld, tx - 3, ty - 3, tx + 3, ty + 3)
+      .find((s) => !g.discoveries.has(s.key) && near(g, s.tx, s.ty, 22));
+    if (cache) {
+      if (run) claimMapSecret(g, cache);
+      return `E · ${cache.name}`;
+    }
   }
   for (const a of actives(g)) {
     if (a.floor !== undefined || !near(g, a.tx, a.ty)) continue;
@@ -167,6 +193,7 @@ function rune(c: CanvasRenderingContext2D, tx: number, ty: number, col: string, 
 }
 export function drawSecrets(g: Game, c: CanvasRenderingContext2D, draws: { y: number; f: () => void }[], x0: number, y0: number, x1: number, y1: number, wt: number) {
   const vis = (tx: number, ty: number) => tx >= x0 - 2 && tx <= x1 + 2 && ty >= y0 - 2 && ty <= y1 + 3;
+  if (g.interior || g.island) return;
   if (g.depth) {
     if (g.depth.kind !== 'abyss') return;
     const f = g.depth.floor; if (!actives(g).some((a) => a.floor === f)) return;
@@ -183,6 +210,11 @@ export function drawSecrets(g: Game, c: CanvasRenderingContext2D, draws: { y: nu
     // A primeira runa de cada segredo só cintila quando você chega perto.
     const alpha = a.step > 0 ? 1 : Math.max(0, 1 - Math.hypot(g.p.x - a.tx * TS, g.p.y - a.ty * TS) / (TS * 6));
     if (alpha > 0.05) draws.push({ y: a.ty * TS + 4, f: () => rune(c, a.tx, a.ty, REALMS[a.chain.circle]!.color, wt, alpha) });
+  }
+  for (const s of mapSecretsInRect(g.overworld, x0, y0, x1, y1)) {
+    if (g.discoveries.has(s.key) || !vis(s.tx, s.ty)) continue;
+    const alpha = Math.max(0, 1 - Math.hypot(g.p.x - s.tx * TS, g.p.y - s.ty * TS) / (TS * 8));
+    if (alpha > 0.05) draws.push({ y: s.ty * TS + 4, f: () => rune(c, s.tx, s.ty, s.color, wt, alpha) });
   }
 }
 export function secretLights(g: Game, hole: (x: number, y: number, r: number, a?: number) => void) {

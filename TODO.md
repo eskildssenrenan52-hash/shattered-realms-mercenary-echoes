@@ -15,4 +15,13 @@
 - [x] Acrescentar quatro Reinos Ocultos com identidades próprias — Cidade das Lanternas Imóveis, Bosque dos Relógios Enraizados, Catedral de Sal Cantante e Forja dos Cometas Adormecidos — com lore, terreno, paleta, inimigos e relíquias específicos.
 - [x] Acrescentar 25 cadeias determinísticas de segredos por novo Reino (100 novas cadeias; 450 no total), sem alterar os IDs e a progressão dos 350 segredos já existentes.
 - [x] Acrescentar quatro construções exploráveis a Potos, preservando entrada, interiores e compatibilidade com saves antigos.
-- [ ] Executar testes, verificação TypeScript, build web e embalagem Android offline; criar APK debug se SDK/build-tools estiverem disponíveis.
+- [x] Executar testes, verificação TypeScript, build web, embalagem Android offline e compilar o APK debug após aceite autorizado da licença do SDK.
+
+## Continuação: 100× segredos, cidades e masmorras
+
+- [x] Atender “com 100 x mais segredos pelo mapa” preservando as 450 cadeias originais: totalizar 45.000 segredos entre as 650 cadeias (incluídas 200 nas oito regiões novas) e 44.350 descobertas determinísticas, locais e persistentes, indexadas por região para evitar custo global por quadro.
+- [x] Atender “muitos mais biomas secretos com designs únicos”: acrescentar oito Reinos Ocultos com paletas, fauna, itens, lore e arquitetura próprios.
+- [x] Atender “muitas novas cidades, construções”: integrar oito cidades acessíveis em setores de fronteira existentes, com 24 edifícios exploráveis, residentes, paletas próprias e 24 missões opcionais em cadeias de três etapas.
+- [x] Atender “mais tipos de masmorrar, dungeons, e muito mais mesmo”: acrescentar quatro perfis estruturais de dungeon, desafios e recompensas determinísticos.
+- [x] Atender “faça de tudo pro jogo ficar perfeito”: preservar IDs/saves, validar exploração, acessibilidade de locais, determinismo, build e regressões.
+- [x] Atender “crie um apk do jogo rodando offline sem dependência nenhuma, com tela inicial e tudo”: garantir a tela de título no Android; incluir todos os recursos no pacote local; rebuild, inspecionar permissões/rede e publicar APK/commit.

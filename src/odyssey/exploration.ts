@@ -2,8 +2,8 @@ import type { World } from './world';
 import { W, H, TS, T, SOLID, hash } from './world';
 import { LEGACY_W, LEGACY_H, FRONTIER_GATES } from './frontier';
 
-export interface Building { id: string; name: string; x: number; y: number; w: number; h: number; kind: 'home' | 'inn' | 'smith' | 'alchemy' | 'library' | 'ruin'; resident?: string; secret?: boolean; note: string }
-export const BUILDINGS: Building[] = [
+export interface Building { id: string; name: string; x: number; y: number; w: number; h: number; kind: 'home' | 'inn' | 'smith' | 'alchemy' | 'library' | 'ruin'; resident?: string; secret?: boolean; accent?: string; note: string }
+const POTOS_BUILDINGS: Building[] = [
   { id: 'forge', name: 'Forja de Brunhild', x: 109, y: 119, w: 5, h: 4, kind: 'smith', resident: 'smith', note: 'O calor da forja nunca se apaga. Há um compartimento atrás das caixas.' },
   { id: 'lira', name: 'Ateliê de Lira', x: 130, y: 119, w: 5, h: 4, kind: 'alchemy', resident: 'alchemist', note: 'As flores azuis crescem perto de lugares onde a mana ainda é pura.' },
   { id: 'archive', name: 'Arquivo de Potos', x: 116, y: 112, w: 7, h: 5, kind: 'library', resident: 'elder', note: '“Sob a biblioteca, as raízes guardam o primeiro segredo. Examine a estante do fundo.”' },
@@ -32,6 +32,71 @@ export const BUILDINGS: Building[] = [
   { id: 'salt-inn', name: 'Pousada da Maré de Sal', x: 263, y: 132, w: 6, h: 4, kind: 'inn', resident: 'nomad', note: 'Os viajantes deixam conchas nas janelas; cada uma contém uma nota de uma cidade submersa.' },
   { id: 'comet-forge', name: 'Forja dos Cometas', x: 236, y: 184, w: 6, h: 5, kind: 'smith', resident: 'smith', note: 'O ferreiro usa pedra estelar fria e espera o dia em que o céu volte a nascer.' },
 ];
+export interface FrontierCity { id: string; name: string; gateId: string; biome: string; tx: number; ty: number; lore: string; color: string }
+const CITY_TALES = [
+  { gate: 0, name: 'Lúmen-Pétala', lore: 'As pétalas da avenida central mudam de cor com cada lembrança partilhada.', color: '#f1a7c4', buildings: [
+    ['salão_das_pétalas', 'Salão das Pétalas', 'library', 'lumen_keeper', 'O arquivo da cidade guarda folhas que caíram antes da fundação. Uma margem fala de um mapa sob as raízes.'],
+    ['oficina_rosada', 'Oficina Rosada', 'smith', 'smith', 'A ferreira grava o nome de cada aprendiz no cabo da primeira ferramenta que ele constrói.'],
+    ['pousada_borboleta', 'Pousada da Borboleta', 'inn', 'merchant', 'Uma viajante deixou bilhetes de três cidades que ainda não aparecem no Atlas.'],
+  ] },
+  { gate: 2, name: 'Prisma-Viva', lore: 'Mercadores trocam cacos de cristal por histórias, nunca por moedas.', color: '#8ce1d7', buildings: [
+    ['casa_dos_veios', 'Casa dos Veios', 'library', 'prism_keeper', 'O mestre dos cristais afirma que cada cor responde a um som diferente.'],
+    ['forja_prismatica', 'Forja Prismática', 'smith', 'smith', 'A bigorna tem sete marcas: uma para cada minério que veio do coração da montanha.'],
+    ['estalagem_espectro', 'Estalagem do Espectro', 'inn', 'nomad', 'Mapas de vidro mostram uma passagem segura entre os pilares do labirinto.'],
+  ] },
+  { gate: 4, name: 'Porto das Marés Doces', lore: 'O porto suspende lanternas azuis quando barcos fantasmas voltam para casa.', color: '#70bfd8', buildings: [
+    ['arquivo_mare', 'Arquivo da Maré', 'library', 'tide_keeper', 'Os livros são pesados com conchas. Um diário descreve sinos que continuam tocando no fundo do mar.'],
+    ['estaleiro_concha', 'Estaleiro da Concha', 'smith', 'smith', 'A oficina conserta cascos com madeira antiga e resina dos manguezais.'],
+    ['casa_marulho', 'Casa do Marulho', 'inn', 'merchant', 'Uma mesa está reservada para um capitão que ainda não regressou da travessia.'],
+  ] },
+  { gate: 6, name: 'Bambu do Zéfiro', lore: 'Pontes de bambu cantam quando os ventos indicam que uma caravana está próxima.', color: '#92c994', buildings: [
+    ['escola_dos_ventos', 'Escola dos Ventos', 'library', 'zephyr_keeper', 'Os aprendizes aprendem primeiro a ouvir o vento, depois a escolher o caminho.'],
+    ['ateliê_jade', 'Ateliê de Jade', 'alchemy', 'alchemist', 'Chás de jade acalmam espíritos que perderam a direção entre as raízes.'],
+    ['pousada_grou', 'Pousada do Grou', 'inn', 'ranger', 'A guardiã das trilhas marca no mapa os lugares onde os bambus crescem ao contrário.'],
+  ] },
+  { gate: 8, name: 'Farol de Âmbar', lore: 'A cidade usa lentes de âmbar para guiar viajantes durante as tempestades de areia.', color: '#e6b46d', buildings: [
+    ['observatorio_ambar', 'Observatório de Âmbar', 'library', 'amber_keeper', 'A lente principal revela estradas que só existem ao meio-dia.'],
+    ['fundição_dourada', 'Fundição Dourada', 'smith', 'smith', 'O metal desta região fica mais resistente depois de uma noite sob as estrelas.'],
+    ['mercado_do_oasis', 'Mercado do Oásis', 'inn', 'merchant', 'Os caravaneiros aceitam ervas raras como pagamento por rotas secretas.'],
+  ] },
+  { gate: 9, name: 'Raiz de Trovão', lore: 'A muralha é feita de árvores que atraem relâmpagos e os guardam no tronco.', color: '#a6b3c8', buildings: [
+    ['casa_dos_tambores', 'Casa dos Tambores', 'library', 'storm_keeper', 'Cada tambor reproduz um trovão antigo; a sequência certa abre o portão do planalto.'],
+    ['oficina_raio', 'Oficina do Raio', 'smith', 'smith', 'As lâminas são temperadas durante uma tempestade, nunca dentro de uma fornalha.'],
+    ['estalagem_nuvem', 'Estalagem da Nuvem Baixa', 'inn', 'nomad', 'Um mapa dobrado indica as ruínas mais altas da fronteira.'],
+  ] },
+  { gate: 11, name: 'Mata dos Esporos', lore: 'Cogumelos luminosos formam uma rede de recados entre as casas da cidade.', color: '#bd9ad6', buildings: [
+    ['arquivo_micelio', 'Arquivo do Micélio', 'library', 'mycelium_keeper', 'As raízes trocam notícias entre si. O arquivo apenas traduz os sussurros.'],
+    ['botica_fosforescente', 'Botica Fosforescente', 'alchemy', 'alchemist', 'Uma gota de orvalho lunar cura feridas, mas revela por um instante o que foi esquecido.'],
+    ['pousada_cogumelo', 'Pousada do Cogumelo Azul', 'inn', 'merchant', 'Os hóspedes desenham em guardanapos os caminhos que tiveram coragem de seguir.'],
+  ] },
+  { gate: 14, name: 'Marbleira', lore: 'Escultores deixam espaços vazios nas estátuas para que a cidade possa mudar de ideia.', color: '#d8d4bd', buildings: [
+    ['museu_marmore', 'Museu do Mármore', 'library', 'marble_keeper', 'Uma sala vazia celebra todas as pessoas que ajudaram sem deixar o nome.'],
+    ['atelier_escultores', 'Ateliê dos Escultores', 'smith', 'smith', 'O escultor diz que o mármore tem memória e só precisa de tempo para falar.'],
+    ['hospedaria_quieta', 'Hospedaria da Praça', 'inn', 'ranger', 'Os bancos da praça apontam para os portões mais antigos do continente.'],
+  ] },
+];
+export const FRONTIER_CITIES: FrontierCity[] = CITY_TALES.map((city) => {
+  const gate = FRONTIER_GATES[city.gate]!;
+  return { id: `city_${gate.biome}`, name: city.name, gateId: gate.id, biome: gate.biome, tx: gate.tx, ty: gate.ty, lore: city.lore, color: city.color };
+});
+const CITY_BUILDINGS: Building[] = CITY_TALES.flatMap((city, i) => {
+  const district = FRONTIER_CITIES[i]!;
+  const points = [[-18, -17], [7, -17], [-5, 10]] as const;
+  return city.buildings.map(([suffix, name, kind, resident, note], j) => {
+    const [dx, dy] = points[j]!;
+    return { id: `${district.id}_${suffix}`, name: `${name} de ${district.name}`, x: district.tx + dx, y: district.ty + dy, w: j === 2 ? 8 : 6, h: 5, kind: kind as Building['kind'], resident, accent: district.color, note };
+  });
+});
+export const BUILDINGS: Building[] = [...POTOS_BUILDINGS, ...CITY_BUILDINGS];
+export function frontierCityAt(tx: number, ty: number) {
+  let nearest: FrontierCity | undefined;
+  let distance = Infinity;
+  for (const city of FRONTIER_CITIES) {
+    const d = Math.hypot(tx - city.tx, ty - city.ty);
+    if (d < distance) { nearest = city; distance = d; }
+  }
+  return distance <= 38 ? nearest : undefined;
+}
 export const doorOf = (b: Building) => ({ tx: b.x + Math.floor(b.w / 2), ty: b.y + b.h - 1 });
 export interface Treasure { id: string; tx: number; ty: number; gold: number; item: string; qty: number; name: string }
 export const TREASURES: Treasure[] = [

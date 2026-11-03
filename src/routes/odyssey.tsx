@@ -15,7 +15,7 @@ import { GameIcon } from "@/components/GameIcon";
 import { ACTS, BEATS, ECOS } from "@/odyssey/story";
 import { Modal, Section, Meter } from "@/components/GameModal";
 import { Button } from "@/components/ui/button";
-import { BUILDINGS, TREASURES } from "@/odyssey/exploration";
+import { BUILDINGS, FRONTIER_CITIES, TREASURES } from "@/odyssey/exploration";
 import { W, H } from "@/odyssey/world";
 import { Game, VW, VH } from "@/odyssey/engine";
 import { ITEMS, NPCS, QUESTS, SPIRITS, STATUES, SHOP, type Slot, type Stats } from "@/odyssey/data";
@@ -38,6 +38,7 @@ import { skipTutorial, startTutorial, TUTORIAL_FLOORS } from "@/odyssey/depthpla
 import { skipBossCard } from "@/odyssey/live-scenes";
 import { ISLANDS, bestBoat } from "@/odyssey/archipelago";
 import { ALL_REALMS, realmOpen } from "@/odyssey/secrets";
+import { secretStats } from "@/odyssey/secret-play";
 import { SAGA_REALMS, actRealmUnlocked, sagaBossId } from "@/odyssey/saga";
 import { sagaModeStatus, sagaPlaza, travelToActMap } from "@/odyssey/saga-play";
 import { ECHOES_BEYOND_CHRONICLES } from "@/odyssey/echoes-beyond";
@@ -432,9 +433,12 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
                 </div>
                 <div className="atlas-destinations">
                   <Button variant="outline" onClick={()=>{g.travel('village');setPanel(null);}}>Vila de Potos</Button>
-                  {FRONTIER_GATES.map(gate=><Button variant="outline" key={gate.id} onClick={()=>{g.travelFrontier(gate.id);setPanel(null);}}><Compass size={14}/>{gate.name}</Button>)}
+                  {FRONTIER_GATES.map(gate=>{const city=FRONTIER_CITIES.find((entry)=>entry.gateId===gate.id);return <Button variant="outline" key={gate.id} onClick={()=>{g.travelFrontier(gate.id);setPanel(null);}}><Compass size={14}/>{city?.name??gate.name}</Button>;})}
                   <Button variant="outline" disabled={!citadelUnlocked(g.bossesDone) || !!g.depth || !!g.island} onClick={()=>{g.travelCitadel();setPanel(null);}}><Crown size={14}/>{citadelUnlocked(g.bossesDone) ? `Cidadela de Gehenna · ${citadelBest(g.discoveries)}/${CITADEL_FLOORS}` : "Cidadela selada · conclua Gehenna"}</Button>
                 </div>
+                <Section title="Cidades de fronteira" aside={`${FRONTIER_CITIES.length} distritos`}>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">{FRONTIER_CITIES.map((city)=>{const buildings=BUILDINGS.filter((b)=>b.id.startsWith(`${city.id}_`)),found=buildings.filter((b)=>g.discoveries.has(b.id)).length;return <div key={city.id} className="game-panel p-2 text-[11px]" style={{borderColor:city.color}}><Button variant="outline" className="w-full justify-start" disabled={!!g.depth||!!g.island} onClick={()=>{g.travelFrontier(city.gateId);setPanel(null);}}><Compass size={14}/>{city.name}<small className="ml-auto opacity-70">{found}/{buildings.length}</small></Button><p className="mt-1 opacity-70">{city.lore}</p></div>;})}</div>
+                </Section>
                 <Section title="Mapa dos Atos" aside={`${SAGA_REALMS.filter((r) => r.gate === 'atos' && g.bossesDone.has(sagaBossId(r, r.zones.length - 1))).length}/${SAGA_REALMS.filter((r) => r.gate === 'atos').length}`}>
                   <div className="row-list">{SAGA_REALMS.filter((r) => r.gate === 'atos').map((r) => { const open = actRealmUnlocked(r.act ?? 1, g.questStatus), finished = g.bossesDone.has(sagaBossId(r, r.zones.length - 1)); return <div key={r.id} className="place-row"><span className={open ? 'text-primary' : 'text-muted-foreground'}>{finished ? '✓ ' : open ? '✦ ' : '🔒 '}Ato {r.act} · {r.name}</span><span>{open ? `${r.zones.length} zonas` : 'Fim do Ato necessário'}</span></div>; })}</div>
                 </Section>
@@ -452,10 +456,10 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
           </>
         )}
 
-        {panel === 'secrets' && g && <Modal title="Diário de Descobertas" onClose={()=>setPanel(null)}>
-          <div className="stat-tiles"><div className="stat-tile">{g.discoveries.size}/{BUILDINGS.length}<small>Lugares visitados</small></div><div className="stat-tile">{g.openedChests.size}/{TREASURES.length+BUILDINGS.length}<small>Tesouros encontrados</small></div></div>
+        {panel === 'secrets' && g && (()=>{const progress=secretStats(g),places=BUILDINGS.filter((b)=>g.discoveries.has(b.id)).length;return <Modal title="Diário de Descobertas" onClose={()=>setPanel(null)}>
+          <div className="stat-tiles"><div className="stat-tile">{progress.done.toLocaleString('pt-BR')}/{progress.total.toLocaleString('pt-BR')}<small>Segredos totais</small></div><div className="stat-tile">{progress.chainsDone}/{progress.chainsTotal}<small>Cadeias de enigmas</small></div><div className="stat-tile">{progress.mapFound.toLocaleString('pt-BR')}/{progress.mapTotal.toLocaleString('pt-BR')}<small>Segredos pelo mapa</small></div><div className="stat-tile">{places}/{BUILDINGS.length}<small>Lugares visitados</small></div><div className="stat-tile">{progress.realms}/{progress.totalRealms}<small>Relíquias de reinos</small></div><div className="stat-tile">{g.openedChests.size}/{TREASURES.length+BUILDINGS.length}<small>Tesouros encontrados</small></div></div>
           <Section title="Lugares"><div className="row-list">{BUILDINGS.map(b=><div key={b.id} className="place-row"><span className={g.discoveries.has(b.id)?'text-accent':'text-muted-foreground'}>{g.discoveries.has(b.id)?b.name:b.secret?'??? — Lugar esquecido':b.name}</span><span>{g.discoveries.has(b.id)?'◆':'◇'}</span></div>)}</div></Section>
-        </Modal>}
+        </Modal>;})()}
         {g && !title && !liveOn && g.cutscene && (
           <div className="cutscene absolute inset-0" onClick={() => g.advanceCutscene()} role="dialog" aria-label={g.cutscene.beat.title}>
             <div className="cutscene-bar cutscene-top"><span>{g.cutscene.beat.title}</span></div>

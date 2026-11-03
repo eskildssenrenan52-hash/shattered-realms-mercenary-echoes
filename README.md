@@ -1,6 +1,6 @@
 # Shattered Realms: Echoes Beyond
 
-RPG de ação 2D em Canvas com campanha, Saga, arquipélago, combate procedural, dungeons e versão Android offline. A rota web do jogo é `/odyssey`; o APK abre diretamente uma partida local. O manual completo em português está em [GUIA_DO_JOGADOR.md](GUIA_DO_JOGADOR.md), e o tutorial interativo pode ser reaberto dentro do jogo.
+RPG de ação 2D em Canvas com campanha, Saga, arquipélago, combate procedural, dungeons e versão Android offline. A rota web do jogo é `/odyssey`; o APK abre a tela de título local, onde é possível iniciar uma jornada ou continuar um save. O manual completo em português está em [GUIA_DO_JOGADOR.md](GUIA_DO_JOGADOR.md), e o tutorial interativo pode ser reaberto dentro do jogo.
 
 ## Conteúdo recente
 
@@ -15,8 +15,10 @@ RPG de ação 2D em Canvas com campanha, Saga, arquipélago, combate procedural,
 - A Companhia de Mercenários permite contratar até dois aliados simultâneos. Cada um tem vida, defesa, nível, vínculo, habilidade, capítulos pessoais e comportamento próprio; ao chegar a 15% de HP, recua e só retorna após uma recuperação demorada.
 - O Contrato Gacha usa somente ouro e Selos de Contrato ganhos em chefes. Há vinte personagens, cinco raridades, pity na décima tentativa, roster persistente, sinergias de dupla e capítulos que avançam pelo convívio; não existe compra com dinheiro real, energia limitada ou pressão de monetização.
 - A nova camada narrativa evita exposição forçada: as histórias entram por contratos, retornos a Potos, decisões de companhia, consequências de recuo e diálogos curtos que recontextualizam reinos já visitados.
-- O Cântico Oculto agora oferece 450 cadeias determinísticas (100 novas) e 18 Reinos Ocultos mais o Coração. Quatro regiões adicionais têm paletas, terreno, inimigos, relíquias e lore próprios: Cidade das Lanternas Imóveis, Bosque dos Relógios Enraizados, Catedral de Sal Cantante e Forja dos Cometas Adormecidos.
-- Potos recebeu quatro construções exploráveis ligadas às novas regiões; os IDs antigos de progresso e as chaves de save foram preservados.
+- O Cântico Oculto conserva as 450 cadeias e acrescenta 200: agora há 650 cadeias determinísticas, 26 Reinos Ocultos mais o Coração e 44.350 caches de exploração; total combinado: 45.000 segredos. Os 450 IDs antigos permanecem estáveis.
+- Oito Reinos Ocultos inéditos trazem paletas, terrenos, fauna, relíquias, histórias e dungeons desenhados para cada identidade. As masmorras variam entre labirintos estreitos, arenas de combate, cofres de tesouro e salas espelhadas.
+- Oito cidades de fronteira acrescentam 24 construções acessíveis, distritos com paletas próprias, moradores inéditos e 24 missões secundárias em cadeias de três etapas. O Atlas permite viajar diretamente aos novos destinos.
+- Potos conserva suas quatro construções antigas e todos os IDs de progresso/save existentes; as novas cidades e descobertas usam chaves separadas.
 
 ## Desenvolvimento e validação
 
@@ -37,7 +39,7 @@ pnpm run build
 
 ## APK Android offline
 
-As instruções completas estão em [ANDROID.md](ANDROID.md). O empacotador inclui HTML, JavaScript, fontes, imagens, áudio, efeitos e os cem pisos gerados no aplicativo. O jogo não precisa acessar um site nem de permissão de Internet; a Activity inicia a rota local do jogo automaticamente. Como é um WebView empacotado, ele usa o WebView de sistema que já acompanha o Android.
+As instruções completas estão em [ANDROID.md](ANDROID.md). O empacotador inclui o HTML, JavaScript, CSS, fontes, imagens e áudio necessários ao jogo no próprio APK; a campanha e os saves são locais e não dependem de servidor nem de permissão de Internet. O app abre primeiro a tela inicial do jogo e usa o WebView de sistema que acompanha o Android.
 
 No Linux, com Android SDK, build-tools, Gradle e JDK 21 configurados:
 

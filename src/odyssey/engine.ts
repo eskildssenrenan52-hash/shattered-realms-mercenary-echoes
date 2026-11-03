@@ -187,7 +187,7 @@ export class Game {
   }
   get localNpcs(): NpcDef[] {
     if (this.depth || this.island || this.sea) return [];
-    if (!this.interior) return [...NPCS, ...this.restoredNpcs()];
+    if (!this.interior) return [...NPCS.filter(n => !n.interiorOnly), ...this.restoredNpcs()];
     const npc = NPCS.find(n => n.id === this.interior?.resident);
     return npc ? [{ ...npc, tx: 121, ty: 100 }] : [];
   }

@@ -1,4 +1,4 @@
-// Os Segredos do Cântico Oculto: 450 enigmas em várias etapas e 18 biomas secretos (Reinos Ocultos).
+// Os Segredos do Cântico Oculto: cadeias de enigmas e biomas secretos (Reinos Ocultos).
 // Dado puro e determinístico (sem canvas) para que os testes validem todas as cadeias.
 import type { Biome, EnemyKind } from './data';
 import { T } from './world';
@@ -17,6 +17,8 @@ export interface RealmDef {
   floor: number; wall: number; deco: number; biome: Biome; enemies: EnemyKind[]; relic: string; relicName: string;
   /** Âncora do portal (índice de templo) e deslocamento. */
   anchor: number; dx: number; dy: number;
+  /** Perfil visual/espacial da masmorra própria deste Reino Oculto. */
+  dungeonStyle?: 'labyrinth' | 'gauntlet' | 'vault' | 'mirror';
 }
 
 export const SECRETS_PER_CIRCLE = 25;
@@ -42,18 +44,26 @@ export const REALMS: RealmDef[] = [
   { id: 'bosque_relogios', name: 'Bosque dos Relógios Enraizados', short: 'Relógios', color: '#b0e8a0', lore: 'Árvores crescem por dentro de relógios gigantes; cada anel de madeira marca uma estação que nunca aconteceu.', floor: T.MOSS, wall: T.ROCK, deco: T.MUSHROOM, biome: 'forest', enemies: ['treant', 'goblin', 'wisp'] },
   { id: 'catedral_sal', name: 'Catedral de Sal Cantante', short: 'Sal', color: '#d8f0ff', lore: 'Colunas de sal cristalizado guardam a última nota de cada navio que naufragou no mar interior.', floor: T.ICE, wall: T.CWALL, deco: T.CRYSTAL, biome: 'coast', enemies: ['wraith', 'jelly', 'golem'] },
   { id: 'forja_cometas', name: 'Forja dos Cometas Adormecidos', short: 'Cometas', color: '#ff9870', lore: 'Fragmentos de estrelas esfriam em fornalhas sem fogo; o ferreiro espera um céu que ainda não nasceu.', floor: T.ASH, wall: T.ROCK, deco: T.LAVA, biome: 'volcanic', enemies: ['golem', 'salamander', 'imp'] },
+  { id: 'bastiao_mare_reversa', name: 'Bastião da Maré Reversa', short: 'Maré Reversa', color: '#5ed6d1', lore: 'Uma fortaleza costeira onde a maré sobe pelas paredes e os guardas patrulham corredores que parecem rios suspensos.', floor: T.COBBLE, wall: T.PANEL, deco: T.WATER, biome: 'coast', enemies: ['jelly', 'serpent', 'wraith'], dungeonStyle: 'vault' },
+  { id: 'jardim_eclipse', name: 'Jardim do Eclipse de Ametista', short: 'Eclipse', color: '#a77be8', lore: 'Flores roxas só abrem quando a sombra da lua atravessa o sol; cada pétala registra um eclipse que ninguém viu.', floor: T.MOSS, wall: T.CWALL, deco: T.CRYSTAL, biome: 'autumn', enemies: ['pixie', 'shade', 'wisp'], dungeonStyle: 'labyrinth' },
+  { id: 'observatorio_meridiano', name: 'Observatório do Último Meridiano', short: 'Meridiano', color: '#f3c96a', lore: 'As lentes apontam para estrelas que ainda não nasceram. Os astrônomos deixaram mapas das constelações que virão.', floor: T.FLOOR, wall: T.PILLAR, deco: T.CRYSTAL, biome: 'mountain', enemies: ['gargoyle', 'sprite', 'golem'], dungeonStyle: 'mirror' },
+  { id: 'palacio_fundo_azul', name: 'Palácio do Fundo Azul', short: 'Fundo Azul', color: '#498ed4', lore: 'O palácio fica sob uma fenda sem água; seus salões mudam de lugar quando se ouve o sino mais grave.', floor: T.ICE, wall: T.PANEL, deco: T.WATER, biome: 'swamp', enemies: ['wraith', 'jelly', 'shade'], dungeonStyle: 'gauntlet' },
+  { id: 'catacumbas_vidro', name: 'Catacumbas do Vidro Negro', short: 'Vidro Negro', color: '#a2a4c8', lore: 'Espelhos de obsidiana guardam as vozes de viajantes que escolheram caminhos diferentes e nunca se encontraram.', floor: T.RUINS, wall: T.ROCK, deco: T.CRYSTAL, biome: 'ruins', enemies: ['mimic', 'shade', 'skeleton'], dungeonStyle: 'labyrinth' },
+  { id: 'bosque_fosforo', name: 'Bosque do Fósforo Vivo', short: 'Fósforo', color: '#77e5a2', lore: 'Raízes luminosas acendem sem se consumir. Pequenos guardiões protegem as sementes que mantêm a noite estrelada.', floor: T.MEADOW, wall: T.MUSHROOM, deco: T.CRYSTAL, biome: 'mushroom', enemies: ['sporeling', 'pixie', 'treant'], dungeonStyle: 'mirror' },
+  { id: 'cidade_raizes', name: 'Cidade Suspensa das Raízes', short: 'Raízes Suspensas', color: '#c08d65', lore: 'Casas crescem entre raízes pendentes sobre um vale sem fundo. Os elevadores ainda funcionam se alguém cantar.', floor: T.CAVE, wall: T.PANEL, deco: T.PILLAR, biome: 'forest', enemies: ['goblin', 'treant', 'gargoyle'], dungeonStyle: 'vault' },
+  { id: 'vale_meteoros', name: 'Vale dos Meteoros Adormecidos', short: 'Meteoros', color: '#f07052', lore: 'Cada cratera guarda uma estrela pequena demais para iluminar o céu, mas grande o bastante para lembrar seu nome.', floor: T.ASH, wall: T.CWALL, deco: T.LAVA, biome: 'volcanic', enemies: ['salamander', 'imp', 'golem'], dungeonStyle: 'gauntlet' },
 ].map((r, i) => ({
   ...r, need: REALM_NEED, level: 18 + i * 9,
   relic: `realm_relic_${r.id}`, relicName: `Relíquia do ${r.short}`,
   anchor: (i * 5 + 2) % 30, dx: (i % 2 ? 1 : -1) * (9 + (i % 4) * 3), dy: (i % 3 - 1) * 9 + 8,
 })) as RealmDef[];
 
-/** O 19º reino: só abre quando as 18 relíquias ocultas foram honradas. */
+/** O 27º reino: só abre quando as 26 relíquias ocultas foram honradas. */
 export const HEART_REALM: RealmDef = {
-  id: 'coracao_oculto', name: 'Coração do Cântico Oculto', short: 'Coração', color: '#fff0a0', need: 12, level: 140,
-  lore: 'Lírien guardou aqui a décima nona nota. Ninguém sabia que existia. Agora você sabe.',
+  id: 'coracao_oculto', name: 'Coração do Cântico Oculto', short: 'Coração', color: '#fff0a0', need: 12, level: 260,
+  lore: 'Lírien guardou aqui a vigésima sétima nota. Ninguém sabia que existia. Agora você sabe.',
   floor: T.FLOOR, wall: T.CWALL, deco: T.CRYSTAL, biome: 'ruins', enemies: ['shade', 'golem', 'wolf', 'scorpion'],
-  relic: 'realm_relic_coracao', relicName: 'Décima Nona Nota', anchor: 0, dx: 0, dy: 0,
+  relic: 'realm_relic_coracao', relicName: 'Vigésima Sétima Nota', anchor: 0, dx: 0, dy: 0,
 };
 export const ALL_REALMS = [...REALMS, HEART_REALM];
 
@@ -97,7 +107,7 @@ const RIDDLES: Riddle[] = [
   { q: 'Qual flor guarda frases não ditas?', options: ['A do Jardim dos Ecos', 'A rosa do deserto', 'A flor da lua'], correct: 0 },
   { q: 'Onde boiam os sonhos esquecidos?', options: ['No Mar de Vidro', 'Na Maré dos Sonhos', 'No Véu Estelar'], correct: 1 },
   { q: 'O que a Maré devolve quando a lua está cheia?', options: ['Sonhos', 'Sal', 'Espuma'], correct: 0 },
-  { q: 'Quantos Reinos Ocultos cercam o Coração?', options: ['Dezoito', 'Dezesseis', 'Catorze'], correct: 0 },
+  { q: 'Quantos Reinos Ocultos cercam o Coração?', options: ['Vinte e seis', 'Dezoito', 'Trinta'], correct: 0 },
   { q: 'O que o Baú Falso guarda de verdade?', options: ['Fome', 'Ouro', 'Chaves'], correct: 0 },
   { q: 'Quem martela o sol todas as manhãs?', options: ['A Forja da Aurora', 'O Colosso', 'Gorm'], correct: 0 },
 ];

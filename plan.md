@@ -14,6 +14,15 @@ Continuar o RPG 2D Canvas/React trazido do GitHub, sem trocar seu motor nem romp
 6. **Conteúdo e história.** Expandir a narrativa em módulos determinísticos: relatos urbanos, diários, ecos, histórias de moradores, missões ramificadas e epílogos. A meta é incluir mais de 120 fragmentos narrativos jogáveis, não apenas texto decorativo.
 7. **Novos reinos e cidades.** Criar novos reinos com cidades, progressão de zonas, chefes, escolhas e recompensas, reaproveitando com segurança o gerador de Saga.
 
+## Escopo desta continuação
+
+1. Preservar as 450 cadeias e seus IDs; ampliar o total de segredos do mapa para 45.000, com geração determinística por região e ativação espacial sob demanda para manter memória, saves e desempenho móvel sob controle.
+2. Acrescentar oito Reinos Ocultos com identidades, paletas, faunas, relíquias e arquitetura exclusivas; manter a associação de círculos, os portais, o Coração e as chaves de saves antigos.
+3. Integrar oito cidades de fronteira, com distritos de paleta própria, 24 prédios acessíveis, moradores inéditos, histórias opcionais e 24 missões encadeadas, em setores já existentes sem redimensionar nem reordenar o mapa.
+4. Criar quatro perfis de masmorra com geração estrutural distinta e determinística, mantendo separados o Abismo, a Cidadela e o conteúdo legado.
+5. Mostrar a tela de título no APK offline antes de carregar/continuar a partida; todo o HTML, JS, CSS, áudio, imagens e fontes continuam dentro do APK, sem dependência de rede.
+6. Validar compatibilidade de saves, alcance das cidades, distribuição dos segredos, conectividade e determinismo das dungeons, build web, pacote offline e APK debug; revisar, publicar e verificar o commit no GitHub.
+
 ## Dez sistemas ambiciosos adicionais
 
 1. **Cartografia viva de Vésper:** mapas que mudam conforme escolhas, segredos e ilhas exploradas.

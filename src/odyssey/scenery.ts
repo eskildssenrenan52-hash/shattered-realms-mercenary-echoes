@@ -5,9 +5,10 @@ const box=(c:Ctx,x:number,y:number,w:number,h:number,col:string)=>{c.fillStyle=c
 export function drawBuildings(c:Ctx,time:number) {
   for(const b of BUILDINGS){
     const x=b.x*TS,y=b.y*TS,w=b.w*TS,h=b.h*TS;
+    const roof=b.accent??(b.secret?'#677e87':'#943e48');
     box(c,x+4,y+h-4,w,8,'#23392b60');
-    box(c,x-3,y-2,w+6,h-25,b.secret?'#677e87':'#943e48');
-    for(let row=0;row<h-26;row+=5){box(c,x-3,y+row,w+6,1,b.secret?'#899b9c':'#ca6761');for(let col=0;col<w;col+=9)box(c,x+col+(row%2)*4,y+row,1,5,b.secret?'#435e6a':'#6c3544');}
+    box(c,x-3,y-2,w+6,h-25,roof);
+    for(let row=0;row<h-26;row+=5){box(c,x-3,y+row,w+6,1,b.secret?'#899b9c':b.accent?'#ffffff70':'#ca6761');for(let col=0;col<w;col+=9)box(c,x+col+(row%2)*4,y+row,1,5,b.secret?'#435e6a':'#6c3544');}
     box(c,x-4,y+h-28,w+8,3,'#4d3540');box(c,x-4,y-4,w+8,3,'#e5a380');
     box(c,x,y+h-25,w,25,'#e2d7b4');box(c,x,y+h-25,3,25,'#6e5546');box(c,x+w-3,y+h-25,3,25,'#6e5546');box(c,x,y+h-4,w,4,'#87735a');
     const d=doorOf(b);box(c,d.tx*TS-2,d.ty*TS-7,20,23,'#76523b');box(c,d.tx*TS+1,d.ty*TS-5,14,21,'#263637');box(c,d.tx*TS+2,d.ty*TS-4,2,18,'#ba9060');
