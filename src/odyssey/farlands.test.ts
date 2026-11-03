@@ -4,6 +4,7 @@ import { BIOME_LIST } from "./world";
 import { FARLANDS_SEED, FARLANDS_SITES, farlandsInteractionId, generateFarlandsWorld, resolveFarlandsSites } from "./farlands";
 import { generateWorld, SOLID, T, W } from "./world";
 import { carveBiomeMineEntrances } from "./biome-mine-sites";
+import { farlandsNpcs } from "./farlands-npcs";
 
 describe("Farlands", () => {
   it("expõe 24 locais nomeados, em biomas existentes e com recompensas do catálogo", () => {
@@ -32,6 +33,21 @@ describe("Farlands", () => {
     for (const mine of mines) {
       expect(world.tiles[mine.ty * W + mine.tx]).toBe(T.PATH);
       expect(SOLID.has(world.tiles[mine.ty * W + mine.tx]!)).toBe(false);
+    }
+  });
+
+  it("distribui moradores exclusivos de Farlands em locais caminháveis e sem cobrir os marcos", () => {
+    const world = generateFarlandsWorld();
+    const npcs = farlandsNpcs(world);
+    expect(npcs).toHaveLength(8);
+    expect(new Set(npcs.map((npc) => npc.id)).size).toBe(8);
+    expect(new Set(npcs.map((npc) => npc.ty * W + npc.tx)).size).toBe(8);
+    for (const npc of npcs) {
+      expect(SOLID.has(world.tiles[npc.ty * W + npc.tx]!)).toBe(false);
+      expect(npc.id).toMatch(/^farlands_/);
+      expect(npc.lines.length).toBeGreaterThan(0);
+      const nearestSite = Math.min(...resolveFarlandsSites(world).map((site) => Math.hypot(npc.tx - site.x, npc.ty - site.y)));
+      expect(nearestSite).toBeGreaterThan(2);
     }
   });
 

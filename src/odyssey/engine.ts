@@ -54,6 +54,7 @@ import { fxFor, type FxSig } from "./fx-catalog";
 import { shouldSpawnTwin, twinBossDef, twinEncounterKey } from "./boss-encounters";
 import { freshMercenaryState, sanitizeMercenaryState, tickMercenaries, drawMercenaries, mercGuardMult, mercDamageMult, type MercenaryState } from "./mercenaries";
 import { carveMainFarlandsGate, drawFarlands, ensureFarlandsWorld, farlandsAction } from "./farlands-play";
+import { farlandsNpcs } from "./farlands-npcs";
 import { registerForgeExpansion } from "./forge-expansion";
 import { carveBiomeMineEntrances, drawBiomeMineEntrances } from "./biome-mine-sites";
 import { biomeMineBestFloor, BIOME_MINE_FLOORS } from "./biome-mines";
@@ -196,7 +197,8 @@ export class Game {
     return npcs;
   }
   get localNpcs(): NpcDef[] {
-    if (this.depth || this.island || this.sea || this.farlandsActive) return [];
+    if (this.depth || this.island || this.sea) return [];
+    if (this.farlandsActive) return farlandsNpcs(this.world);
     if (!this.interior) return [...NPCS.filter(n => !n.interiorOnly), ...this.restoredNpcs()];
     const npc = NPCS.find(n => n.id === this.interior?.resident);
     return npc ? [{ ...npc, tx: 121, ty: 100 }] : [];
@@ -1839,7 +1841,7 @@ export class Game {
     { const k = this.mmScale; c.drawImage(this.minimap, sx / k, sy / k, mw / k, mh / k, mx, my, mw, mh); }
     for (const s of STATUES) { const x = s.tx - sx, y = s.ty - sy; if (x >= 0 && y >= 0 && x < mw && y < mh) { c.fillStyle = this.statues.has(s.id) ? "#60f0ff" : "#507080"; c.fillRect(mx + x - 1, my + y - 1, 3, 3); } }
     for (const e of this.enemies) if (e.boss && e.alive) { const x = e.hx / TS - sx, y = e.hy / TS - sy; if (x >= 0 && y >= 0 && x < mw && y < mh) { c.fillStyle = "#ff3030"; c.fillRect(mx + x - 1, my + y - 1, 3, 3); } }
-    for (const n of NPCS) { const x = n.tx - sx, y = n.ty - sy; if (x >= 0 && y >= 0 && x < mw && y < mh) { c.fillStyle = "#ffd040"; c.fillRect(mx + x, my + y, 1, 1); } }
+    for (const n of this.localNpcs) { const x = n.tx - sx, y = n.ty - sy; if (x >= 0 && y >= 0 && x < mw && y < mh) { c.fillStyle = "#ffd040"; c.fillRect(mx + x, my + y, 1, 1); } }
     const wp = this.waypoint();
     if (wp) {
       const x = Math.max(0, Math.min(mw - 1, wp.tx - sx)), y = Math.max(0, Math.min(mh - 1, wp.ty - sy));

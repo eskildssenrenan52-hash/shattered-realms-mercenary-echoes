@@ -8,6 +8,8 @@ import { bossHp, bossMeleeDamage } from './boss-tuning';
 import { depthAction, enterBiomeMine, enterCitadel, enterTutorialFloor, startTutorial, skipTutorial, surfaceEntrance, TUTORIAL_BOSS_ID, TUTORIAL_FLOORS } from './depthplay';
 import { biomeMineBossId } from './biome-mines';
 import { biomeMineEntrances } from './biome-mine-sites';
+import { farlandsAction, MAIN_FARLANDS_GATE } from './farlands-play';
+import { FARLANDS_PORTALS } from './farlands';
 import { CITADEL_FINAL_BEAT_ID, CITADEL_FINAL_BOSS_ID, CITADEL_UNLOCK_BOSS_ID } from './demon-citadel';
 
 // Canvas 2D falso: qualquer método é um no-op, gradientes aceitam addColorStop.
@@ -24,6 +26,33 @@ const make = (fresh = true) => { if (fresh) localStorage.clear(); const cv = doc
 
 describe('Engine — campanha integrada', { timeout: 90000 }, () => {
   const g = make();
+  it('mantém os moradores de Potos e oferece habitantes interativos no segundo continente', () => {
+    const k = make();
+    const originalNpcIds = ['elder', 'smith', 'alchemist', 'merchant', 'guard', 'ranger', 'nomad', 'hermit'];
+    expect(k.localNpcs.map((npc) => npc.id)).toEqual(expect.arrayContaining(originalNpcIds));
+
+    k.p.x = MAIN_FARLANDS_GATE.x * TS + 8; k.p.y = MAIN_FARLANDS_GATE.y * TS + 8;
+    farlandsAction(k, true);
+    expect(k.farlandsActive).toBe(true);
+    expect(k.localNpcs).toHaveLength(8);
+    expect(k.localNpcs.every((npc) => npc.id.startsWith('farlands_'))).toBe(true);
+    k.save();
+    const resumed = make(false);
+    resumed.load();
+    expect(resumed.farlandsActive).toBe(true);
+    expect(resumed.localNpcs).toHaveLength(8);
+    const npc = resumed.localNpcs[0]!;
+    resumed.p.x = npc.tx * TS + 8; resumed.p.y = npc.ty * TS + 8;
+    expect(resumed.nearNpc(26)?.id).toBe(npc.id);
+    resumed.talk(npc);
+    expect(resumed.dialog?.npc.id).toBe(npc.id);
+
+    const portal = FARLANDS_PORTALS[0];
+    resumed.p.x = portal.x * TS + 8; resumed.p.y = portal.y * TS + 8;
+    farlandsAction(resumed, true);
+    expect(resumed.farlandsActive).toBe(false);
+    expect(resumed.localNpcs.map((resident) => resident.id)).toEqual(expect.arrayContaining(originalNpcIds));
+  });
   it('entra na mina pela superfície, avança em sequência e conclui uma meta de andar por bioma', () => {
     const k = make(), site = biomeMineEntrances(k.overworld).find((entry) => entry.biome === 'plains')!;
     k.p.x = site.tx * TS + 8; k.p.y = site.ty * TS + 8;
