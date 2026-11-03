@@ -5,7 +5,9 @@ import { actChainQuests, ALL_ECO_BOSSES } from './story';
 import { FRONTIER_GATES, FRONTIER } from './frontier';
 import { TS } from './world';
 import { bossHp, bossMeleeDamage } from './boss-tuning';
-import { enterCitadel, enterTutorialFloor, startTutorial, skipTutorial, TUTORIAL_BOSS_ID, TUTORIAL_FLOORS } from './depthplay';
+import { depthAction, enterBiomeMine, enterCitadel, enterTutorialFloor, startTutorial, skipTutorial, surfaceEntrance, TUTORIAL_BOSS_ID, TUTORIAL_FLOORS } from './depthplay';
+import { biomeMineBossId } from './biome-mines';
+import { biomeMineEntrances } from './biome-mine-sites';
 import { CITADEL_FINAL_BEAT_ID, CITADEL_FINAL_BOSS_ID, CITADEL_UNLOCK_BOSS_ID } from './demon-citadel';
 
 // Canvas 2D falso: qualquer método é um no-op, gradientes aceitam addColorStop.
@@ -22,6 +24,32 @@ const make = (fresh = true) => { if (fresh) localStorage.clear(); const cv = doc
 
 describe('Engine — campanha integrada', { timeout: 90000 }, () => {
   const g = make();
+  it('entra na mina pela superfície, avança em sequência e conclui uma meta de andar por bioma', () => {
+    const k = make(), site = biomeMineEntrances(k.overworld).find((entry) => entry.biome === 'plains')!;
+    k.p.x = site.tx * TS + 8; k.p.y = site.ty * TS + 8;
+    expect(surfaceEntrance(k, false)).toContain('Mina de');
+    surfaceEntrance(k, true);
+    expect(k.depth?.kind).toBe('biome-mine'); expect(k.depth?.floor).toBe(1);
+    const quest = QUESTS.find((entry) => entry.id === 'deep_route_01_4')!;
+    k.questStatus[quest.id] = 'active';
+    for (let floor = 1; floor < 4; floor++) {
+      const stairs = k.depth!.data.stairs;
+      k.p.x = stairs.tx * TS + 8; k.p.y = stairs.ty * TS + 8;
+      expect(depthAction(k, true)).toContain(`andar ${floor + 1}`);
+      expect(k.depth?.floor).toBe(floor + 1);
+    }
+    expect(k.questReady(quest)).toBe(true);
+  });
+  it('cria o chefe no décimo andar e mantém a saída fechada até a vitória', () => {
+    const k = make(); enterBiomeMine(k, 'plains', 10);
+    const floor = k.depth!, bossId = biomeMineBossId('plains');
+    expect(floor.data.boss?.id).toBe(bossId);
+    const stairs = floor.data.stairs; k.p.x = stairs.tx * TS + 8; k.p.y = stairs.ty * TS + 8;
+    expect(depthAction(k, false)).toBe('Saída selada pelo chefe');
+    k.bossesDone.add(bossId);
+    expect(depthAction(k, true)).toBe('E · Sair da mina após a vitória');
+    expect(k.depth).toBeNull();
+  });
   it('só libera os Vigias depois de salvar a Árvore (Ato I) e respeita requiresAll entre atos', () => {
     expect(g.availableQuest('vigia_sunflower')).toBeUndefined();
     g.questStatus['m6'] = 'done';

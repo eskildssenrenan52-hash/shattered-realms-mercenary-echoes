@@ -1,5 +1,6 @@
 import type { Game, Enemy } from "./engine";
 import { K_SHEETS, K_DIR, drawK } from "./kaetram";
+import { ITEMS, type Slot } from "./data";
 
 export type MercRarity = "comum" | "incomum" | "raro" | "epico" | "lendario";
 export type MercRole = "guardiao" | "duelista" | "mago" | "curandeira" | "lenda";
@@ -44,6 +45,9 @@ export interface MercenaryRecord {
   cooldown: number;
   x: number;
   y: number;
+  equipment?: Partial<Record<Slot, string | null>>;
+  talents?: [number, number, number];
+  expeditionId?: string | null | undefined;
 }
 
 export interface MercenaryState {
@@ -54,8 +58,16 @@ export interface MercenaryState {
   totalRolls: number;
   chapters: string[];
   duoBonds: string[];
+  expeditions?: MercenaryExpedition[];
 }
 
+export interface MercenaryExpedition { id: string; mercenaryId: string; remaining: number; status: "running" | "complete" | "claimed"; seed: number; kind?: string; }
+export const TALENT_PATHS = [
+  { id: "assalto", name: "Assalto", desc: "+3% dano por rank", cost: (rank: number) => 100 + rank * 75 },
+  { id: "guardia", name: "Guarda", desc: "+2 defesa efetiva por rank", cost: (rank: number) => 100 + rank * 75 },
+  { id: "veterania", name: "Veterania", desc: "+4% HP máximo por rank", cost: (rank: number) => 100 + rank * 75 },
+] as const;
+export const EXPEDITIONS = [{ id: "patrulha", name: "Patrulha da Fronteira", duration: 90, xp: 35, gold: 45, item: "herb" }, { id: "ruinas", name: "Ruínas Silentes", duration: 180, xp: 70, gold: 100, item: "iron_ore" }] as const;
 const M = (d: MercenaryDef): MercenaryDef => d;
 export const MERCENARIES: MercenaryDef[] = [
   M({ id: "ferrovia", name: "Ferrovia", title: "A Muralha que Caminha", rarity: "comum", role: "guardiao", element: "ferro", portrait: "/mercenaries/runtime/ferrovia.webp", sheet: "/mercenaries/sheets/ferrovia.png", weapon: "ironsword", maxHp: 92, atk: 9, def: 8, speed: 42, attackRange: 24, attackCooldown: 1.8, recoverySeconds: 38, lore: "Ferrovia escolta refugiados pelas estradas onde a guerra deixou placas sem nome.", contract: "Ela não pede glória: pede que ninguém fique para trás.", skill: "Interposição: reduz em 24% o dano que chega ao herói quando está perto.", color: "#7fc8c0" }),
@@ -89,15 +101,21 @@ export const MERC_RARITY: Record<MercRarity, { label: string; color: string; wei
 };
 
 export const freshMercenaryState = (): MercenaryState => ({ roster: [], active: [null, null], contractSeals: 3, pity: 0, totalRolls: 0, chapters: [], duoBonds: [] });
-const seededRecord = (id: string): MercenaryRecord => ({ id, level: 1, xp: 0, bond: 0, hp: MERC_BY_ID[id]!.maxHp, state: "reserva", recovery: 0, victories: 0, attacks: 0, storyBeat: 0, cooldown: 0, x: 0, y: 0 });
+const seededRecord = (id: string): MercenaryRecord => ({ id, level: 1, xp: 0, bond: 0, hp: MERC_BY_ID[id]!.maxHp, state: "reserva", recovery: 0, victories: 0, attacks: 0, storyBeat: 0, cooldown: 0, x: 0, y: 0, equipment: {}, talents: [0, 0, 0], expeditionId: null });
+function sanitizeEquipment(raw: unknown): Partial<Record<Slot, string | null>> { const out: Partial<Record<Slot, string | null>> = {}; if (!raw || typeof raw !== "object") return out; for (const slot of ["weapon", "armor", "ring", "amulet"] as Slot[]) { const id = (raw as Record<string, unknown>)[slot]; if (typeof id === "string" && ITEMS[id]?.type === slot) out[slot] = id; } return out; }
+function sanitizeTalents(raw: unknown): [number, number, number] { const a = Array.isArray(raw) ? raw : []; return [0,1,2].map(i => Math.max(0, Math.min(5, Math.floor(Number(a[i]) || 0)))) as [number,number,number]; }
+export function trainMercenary(g: Game, id: string, path: 0|1|2): boolean { const m = record(g,id); if (!m || !Number.isInteger(path) || path<0 || path>2) return false; m.talents = sanitizeTalents(m.talents); const rank=m.talents[path]; const cost=TALENT_PATHS[path].cost(rank); if(rank>=5 || m.level<rank+1 || g.p.gold<cost) return false; g.p.gold-=cost; m.talents[path]++; g.save(); return true; }
+export function equipMercenary(g: Game, id: string, slot: Slot, itemId: string | null): boolean { const m=record(g,id); if(!m || !["weapon","armor","ring","amulet"].includes(slot)) return false; if(itemId && (ITEMS[itemId]?.type!==slot || g.count(itemId)<1)) return false; m.equipment={...m.equipment}; if(itemId) m.equipment[slot]=itemId; else delete m.equipment[slot]; g.save(); return true; }
+export function startMercenaryExpedition(g: Game, id: string, expeditionId: string): boolean { const m=record(g,id), def=EXPEDITIONS.find(e=>e.id===expeditionId); if(!m || !def || m.state!=="reserva" || m.expeditionId) return false; const e: MercenaryExpedition={id:`exp:${id}:${g.clock|0}:${g.mercenaries.expeditions?.length||0}`, mercenaryId:id, remaining:def.duration, status:"running", seed:(g.clock|0)+id.length, kind:expeditionId}; g.mercenaries.expeditions=[...(g.mercenaries.expeditions||[]),e]; m.expeditionId=e.id; g.save(); return true; }
+export function resolveMercenaryExpedition(g: Game, expeditionId: string): boolean { const e=g.mercenaries.expeditions?.find(x=>x.id===expeditionId); if(!e || e.status!=="complete") return false; const reward=EXPEDITIONS.find(x=>x.id===e.kind); if(!reward) return false; if(g.inventory.length>=g.INV_MAX && !g.inventory.some(s=>s.id===reward.item)) return false; if(!g.addItem(reward.item)) return false; const m=record(g,e.mercenaryId); if(m){m.xp+=reward.xp; m.expeditionId=null;} g.p.gold+=reward.gold; e.status="claimed"; g.save(); return true; }
 export function sanitizeMercenaryState(raw: unknown): MercenaryState {
   const base = freshMercenaryState(); if (!raw || typeof raw !== "object") return base; const r = raw as Partial<MercenaryState>;
-  const roster = Array.isArray(r.roster) ? r.roster.filter((x): x is MercenaryRecord => !!x && typeof x === "object" && typeof (x as MercenaryRecord).id === "string" && !!MERC_BY_ID[(x as MercenaryRecord).id]).map((x) => ({ ...seededRecord(x.id), ...x, hp: Math.max(0, Math.min(MERC_BY_ID[x.id]!.maxHp + x.level * 8, Number(x.hp) || 0)) })) : [];
+  const roster = Array.isArray(r.roster) ? r.roster.filter((x): x is MercenaryRecord => !!x && typeof x === "object" && typeof (x as MercenaryRecord).id === "string" && !!MERC_BY_ID[(x as MercenaryRecord).id]).map((x) => ({ ...seededRecord(x.id), ...x, hp: Math.max(0, Math.min(MERC_BY_ID[x.id]!.maxHp + (Number(x.level) || 1) * 8, Number(x.hp) || 0)), equipment: sanitizeEquipment((x as MercenaryRecord & {equipment?: unknown}).equipment), talents: sanitizeTalents((x as MercenaryRecord & {talents?: unknown}).talents), expeditionId: typeof (x as MercenaryRecord & {expeditionId?: unknown}).expeditionId === "string" ? (x as MercenaryRecord).expeditionId : null })) : [];
   const active: [string | null, string | null] = [Array.isArray(r.active) && typeof r.active[0] === "string" ? r.active[0] : null, Array.isArray(r.active) && typeof r.active[1] === "string" ? r.active[1] : null];
-  return { roster, active: active.map((id) => roster.some((m) => m.id === id) ? id : null) as [string | null, string | null], contractSeals: Math.max(0, Number(r.contractSeals) || 0), pity: Math.max(0, Number(r.pity) || 0), totalRolls: Math.max(0, Number(r.totalRolls) || 0), chapters: Array.isArray(r.chapters) ? r.chapters.filter((x): x is string => typeof x === "string") : [], duoBonds: Array.isArray(r.duoBonds) ? r.duoBonds.filter((x): x is string => typeof x === "string") : [] };
+  return { roster, active: active.map((id) => roster.some((m) => m.id === id) ? id : null) as [string | null, string | null], contractSeals: Math.max(0, Number(r.contractSeals) || 0), pity: Math.max(0, Number(r.pity) || 0), totalRolls: Math.max(0, Number(r.totalRolls) || 0), chapters: Array.isArray(r.chapters) ? r.chapters.filter((x): x is string => typeof x === "string") : [], duoBonds: Array.isArray(r.duoBonds) ? r.duoBonds.filter((x): x is string => typeof x === "string") : [], expeditions: Array.isArray((r as MercenaryState).expeditions) ? (r as MercenaryState).expeditions!.filter((e) => e && typeof e.id === "string" && roster.some((m) => m.id === e.mercenaryId) && ["running", "complete", "claimed"].includes(e.status)).map((e) => ({...e, remaining: Math.max(0, Number(e.remaining)||0), seed: Number(e.seed)||1 })) : [] };
 }
 const record = (g: Game, id: string) => g.mercenaries.roster.find((m) => m.id === id);
-const maxHp = (m: MercenaryRecord) => MERC_BY_ID[m.id]!.maxHp + (m.level - 1) * 8;
+const maxHp = (m: MercenaryRecord) => Math.round((MERC_BY_ID[m.id]!.maxHp + (m.level - 1) * 8 + Object.values(m.equipment||{}).reduce((v,id)=>v+(id?ITEMS[id]?.bonus?.hp||0:0),0)) * (1 + sanitizeTalents(m.talents)[2]*0.04));
 export const activeMercenaries = (g: Game) => g.mercenaries.active.map((id) => id ? record(g, id) : undefined).filter((m): m is MercenaryRecord => !!m && m.state === "ativo");
 export const mercGuardMult = (g: Game) => activeMercenaries(g).some((m) => MERC_BY_ID[m.id]!.role === "guardiao" && Math.hypot(m.x - g.p.x, m.y - g.p.y) < 70) ? 0.76 : 1;
 export const mercDamageMult = (g: Game) => activeMercenaries(g).some((m) => MERC_BY_ID[m.id]!.role === "lenda" && m.hp > maxHp(m) * 0.5) ? 1.12 : 1;
@@ -112,7 +130,7 @@ export function assignMercenary(g: Game, id: string, slot: 0 | 1) { const m = re
 export function dismissMercenary(g: Game, slot: 0 | 1) { const id = g.mercenaries.active[slot]; if (!id) return; const m = record(g, id); if (m) m.state = "reserva"; g.mercenaries.active[slot] = null; updateDuo(g); g.save(); }
 function updateDuo(g: Game) { const [a, b] = g.mercenaries.active; if (a && b) { const key = [a, b].sort().join("+"); if (!g.mercenaries.duoBonds.includes(key)) g.mercenaries.duoBonds.push(key); } }
 function startRetreat(g: Game, m: MercenaryRecord) { m.state = "recuando"; m.recovery = MERC_BY_ID[m.id]!.recoverySeconds; g.mercenaries.active = g.mercenaries.active.map((id) => id === m.id ? null : id) as [string | null, string | null]; g.toast(`${MERC_BY_ID[m.id]!.name} recuou para tratar os ferimentos.`, "#ff9a70"); }
-function damageMerc(g: Game, m: MercenaryRecord, amount: number) { const d = Math.max(1, Math.round(amount - MERC_BY_ID[m.id]!.def * 0.35)); m.hp -= d; g.float(m.x, m.y - 18, `-${d}`, "#ff9a70"); if (m.hp <= maxHp(m) * 0.15) { m.hp = Math.max(1, m.hp); startRetreat(g, m); } }
+function damageMerc(g: Game, m: MercenaryRecord, amount: number) { const d = Math.max(1, Math.round(amount - (MERC_BY_ID[m.id]!.def + Object.values(m.equipment||{}).reduce((v,id)=>v+(id?ITEMS[id]?.def||0:0),0) + sanitizeTalents(m.talents)[1]*2) * 0.35)); m.hp -= d; g.float(m.x, m.y - 18, `-${d}`, "#ff9a70"); if (m.hp <= maxHp(m) * 0.15) { m.hp = Math.max(1, m.hp); startRetreat(g, m); } }
 /** Distância a partir da qual o mercenário reaparece ao lado do herói (portas, viagem rápida, mar). */
 export const MERC_SNAP_DISTANCE = 160;
 export function followHero(g: Game, m: MercenaryRecord, slot: number, dt: number) {
@@ -125,13 +143,14 @@ export function followHero(g: Game, m: MercenaryRecord, slot: number, dt: number
   m.x += dx / dist * Math.min(step, dist); m.y += dy / dist * Math.min(step, dist);
 }
 export function tickMercenaries(g: Game, dt: number) {
+  for (const e of g.mercenaries.expeditions || []) if(e.status === "running") { e.remaining=Math.max(0,e.remaining-dt); if(e.remaining===0) e.status="complete"; }
   for (const m of g.mercenaries.roster) { const def = MERC_BY_ID[m.id]!; if (m.state === "recuando" || m.state === "recuperando") { m.recovery -= dt; m.hp = Math.min(maxHp(m), m.hp + maxHp(m) / def.recoverySeconds * dt); if (m.hp >= maxHp(m) && m.recovery <= 0) { m.hp = maxHp(m); m.state = "reserva"; g.toast(`${def.name} terminou a recuperação e pode voltar.`, "#8ff0b0"); } continue; } m.cooldown -= dt; }
   const active = activeMercenaries(g); if (!active.length) return;
   // Seguir o herói vale em todo lugar (casas, treino, masmorras); só o combate fica restrito.
   active.forEach((m, slot) => followHero(g, m, slot, dt));
   if (g.interior || g.depth?.kind === "tutorial") return;
   const enemies = g.enemies.filter((e) => e.alive && !e.summoned); const near = (e: Enemy) => Math.hypot(e.x - g.p.x, e.y - g.p.y) < 170; const targets = enemies.filter(near);
-  active.forEach((m) => { const def = MERC_BY_ID[m.id]!; const target = targets.sort((a, b) => Math.hypot(a.x - m.x, a.y - m.y) - Math.hypot(b.x - m.x, b.y - m.y))[0]; if (target && m.cooldown <= 0 && Math.hypot(target.x - m.x, target.y - m.y) <= def.attackRange) { m.cooldown = def.attackCooldown; m.attacks++; const power = (def.atk + m.level * 2 + (m.bond >= 50 ? 4 : 0)) * mercDamageMult(g); g.damageEnemy(target, power, 0, 0, def.color, 0.72); if (def.role === "mago") for (const splash of enemies) if (splash !== target && splash.alive && Math.hypot(splash.x - target.x, splash.y - target.y) < 38) g.damageEnemy(splash, power * 0.45, 0, 0, def.color, 0.45); if (def.role === "duelista" && m.attacks % 3 === 0) target.slow = Math.max(target.slow, 2.5); if (!target.alive || target.hp <= 0) m.victories += 1; m.xp += 2; if (m.xp >= m.level * 50) { m.xp = 0; m.level++; g.toast(`${def.name} alcançou o nível ${m.level}.`, def.color); } m.bond = Math.min(100, m.bond + 0.05); }
+  active.forEach((m) => { const def = MERC_BY_ID[m.id]!; const target = targets.sort((a, b) => Math.hypot(a.x - m.x, a.y - m.y) - Math.hypot(b.x - m.x, b.y - m.y))[0]; if (target && m.cooldown <= 0 && Math.hypot(target.x - m.x, target.y - m.y) <= def.attackRange) { m.cooldown = def.attackCooldown; m.attacks++; const gear=Object.values(m.equipment||{}).filter((id): id is string=>!!id).map(id=>ITEMS[id]).filter(Boolean); const talent=sanitizeTalents(m.talents); const power = (def.atk + m.level * 2 + (m.bond >= 50 ? 4 : 0) + gear.reduce((v,it)=>v+(it.atk||0),0) + talent[0]*2) * (1+talent[0]*0.03) * mercDamageMult(g); g.damageEnemy(target, power, 0, 0, def.color, 0.72); if (def.role === "mago") for (const splash of enemies) if (splash !== target && splash.alive && Math.hypot(splash.x - target.x, splash.y - target.y) < 38) g.damageEnemy(splash, power * 0.45, 0, 0, def.color, 0.45); if (def.role === "duelista" && m.attacks % 3 === 0) target.slow = Math.max(target.slow, 2.5); if (!target.alive || target.hp <= 0) m.victories += 1; m.xp += 2; if (m.xp >= m.level * 50) { m.xp = 0; m.level++; g.toast(`${def.name} alcançou o nível ${m.level}.`, def.color); } m.bond = Math.min(100, m.bond + 0.05); }
     const danger = enemies.find((e) => e.alive && Math.hypot(e.x - m.x, e.y - m.y) < 22); if (danger && Math.random() < dt * 1.7) damageMerc(g, m, danger.atk * 0.42);
     if (def.role === "curandeira" && Math.floor(g.clock) % 9 === 0 && Math.floor(g.clock - dt) % 9 !== 0) g.p.hp = Math.min(g.maxHp(), g.p.hp + Math.round(g.maxHp() * 0.08));
   });

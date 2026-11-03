@@ -34,9 +34,9 @@ export interface World {
 }
 export const BIOME_LIST: Biome[] = ["plains", "forest", "desert", "cave", "mountain", "autumn", "swamp", "coast", "jungle", "volcanic", "mushroom", "meadow", "ruins", ...FRONTIER_KEYS];
 
-function biomeAt(x: number, y: number): Biome {
-  const nx = (noise(x / 12, y / 12, 3) - 0.5) * 16;
-  const ny = (noise(x / 12, y / 12, 5) - 0.5) * 16;
+function biomeAt(x: number, y: number, seed = 0): Biome {
+  const nx = (noise(x / 12, y / 12, 3 + seed) - 0.5) * 16;
+  const ny = (noise(x / 12, y / 12, 5 + seed) - 0.5) * 16;
   const X = x + nx, Y = y + ny;
   if (Y > 178) { if (X < 65) return "jungle"; if (X < 110) return "swamp"; if (X < 158) return "meadow"; if (X < 213) return "ruins"; if (X < 268) return "volcanic"; return "coast"; }
   if (Y > 140 && X < 78) return X < 38 ? "mushroom" : "autumn";
@@ -48,51 +48,54 @@ function biomeAt(x: number, y: number): Biome {
   return "plains";
 }
 
-export function generateWorld(): World {
+export function generateWorld(seed = 0): World {
   const tiles = new Uint8Array(W * H);
   const biomes = new Uint8Array(W * H);
+  const h = (x: number, y: number, s = 0) => hash(x, y, s + seed);
+  const n = (x: number, y: number, s = 0) => noise(x, y, s + seed);
+  const f = (x: number, y: number, s: number) => fbm(x, y, s + seed);
   const set = (x: number, y: number, t: number) => { if (x >= 0 && y >= 0 && x < W && y < H) tiles[y * W + x] = t; };
   const get = (x: number, y: number) => (x < 0 || y < 0 || x >= W || y >= H ? T.WATER : tiles[y * W + x]);
 
-  const shape = createShape(W, H);
+  const shape = createShape(W, H, seed);
   for (let y = 0; y < LEGACY_H + 32; y++) for (let x = 0; x < LEGACY_W + 32; x++) {
     if (!shape.legacy(x, y)) continue;
-    const b = biomeAt(x, y);
+    const b = biomeAt(x, y, seed);
     biomes[y * W + x] = BIOME_LIST.indexOf(b);
-    const n = fbm(x / 9, y / 9, 11);
-    const r = hash(x, y, 99);
+    const terrain = f(x / 9, y / 9, 11);
+    const r = h(x, y, 99);
     let t: number = T.GRASS;
-    if (b === "autumn") { t = n > .62 ? T.AUTUMN_TREE : T.AUTUMN; }
-    else if (b === "swamp") { t = n < .35 ? T.WATER : n > .63 ? T.DTREE : T.MOSS; }
-    else if (b === "coast") { t = n < .38 ? T.WATER : r > .95 ? T.PALM : T.SAND; }
-    else if (b === "jungle") { t = n > .58 ? T.PALM : r > .89 ? T.DTREE : T.MOSS; }
-    else if (b === "volcanic") { t = n < .28 ? T.LAVA : n > .64 ? T.ROCK : T.ASH; }
+    if (b === "autumn") { t = terrain > .62 ? T.AUTUMN_TREE : T.AUTUMN; }
+    else if (b === "swamp") { t = terrain < .35 ? T.WATER : terrain > .63 ? T.DTREE : T.MOSS; }
+    else if (b === "coast") { t = terrain < .38 ? T.WATER : r > .95 ? T.PALM : T.SAND; }
+    else if (b === "jungle") { t = terrain > .58 ? T.PALM : r > .89 ? T.DTREE : T.MOSS; }
+    else if (b === "volcanic") { t = terrain < .28 ? T.LAVA : terrain > .64 ? T.ROCK : T.ASH; }
     else if (b === "mushroom") { t = r > .86 ? T.MUSHROOM : T.MOSS; }
     else if (b === "meadow") { t = r > .48 ? T.MEADOW : T.FLOWER; }
-    else if (b === "ruins") { t = n > .69 ? T.PILLAR : r > .85 ? T.ROCK : T.RUINS; }
+    else if (b === "ruins") { t = terrain > .69 ? T.PILLAR : r > .85 ? T.ROCK : T.RUINS; }
     else if (b === "plains") {
       t = r < 0.06 ? T.FLOWER : T.GRASS;
-      if (n > 0.72) t = T.TREE;
-      if (n < 0.22) t = T.WATER;
+      if (terrain > 0.72) t = T.TREE;
+      if (terrain < 0.22) t = T.WATER;
       if (r > 0.985) t = T.BUSH;
     } else if (b === "forest") {
       t = r < 0.04 ? T.FLOWER : T.GRASS;
-      if (n > 0.48) t = r < 0.5 ? T.DTREE : T.TREE;
+      if (terrain > 0.48) t = r < 0.5 ? T.DTREE : T.TREE;
       else if (r > 0.93) t = T.TREE;
-      if (n < 0.2) t = T.WATER;
+      if (terrain < 0.2) t = T.WATER;
     } else if (b === "desert") {
-      t = n > 0.55 ? T.DUNE : T.SAND;
+      t = terrain > 0.55 ? T.DUNE : T.SAND;
       if (r > 0.985) t = T.CACTUS;
       else if (r > 0.975) t = T.BUSH;
-      if (n > 0.8) t = T.ROCK;
-      if (noise(x / 5, y / 5, 21) > 0.86) t = T.PILLAR;
+      if (terrain > 0.8) t = T.ROCK;
+      if (n(x / 5, y / 5, 21) > 0.86) t = T.PILLAR;
     } else if (b === "mountain") {
       t = T.SNOW;
-      if (n > 0.66) t = T.ROCK;
-      else if (n > 0.55 && r > 0.6) t = T.PINE;
-      else if (n < 0.3) t = T.ICE;
+      if (terrain > 0.66) t = T.ROCK;
+      else if (terrain > 0.55 && r > 0.6) t = T.PINE;
+      else if (terrain < 0.3) t = T.ICE;
     } else {
-      const c = fbm(x / 6, y / 6, 31);
+      const c = f(x / 6, y / 6, 31);
       t = c > 0.5 ? T.CAVE : T.CWALL;
       if (t === T.CAVE && r > 0.975) t = T.CRYSTAL;
     }
@@ -120,7 +123,7 @@ export function generateWorld(): World {
       const steps = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) * 2;
       for (let s = 0; s <= steps; s++) {
         const t = s / steps;
-        const wob = (noise(s / 10, i, 44) - 0.5) * 4;
+        const wob = (n(s / 10, i, 44) - 0.5) * 4;
         const x = Math.round(x0 + (x1 - x0) * t + (Math.abs(y1 - y0) > Math.abs(x1 - x0) ? wob : 0));
         const y = Math.round(y0 + (y1 - y0) * t + (Math.abs(y1 - y0) > Math.abs(x1 - x0) ? 0 : wob));
         for (let oy = -width; oy <= width; oy++) for (let ox = -width; ox <= width; ox++) {
@@ -151,7 +154,7 @@ export function generateWorld(): World {
   let cx = 184, cy = 58;
   for (let i = 0; i < 2500; i++) {
     clear(cx, cy, 1, T.CAVE);
-    const r = hash(i, 7, 77);
+    const r = h(i, 7, 77);
     cx += r < 0.25 ? 1 : r < 0.5 ? -1 : 0;
     cy += r >= 0.5 && r < 0.75 ? 1 : r >= 0.75 ? -1 : 0;
     cx = Math.max(172, Math.min(LEGACY_W - 5, cx)); cy = Math.max(5, Math.min(70, cy));
@@ -166,7 +169,7 @@ export function generateWorld(): World {
     const street = (Math.abs(y - 108) <= 1 || Math.abs(y - 126) <= 1 || Math.abs(y - 140) <= 1 || Math.abs(x - 103) <= 1 || Math.abs(x - 122) <= 1 || Math.abs(x - 140) <= 1);
     const wallRing = e > 0.96 && !(Math.abs(y - 126) <= 2 || Math.abs(x - 122) <= 2 || Math.abs(y - 108) <= 1 || Math.abs(x - 103) <= 1);
     const prev = tiles[y * W + x], gate = prev === T.PATH || prev === T.BRIDGE || prev === T.SAND || prev === T.SNOW;
-    set(x, y, wallRing && !gate ? T.WALL : gate && !street ? T.PATH : street ? T.COBBLE : hash(x, y, 61) > .93 ? T.FLOWER : T.GRASS);
+    set(x, y, wallRing && !gate ? T.WALL : gate && !street ? T.PATH : street ? T.COBBLE : h(x, y, 61) > .93 ? T.FLOWER : T.GRASS);
   }
   // Fountain plazas and street trees.
   for (const [px, py] of [[103, 140], [140, 108], [103, 108]] as [number, number][]) { clear(px, py, 3, T.COBBLE); set(px, py, T.WATER); }
@@ -193,17 +196,17 @@ export function generateWorld(): World {
   for (let y = 4; y < LEGACY_H - 4; y++) for (let x = 4; x < LEGACY_W - 4; x++) {
     const t = tiles[y * W + x];
     if (SOLID.has(t) || t === T.COBBLE || t === T.PATH) continue;
-    const r = hash(x, y, 555);
+    const r = h(x, y, 555);
     const b = BIOME_LIST[biomes[y * W + x]];
     let item: string | null = null;
     if (r < 0.012) {
-      if (b === "plains") item = hash(x, y, 4) < 0.8 ? "herb" : "iron_ore";
-      else if (b === "forest") item = hash(x, y, 4) < 0.5 ? "herb" : "wood";
-      else if (b === "desert") item = hash(x, y, 4) < 0.45 ? "desert_rose" : hash(x, y, 4) < 0.8 ? "iron_ore" : "mana_shard";
-      else if (b === "mountain") item = hash(x, y, 4) < 0.5 ? "frost_herb" : "iron_ore";
+      if (b === "plains") item = h(x, y, 4) < 0.8 ? "herb" : "iron_ore";
+      else if (b === "forest") item = h(x, y, 4) < 0.5 ? "herb" : "wood";
+      else if (b === "desert") item = h(x, y, 4) < 0.45 ? "desert_rose" : h(x, y, 4) < 0.8 ? "iron_ore" : "mana_shard";
+      else if (b === "mountain") item = h(x, y, 4) < 0.5 ? "frost_herb" : "iron_ore";
       else if (["autumn", "jungle", "swamp", "mushroom", "meadow"].includes(b)) item = r < .004 ? "wood" : "herb";
-      else if (["coast", "ruins", "volcanic"].includes(b)) item = ["copper_ore", "coal", "iron_ore", "stone"][Math.floor(hash(x,y,4)*4)];
-      else item = hash(x, y, 4) < 0.55 ? "crystal_ore" : "mana_shard";
+      else if (["coast", "ruins", "volcanic"].includes(b)) item = ["copper_ore", "coal", "iron_ore", "stone"][Math.floor(h(x,y,4)*4)];
+      else item = h(x, y, 4) < 0.55 ? "crystal_ore" : "mana_shard";
     }
     if (item) nodes.push({ id: id++, tx: x, ty: y, item, respawn: 0 });
   }
@@ -217,7 +220,7 @@ export function generateWorld(): World {
     set(x,y,T.GRASS); nodes.push({id:id++,tx:x,ty:y,item,respawn:0});
   }
   // Irregular continent: organic frontier regions, per-biome wall layouts and a random road graph.
-  paintFrontier({ tiles, biomes, W, H, shape, biomeId: b => BIOME_LIST.indexOf(b), pushNode: (tx, ty, item) => nodes.push({ id: id++, tx, ty, item, respawn: 0 }), road });
+  paintFrontier({ tiles, biomes, W, H, shape, biomeId: b => BIOME_LIST.indexOf(b), pushNode: (tx, ty, item) => nodes.push({ id: id++, tx, ty, item, respawn: 0 }), road }, seed);
   for(const gate of FRONTIER_GATES){
     clear(gate.tx,gate.ty,4,FRONTIER[gate.biome].ground);
     for(let y=-6;y<=6;y++)for(let x=-6;x<=6;x++)biomes[(gate.ty+y)*W+gate.tx+x]=BIOME_LIST.indexOf(gate.biome);

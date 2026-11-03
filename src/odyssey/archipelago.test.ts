@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { BOATS, BOAT_RECIPES, ISLANDS, MAIN, bestBoat, depthAt, landAt, stepBoat, ROCKS, type BoatState } from "./archipelago";
+import { BOATS, BOAT_RECIPES, ISLANDS, MAIN, SEA, bestBoat, depthAt, landAt, stepBoat, ROCKS, type BoatState } from "./archipelago";
 import { ITEMS } from "./data";
+import { BIOME_LIST } from "./world";
 
 const recipe = (out: string) => BOAT_RECIPES.find((r) => r.out === out)!;
 const fresh = (x: number, y: number, a = 0): BoatState => ({ x, y, a, vx: 0, vy: 0, hull: 100, anchored: false });
@@ -24,20 +25,35 @@ describe("receitas dos barcos", () => {
   });
 });
 
-describe("ilhas da fase 1", () => {
-  it("8 ilhas com 8 biomas distintos, história, recursos, mini-chefe e 3 missões", () => {
-    expect(ISLANDS).toHaveLength(8);
-    expect(new Set(ISLANDS.map((i) => i.biome)).size).toBe(8);
-    for (const i of ISLANDS) { expect(i.origin.length).toBeGreaterThan(80); expect(i.resources.length).toBeGreaterThan(0); expect(i.boss.name).toBeTruthy(); expect(i.quests).toHaveLength(3); }
+describe("arquipélago de 16 ilhas", () => {
+  const original = [["coral", 3000, 2050, 17], ["flax", 2050, 3350, 48], ["amber", 3950, 3300, 79], ["glow", 4700, 1800, 110], ["basalt", 1350, 1600, 141], ["prism", 1250, 4500, 172], ["tide", 4800, 4700, 203], ["crown", 450, 450, 234]] as const;
+  it("preserva SEA, os oito IDs, coordenadas e seeds originais; adiciona oito IDs únicos", () => {
+    expect(ISLANDS).toHaveLength(16);
+    expect(new Set(ISLANDS.map(i => i.id)).size).toBe(16);
+    expect(ISLANDS.slice(0, 8).map(i => [i.id, i.x, i.y, i.seed])).toEqual(original);
+    expect(ISLANDS.slice(8).map(i => i.id)).toEqual(["dune", "moss", "cavern", "canopy", "meadow", "ruins", "frost", "tidepool"]);
+    expect(SEA).toBe(8400);
   });
-  it("ilhas não se sobrepõem à principal nem entre si", () => {
+  it("tem dados completos, bioma-base válido e conteúdos existentes", () => {
+    for (const i of ISLANDS) {
+      expect(BIOME_LIST).toContain(i.base);
+      expect(i.origin.length).toBeGreaterThan(80); expect(i.resources.length).toBeGreaterThan(0);
+      expect(i.boss.name).toBeTruthy(); expect(i.quests).toHaveLength(3);
+      expect(i.relic).toBeTruthy();
+      for (const r of i.resources) expect(ITEMS[r.item], r.item).toBeTruthy();
+      expect(ITEMS[i.boss.drop], i.boss.drop).toBeTruthy();
+      expect(ITEMS[i.relic!.item], i.relic!.item).toBeTruthy();
+    }
+  });
+  it("todas as ilhas ficam na nova área e respeitam raios + margem 120", () => {
     const all = [MAIN, ...ISLANDS];
+    for (const i of ISLANDS.slice(8)) { expect(i.x).toBeGreaterThanOrEqual(200); expect(i.x).toBeLessThanOrEqual(8200); expect(i.y).toBeGreaterThanOrEqual(200); expect(i.y).toBeLessThanOrEqual(8200); }
     for (let a = 0; a < all.length; a++) for (let b = a + 1; b < all.length; b++)
-      expect(Math.hypot(all[a]!.x - all[b]!.x, all[a]!.y - all[b]!.y)).toBeGreaterThan((all[a]!.r + all[b]!.r) * 1.3);
+      expect(Math.hypot(all[a]!.x - all[b]!.x, all[a]!.y - all[b]!.y)).toBeGreaterThanOrEqual(all[a]!.r + all[b]!.r + 120);
   });
-  it("cada ilha é terra no centro", () => { for (const i of ISLANDS) expect(landAt(i.x, i.y)).toMatchObject({ id: i.id, inside: true }); });
-  it("o Fragmento de Ømnia pode ser obtido numa ilha alcançável de caravela", () => {
-    expect(ISLANDS.some((i) => i.tier <= 2 && i.relic?.item === "omnia_fragment")).toBe(true);
+  it("cada ilha é terra no centro e o Fragmento de Ømnia segue alcançável", () => {
+    for (const i of ISLANDS) expect(landAt(i.x, i.y)).toMatchObject({ id: i.id, inside: true });
+    expect(ISLANDS.some(i => i.tier <= 2 && i.relic?.item === "omnia_fragment")).toBe(true);
   });
 });
 

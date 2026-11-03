@@ -78,12 +78,16 @@ export function biomeTile(src: HTMLCanvasElement, t: number, biome: string, v: n
     pattern(p, st.pattern, rgb(st.pcol), seed, v);
     // Um terço das variações recebe uma segunda textura suave do bioma.
     if (v % 3 === 1) pattern(p, SECOND[st.pattern], shade(rgb(st.tint), 0.25), seed + 333, v);
-    microDetail(p, rgb(st.tint), seed, v);
+    // Quatro camadas de granulação determinística: ~12–24 marcas por tile,
+    // mantendo pixels pequenos e custo fixo no cache de cada variação.
+    microDetail(p, rgb(st.tint), seed, v, 12);
+    microDetail(p, rgb(st.tint), seed + 1709, v, 8);
+    microDetail(p, rgb(st.tint), seed + 2903, v, 6);
     // 0–9 limpos, 10–47 com 1, 2 ou 3 detalhes do bioma
     if (v >= 10) {
       motif(p, st.motifs[(v * 7 + t) % st.motifs.length]!, seed, v, 0);
-      if (v >= 24) motif(p, st.motifs[(v * 3 + t + 2) % st.motifs.length]!, seed, v, 1);
-      if (v >= 38) motif(p, st.motifs[(v * 5 + t + 4) % st.motifs.length]!, seed, v, 2);
+      if (v >= 20) motif(p, st.motifs[(v * 3 + t + 2) % st.motifs.length]!, seed, v, 1);
+      if (v >= 30) motif(p, st.motifs[(v * 5 + t + 4) % st.motifs.length]!, seed, v, 2);
     }
   }
   p.done();
@@ -98,8 +102,7 @@ const SECOND: Record<Pattern, Pattern> = {
 };
 
 /** Pontinhos de luz e sombra de 1px, pedrinhas e grãos – detalhe fino em todo tile. */
-function microDetail(p: Pix, base: RGB, s: number, v: number) {
-  const n = 3 + (v % 4);
+function microDetail(p: Pix, base: RGB, s: number, v: number, n: number) {
   for (let i = 0; i < n; i++) {
     const x = Math.floor(hash(i, v, s + 801) * 16), y = Math.floor(hash(i, v, s + 802) * 16);
     const under = p.get(x, y), up = hash(i, v, s + 803) > 0.5;

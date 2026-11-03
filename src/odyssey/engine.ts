@@ -53,6 +53,12 @@ import { arsenalFor, runMove, type BossCtx } from "./boss-arsenal";
 import { fxFor, type FxSig } from "./fx-catalog";
 import { shouldSpawnTwin, twinBossDef, twinEncounterKey } from "./boss-encounters";
 import { freshMercenaryState, sanitizeMercenaryState, tickMercenaries, drawMercenaries, mercGuardMult, mercDamageMult, type MercenaryState } from "./mercenaries";
+import { carveMainFarlandsGate, drawFarlands, ensureFarlandsWorld, farlandsAction } from "./farlands-play";
+import { registerForgeExpansion } from "./forge-expansion";
+import { carveBiomeMineEntrances, drawBiomeMineEntrances } from "./biome-mine-sites";
+import { biomeMineBestFloor, BIOME_MINE_FLOORS } from "./biome-mines";
+
+registerForgeExpansion();
 
 export const VW = 480;
 export const VH = 270;
@@ -122,6 +128,10 @@ export class Game {
 
   world: World;
   overworld: World;
+  /** Continente procedural separado: o mapa legado conserva dimensões, coordenadas e IDs. */
+  farlandsWorld: World | null = null;
+  farlandsActive = false;
+  farlandsReturnPos = { x: 122 * TS + 8, y: 128 * TS + 8 };
   interior: Building | null = null;
   /** Abismo do Cântico ou andar escuro de um templo (null = superfície). */
   depth: DepthState | null = null;
@@ -155,7 +165,7 @@ export class Game {
   openedChests = new Set<string>();
   transition = 0;
   doorCooldown = 0;
-  get areaName() { const ar = archipelagoArea(this); if (ar) return ar; const sp = sagaPosOf(this); if (sp) return `${sp.realm.name} · ${sp.zone.name}`; if (this.siege) return `Cidade de Aurélia · Onda ${this.siege.wave}`; if (this.depth) return this.depth.kind === 'tutorial' ? `Treino de Aventureiro · Andar ${this.depth.floor}/6` : this.depth.kind === 'dream' ? `Expedição onírica · Andar ${this.depth.floor}/1` : this.depth.kind === 'storm' ? `Tempestade de Fratura · Andar ${this.depth.floor}/1` : this.depth.kind === 'abyss' ? `Abismo do Cântico · Andar ${this.depth.floor}` : isRealm(this.depth.temple) ? `${this.depth.temple?.name} · Reino Oculto` : `${this.depth.temple?.name} · 2º andar`; return this.interior?.name ?? (Math.hypot(this.p.x / TS - 122, this.p.y / TS - 126) < 19 ? 'Vila de Potos' : BIOME_NAMES[this.biome]); }
+  get areaName() { const ar = archipelagoArea(this); if (ar) return ar; const sp = sagaPosOf(this); if (sp) return `${sp.realm.name} · ${sp.zone.name}`; if (this.siege) return `Cidade de Aurélia · Onda ${this.siege.wave}`; if (this.depth?.kind === 'biome-mine' && this.depth.biome) return `Mina de ${BIOME_NAMES[this.depth.biome]} · Andar ${this.depth.floor}/${BIOME_MINE_FLOORS}`; if (this.depth) return this.depth.kind === 'tutorial' ? `Treino de Aventureiro · Andar ${this.depth.floor}/6` : this.depth.kind === 'dream' ? `Expedição onírica · Andar ${this.depth.floor}/1` : this.depth.kind === 'storm' ? `Tempestade de Fratura · Andar ${this.depth.floor}/1` : this.depth.kind === 'abyss' ? `Abismo do Cântico · Andar ${this.depth.floor}` : isRealm(this.depth.temple) ? `${this.depth.temple?.name} · Reino Oculto` : `${this.depth.temple?.name} · 2º andar`; return this.interior?.name ?? (Math.hypot(this.p.x / TS - 122, this.p.y / TS - 126) < 19 ? 'Vila de Potos' : BIOME_NAMES[this.biome]); }
   private restoredNpcs(): NpcDef[] {
     const freed = this.echoSystems.restoration.freedRealms.slice(0, 3);
     const key = freed.join('|');
@@ -186,7 +196,7 @@ export class Game {
     return npcs;
   }
   get localNpcs(): NpcDef[] {
-    if (this.depth || this.island || this.sea) return [];
+    if (this.depth || this.island || this.sea || this.farlandsActive) return [];
     if (!this.interior) return [...NPCS.filter(n => !n.interiorOnly), ...this.restoredNpcs()];
     const npc = NPCS.find(n => n.id === this.interior?.resident);
     return npc ? [{ ...npc, tx: 121, ty: 100 }] : [];
@@ -287,6 +297,8 @@ export class Game {
     this.world = generateWorld();
     prepareExploration(this.world);
     carveEntrances(this.world);
+    carveMainFarlandsGate(this.world);
+    carveBiomeMineEntrances(this.world);
     this.overworld = this.world;
     this.tiles = buildTiles();
     this.buildMinimap();
@@ -847,6 +859,7 @@ export class Game {
     if (q.goal.kind === "collect") return this.count(q.goal.item) >= q.goal.n;
     if (q.goal.kind === "boss") return this.bossesDone.has(q.goal.target);
     if (q.goal.kind === "floor") return this.abyssBest >= q.goal.n;
+    if (q.goal.kind === "mine") return biomeMineBestFloor(this.discoveries, q.goal.biome) >= q.goal.floor;
     if (q.goal.kind === "talk") return (this.questProg[q.id] ?? 0) >= 1;
     return (this.questProg[q.id] ?? 0) >= q.goal.n;
   }
@@ -854,6 +867,7 @@ export class Game {
     if (q.goal.kind === "collect") return `${Math.min(this.count(q.goal.item), q.goal.n)}/${q.goal.n} ${ITEMS[q.goal.item].name}`;
     if (q.goal.kind === "boss") { const t = q.goal.target; return this.bossesDone.has(t) ? "Chefe derrotado! Retorne." : `Derrote ${BOSSES.find((b) => b.id === t)?.name ?? (t.startsWith("abyss_") ? `o guardião do andar ${t.slice(6)} do Abismo` : t)}`; }
     if (q.goal.kind === "floor") return this.abyssBest >= q.goal.n ? "Andar alcançado! Retorne." : `Alcance o andar ${q.goal.n} do Abismo (recorde: ${this.abyssBest})`;
+    if (q.goal.kind === "mine") { const best = biomeMineBestFloor(this.discoveries, q.goal.biome); return best >= q.goal.floor ? "Andar da mina alcançado! Retorne." : `Alcance o andar ${q.goal.floor}/${BIOME_MINE_FLOORS} da Mina de ${BIOME_NAMES[q.goal.biome]} (recorde: ${best})`; }
     if (q.goal.kind === "talk") { const to = NPCS.find((n) => n.id === (q.goal as { npc: string }).npc); return (this.questProg[q.id] ?? 0) >= 1 ? "Recado entregue! Retorne." : `Fale com ${to?.name ?? "o destinatário"}`; }
     return `${this.questProg[q.id] ?? 0}/${q.goal.n} ${ENEMIES[q.goal.target].name}`;
   }
@@ -953,7 +967,7 @@ export class Game {
   waypoint(): Waypoint | null {
     const o = this.currentObjective(); if (!o) return null;
     return objectiveWaypoint(o.q, o.state, this.questReady(o.q), { x: this.p.x / TS, y: this.p.y / TS },
-      this.enemies.filter((e) => e.alive && !e.boss).map((e) => ({ kind: e.kind, tx: e.x / TS, ty: e.y / TS })));
+      this.enemies.filter((e) => e.alive && !e.boss).map((e) => ({ kind: e.kind, tx: e.x / TS, ty: e.y / TS })), this.world);
   }
   renderWaypoint(c: CanvasRenderingContext2D) {
     const w = this.waypoint(); if (!w) return;
@@ -1022,8 +1036,8 @@ export class Game {
     return false;
   }
   interact() {
-    if (archipelagoInteract(this)) return;
-    if (!this.depth && interactSettlement(this)) return;
+    if (!this.farlandsActive && archipelagoInteract(this)) return;
+    if (!this.depth && !this.farlandsActive && interactSettlement(this)) return;
     if (this.interactExploration()) return;
     const npc = this.nearNpc(26);
     if (npc) { this.talk(npc); return; }
@@ -1042,7 +1056,7 @@ export class Game {
   }
   leaveInterior() {
     if (!this.interior) return;
-    this.interior = null; this.world = this.overworld;
+    this.interior = null; this.world = this.farlandsActive && this.farlandsWorld ? this.farlandsWorld : this.overworld;
     this.p.x = this.returnPosition.x; this.p.y = this.returnPosition.y;
     this.clearTransition(); this.save();
   }
@@ -1060,7 +1074,10 @@ export class Game {
   }
   interactExploration(): boolean {
     if (this.depth) return !!depthAction(this, true);
-    if (!this.interior && surfaceEntrance(this, true)) return true;
+    if (!this.interior) {
+      if (farlandsAction(this, true)) return true;
+      if (surfaceEntrance(this, true)) return true;
+    }
     const p = this.p, near = (x:number,y:number,r=28) => Math.hypot(p.x-x*TS-8,p.y-y*TS-8)<r;
     if (this.interior) {
       if(near(ROOM.exitX,ROOM.exitY,32)){ this.leaveInterior(); return true; }
@@ -1078,7 +1095,7 @@ export class Game {
       }
       return false;
     }
-    const b=BUILDINGS.find(b=>{const d=doorOf(b);return near(d.tx,d.ty,30);});
+    const b=this.farlandsActive?undefined:BUILDINGS.find(b=>{const d=doorOf(b);return near(d.tx,d.ty,30);});
     if(b){this.enterInterior(b);return true;}
     const t=TREASURES.find(t=>near(t.tx,t.ty,26));
     if(t){this.claimChest(t.id,t.gold,t.item,t.qty,t.name);return true;}
@@ -1104,6 +1121,7 @@ export class Game {
     this.burst(wx, wy, "#ffffff", 4, 20, 1);
   }
   onMapClick?: () => void;
+  onWorldChanged?: () => void;
 
   // ---------- update ----------
   moveBody(o: { x: number; y: number }, dx: number, dy: number, hw = 4, hh = 3) {
@@ -1214,7 +1232,7 @@ export class Game {
 
     if(this.doorCooldown<=0){
       if(this.interior && Math.hypot(p.x-(ROOM.exitX*TS+8),p.y-(ROOM.exitY*TS+8))<12){this.leaveInterior();return;}
-      if(!this.interior&&!this.depth&&!this.island){const b=BUILDINGS.find(b=>{const d=doorOf(b);return Math.hypot(p.x-d.tx*TS-8,p.y-d.ty*TS-8)<11;});if(b){this.enterInterior(b);return;}}
+      if(!this.interior&&!this.depth&&!this.island&&!this.farlandsActive){const b=BUILDINGS.find(b=>{const d=doorOf(b);return Math.hypot(p.x-d.tx*TS-8,p.y-d.ty*TS-8)<11;});if(b){this.enterInterior(b);return;}}
     }
 
     skillTick(this, dt);
@@ -1490,7 +1508,7 @@ export class Game {
     } else if(this.island) {
       drawIslandProps(this,c,x0,y0,x1,y1,wt);
     } else {
-      drawBuildings(c,wt);
+      if(!this.farlandsActive)drawBuildings(c,wt);
       renderSettlement(this,c);
       for(const t of TREASURES) if(t.tx>=x0-1&&t.tx<=x1&&t.ty>=y0-1&&t.ty<=y1)drawTreasure(c,t.tx*TS+8,t.ty*TS+12,this.openedChests.has(t.id),wt);
     }
@@ -1531,11 +1549,11 @@ export class Game {
           draws.push({y:ty*TS+16,f:()=>this.art.frontierObject(c,b as FrontierBiome,tx,ty,wt)});
         }
       }
-      for(const gate of this.depth||this.island?[]:FRONTIER_GATES)if(gate.tx>=x0-2&&gate.tx<=x1+2&&gate.ty>=y0-2&&gate.ty<=y1+2)
+      for(const gate of this.depth||this.island||this.farlandsActive?[]:FRONTIER_GATES)if(gate.tx>=x0-2&&gate.tx<=x1+2&&gate.ty>=y0-2&&gate.ty<=y1+2)
         draws.push({y:gate.ty*TS+16,f:()=>drawStatue(c,gate.tx*TS+8,gate.ty*TS+14,true,wt)});
-      if(!this.depth&&!this.island){draws.push({y:111*TS,f:()=>this.art.village(c,wt)});drawSurfaceEntrances(this,c,draws,x0,y0,x1,y1,wt);}
+      if(!this.depth&&!this.island&&!this.sea){if(!this.farlandsActive){draws.push({y:111*TS,f:()=>this.art.village(c,wt)});drawSurfaceEntrances(this,c,draws,x0,y0,x1,y1,wt);}drawFarlands(this,c,draws,x0,y0,x1,y1,wt);drawBiomeMineEntrances(this,c,draws,x0,y0,x1,y1,wt);}
     }
-    for (const s of this.depth || this.island ? [] : STATUES) {
+    for (const s of this.depth || this.island || this.farlandsActive ? [] : STATUES) {
       const x = s.tx * TS + 8, y = s.ty * TS + 14;
       if (x < cx - 20 || x > cx + this.viewWidth + 20 || y < cy - 30 || y > cy + this.viewHeight + 30) continue;
       draws.push({ y, f: () => drawStatue(c, x, y, this.statues.has(s.id), wt) });
@@ -1759,7 +1777,7 @@ export class Game {
   }
   renderInteractionPrompt(c: CanvasRenderingContext2D) {
     const p=this.p, near=(x:number,y:number,r=30)=>Math.hypot(p.x-x*TS-8,p.y-y*TS-8)<r;
-    let text=archipelagoPrompt(this);
+    let text=this.farlandsActive?"":archipelagoPrompt(this);
     if(text){}
     else if(this.depth){text=depthAction(this,false);}
     else if(this.interior){
@@ -1769,8 +1787,9 @@ export class Game {
       else if(near(127,105,35)&&this.interior.kind==='inn')text='E · Descansar';
       else if(near(109,97,38)&&this.interior.id==='archive')text='E · Examinar estante';
     }else{
-      const b=BUILDINGS.find(b=>{const d=doorOf(b);return near(d.tx,d.ty);});
+      const b=this.farlandsActive?undefined:BUILDINGS.find(b=>{const d=doorOf(b);return near(d.tx,d.ty);});
       if(b)text='E · '+b.name;
+      else if(farlandsAction(this,false))text=farlandsAction(this,false);
       else if(surfaceEntrance(this,false))text=surfaceEntrance(this,false);
       else if(TREASURES.some(t=>near(t.tx,t.ty,26)))text='E · Abrir baú';
     }
@@ -1836,6 +1855,7 @@ export class Game {
       const data = {
         p: { ...this.p, ...(this.interior ? this.returnPosition : {}), ...(this.depth ? this.depthReturn : {}), ...(this.sea || this.island ? this.seaReturn : {}), dead: 0 }, abyssBest: this.abyssBest, inventory: this.inventory, questStatus: this.questStatus, questProg: this.questProg,
         discoveries: [...this.discoveries], openedChests: [...this.openedChests], echoSystems: this.echoSystems, mercenaries: this.mercenaries,
+        farlandsActive: this.farlandsActive, farlandsReturnPos: this.farlandsReturnPos,
         settlement: this.settlement, terrainEdits:this.terrainEdits, statues: [...this.statues], bosses: [...this.bossesDone], twinRolls: Object.fromEntries(this.twinRolls), time: this.time, cycle: this.cycle, seenBeats: [...this.seenBeats], tutorialDone: this.tutorialDone, tutorialModalPending: this.tutorialModalPending, tutorialModalDone: this.tutorialModalDone,
       };
       localStorage.setItem("golden-arrow-save", JSON.stringify(data));
@@ -1849,9 +1869,11 @@ export class Game {
       const raw = localStorage.getItem("golden-arrow-save"); if (!raw) return;
       const d = JSON.parse(raw);
       Object.assign(this.p, d.p);
+      this.farlandsActive = d.farlandsActive === true;
+      if (d.farlandsReturnPos && Number.isFinite(d.farlandsReturnPos.x) && Number.isFinite(d.farlandsReturnPos.y)) this.farlandsReturnPos = d.farlandsReturnPos;
       this.settlement = { ...freshSettlement(), ...(d.settlement ?? {}) }; this.settlement.home ??= freshHome(); this.terrainEdits = d.terrainEdits ?? {};
       for (const [key,value] of Object.entries(this.terrainEdits)) {const [x,y]=key.split(',').map(Number); if(x>=0&&y>=0&&x<W&&y<H)this.overworld.tiles[y*W+x]=value;}
-      applyStructures(this); this.buildMinimap();
+      applyStructures(this);
       this.discoveries = new Set(d.discoveries ?? []); this.openedChests = new Set(d.openedChests ?? []);
       this.echoSystems = sanitizeEchoSystems(d.echoSystems);
       this.mercenaries = sanitizeMercenaryState(d.mercenaries);
@@ -1866,7 +1888,10 @@ export class Game {
       this.tutorialModalDone = d.tutorialModalDone ?? true;
       this.tutorialActive = false; this.tutorialFloor = 0; this.tutorialPauseInput = false;
       if (!d.seenBeats) this.seenBeats.add("prologue"); // saves antigos já viveram o começo da história
-      if (this.cycle > 0) this.rebuildEnemies(); else this.retireDefeatedBosses();
+      if (this.farlandsActive) { this.surfaceEnemies = this.enemies; this.enemies = []; this.world = ensureFarlandsWorld(this); }
+      if (this.cycle > 0) this.rebuildEnemies(); else { if (this.farlandsActive) this.spawnEnemies(); this.retireDefeatedBosses(); }
+      this.biome = biomeOf(this.world, this.p.x, this.p.y); this.audio.biome = this.biome;
+      this.buildMinimap(); this.onWorldChanged?.();
       if (this.questStatus["m6"] === "done" && !this.count(MANOPLA_ITEM) && !this.seenBeats.has("manopla_vesper")) this.addItem(MANOPLA_ITEM);
       if (this.questStatus["m6"] === "done") this.fireBeats("quest:m6"); // quem já salvou a Árvore ouve a revelação dos Ecos
     } catch { /* ignore */ }

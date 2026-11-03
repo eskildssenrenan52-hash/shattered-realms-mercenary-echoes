@@ -38,7 +38,11 @@ export function bossArenaLife(g: Game, c: Ctx) {
 
 /** Água viva: brilhos correndo com a corrente, anéis de ondulação nas margens e bolhas de lava. */
 export function waterLife(g: Game, c: Ctx, x0: number, y0: number, x1: number, y1: number, wt: number) {
+  if (g.quality.level === 0 && Math.floor(wt * 5) % 2) return;
+  const tileBudget = g.quality.level >= 2 ? 256 : g.quality.level === 1 ? 144 : 64;
+  let visited = 0;
   for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) {
+    if (++visited > tileBudget) break;
     const t = tileAt(g.world, tx, ty), x = tx * TS, y = ty * TS, ph = hash(tx, ty, 7);
     if (t === T.WATER) {
       // Brilho correndo com a corrente, em duas ondas cruzadas.
@@ -72,9 +76,36 @@ const BLADE: Partial<Record<string, string>> = {
   mushroom: '#9a7ab8', coast: '#7ab86a', jungle: '#3a9a4a', meadow: '#8ac060', ruins: '#a8a078',
   amber: '#d8b060', oasis: '#7ab86a', aurora: '#cfe0e8', crimson: '#b05040',
 };
+// Cada bioma atual recebe explicitamente uma família de animação complementar.
+export const BIOME_ANIMATION_FAMILY: Record<string, 'drift' | 'glint' | 'pulse'> = {
+  plains:'drift', forest:'drift', desert:'drift', cave:'glint', mountain:'drift', autumn:'drift', swamp:'pulse', coast:'drift', jungle:'drift', volcanic:'pulse',
+  mushroom:'pulse', meadow:'drift', ruins:'glint', sakura:'drift', moonwood:'glint', prism:'glint', coral:'pulse', bamboo:'drift', thunder:'glint', obsidian:'pulse',
+  sunflower:'drift', lavender:'drift', mangrove:'pulse', aurora:'glint', amber:'pulse', spores:'pulse', lotus:'pulse', marble:'glint', crimson:'drift', oasis:'drift',
+};
+const FAMILY_COLOR: Record<'drift' | 'glint' | 'pulse', string> = { drift:'#c6dfa0', glint:'#d4d8ff', pulse:'#a8e8d0' };
+/** Até 12 marcas pixeladas no nível alto; orçamento e frequência caem em aparelhos fracos. */
+export function biomePixelLife(g: Game, c: Ctx) {
+  if (g.interior || g.depth || g.island) return;
+  const family = BIOME_ANIMATION_FAMILY[g.biome]; if (!family) return;
+  const q = g.quality.level, n = q >= 2 ? 12 : q === 1 ? 7 : 3, time = Math.floor(g.clock * (q === 0 ? 5 : 9));
+  const w = g.viewWidth, h = g.viewHeight;
+  c.save(); c.fillStyle = FAMILY_COLOR[family];
+  for (let i = 0; i < n; i++) {
+    const seed = hash(i, g.biome.length, 731), x = Math.floor(wrap(seed * 997 + time * (family === 'drift' ? 2 : 0), Math.max(1, w)));
+    const y = Math.floor(wrap(seed * 619 + time * (family === 'pulse' ? 1 : family === 'drift' ? 0.5 : 0), Math.max(1, h))), phase = (time + Math.floor(seed * 13)) % 4;
+    c.globalAlpha = family === 'pulse' ? (phase < 2 ? 0.3 : 0.65) : 0.5;
+    if (family === 'glint' && phase === 0) { c.fillRect(x, y, 3, 1); c.fillRect(x + 1, y - 1, 1, 3); }
+    else c.fillRect(x, y, family === 'pulse' && phase === 0 ? 2 : 1, 1);
+  }
+  c.restore();
+}
 /** Vento: lâminas de vegetação que se curvam em rajadas viajando pela tela. */
 export function windLife(g: Game, c: Ctx, x0: number, y0: number, x1: number, y1: number, wt: number) {
+  if (g.quality.level === 0 && Math.floor(wt * 5) % 2) return;
+  const tileBudget = g.quality.level >= 2 ? 256 : g.quality.level === 1 ? 144 : 64;
+  let visited = 0;
   for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) {
+    if (++visited > tileBudget) break;
     const t = tileAt(g.world, tx, ty);
     if (t !== T.GRASS && t !== T.FLOWER && t !== T.SAND && t !== T.SNOW && t !== T.MOSS && t !== T.AUTUMN) continue;
     const ph = hash(tx, ty, 21); if (ph > 0.4) continue;
@@ -190,6 +221,7 @@ function auroraSky(c: Ctx, w: number, h: number, wt: number) {
 export function biomeLife(g: Game, c: Ctx) {
   if (g.interior || g.depth || g.island) return;
   const w = g.viewWidth, h = g.viewHeight, wt = g.clock, q = g.quality.level;
+  biomePixelLife(g, c);
   if (g.biome === 'aurora') auroraSky(c, w, h, wt);
   const cfg = LIFE[g.biome]; if (!cfg || !g.weather.length) return;
   const n = Math.round(cfg.n * (q >= 2 ? 1 : q === 1 ? 0.6 : 0.35));

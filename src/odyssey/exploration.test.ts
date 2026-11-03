@@ -21,7 +21,7 @@ describe('Cidades de fronteira',()=>{
       expect(new Set(buildings.map((b)=>b.id)).size).toBe(3);
       for(const building of buildings){expect(building.accent).toBe(city.color);expect(building.note.length).toBeGreaterThan(40);}
       const keeper=NPCS.find((npc)=>npc.id===buildings[0]!.resident);
-      const cityQuests=QUESTS.filter((entry)=>entry.giver===keeper?.id);
+      const cityQuests=QUESTS.filter((entry)=>entry.giver===keeper?.id&&!entry.id.startsWith('deep_route_'));
       expect(keeper?.lines.length).toBeGreaterThan(0);
       expect(keeper?.interiorOnly).toBe(true);
       expect(cityQuests).toHaveLength(3);

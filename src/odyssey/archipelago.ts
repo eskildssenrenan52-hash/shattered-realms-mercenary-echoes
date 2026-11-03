@@ -62,7 +62,7 @@ export function bestBoat(owned: ReadonlySet<string>): BoatDef | null {
 }
 
 // ---------------------------------------------------------------- mar
-export const SEA = 6000;
+export const SEA = 8400;
 export const MAIN = { x: 3000, y: 3000, r: 420, name: "Ilha de Potos" };
 export const SHALLOW = 150;
 export const MID = 560;
@@ -170,6 +170,64 @@ export const ISLANDS: IslandDef[] = [
     boss: { name: "Vontade Coroada", kind: "gargoyle", tint: "#ffd040", scale: 3, hp: 18, drop: "crown_dust", dropQty: 12, lore: "A vontade de Ømnia, sem corpo, que ainda protege o trono vazio." },
     quests: [{ title: "Poeira de rainha", text: "Colete 12 Pós da Coroa." }, { title: "O trono vazio", text: "Derrote a Vontade Coroada." }, { title: "Por que o mundo se partiu", text: "Leia o monólito de origem no centro da ilha." }],
     relic: { item: "elixir", qty: 3 } }, 7),
+
+  // Novas ilhas da expansão: todas usam biomas-base e itens já registrados no jogo.
+  isl({ id: "dune", name: "Dunas do Vidro Solar", biome: "Deserto de Areia Vítrea", size: "small", x: 1400, y: 400, tier: 1,
+    origin: "Uma chuva de estrelas derreteu as dunas e deixou lâminas de vidro que cantam sob o sol. Escorpiões de quitina guardam os oásis, e as tempestades revelam trilhas soterradas.",
+    grade: [255, 190, 100, 0.18], sand: "#f5d79a", land: "#d9a74e", accent: "#fff0b0", base: "desert",
+    ground: [G.SAND, G.SAND, G.ASH], obstacles: [G.ROCK, G.PILLAR, G.BUSH], obstacleDensity: 0.08,
+    weather: { mode: "fall", color: "#ffe0a0", n: 55 }, resources: [{ item: "desert_rose", n: 18 }, { item: "chitin", n: 10 }], enemies: ["scorpion", "beetle", "imp"],
+    boss: { name: "Escorpião do Meio-Dia", kind: "scorpion", tint: "#ffd050", scale: 2.5, hp: 11, drop: "chitin", dropQty: 8, lore: "Seu casco de vidro refrata o calor em miragens mortais." },
+    quests: [{ title: "Rosas sob a areia", text: "Colete 10 Rosas do Deserto." }, { title: "A sombra do meio-dia", text: "Derrote o Escorpião do Meio-Dia." }, { title: "Trilha soterrada", text: "Leia o monólito de origem no centro da ilha." }], relic: { item: "sun_amulet", qty: 1 } }, 8),
+  isl({ id: "moss", name: "Pântano das Raízes Errantes", biome: "Pântano de Raízes Caminhantes", size: "small", x: 2000, y: 400, tier: 1,
+    origin: "As raízes deste pântano mudam de lugar a cada maré, seguindo um rio subterrâneo que ninguém consegue encontrar. Fungos luminosos atraem viajantes e sapos ancestrais defendem as nascentes.",
+    grade: [100, 190, 120, 0.18], sand: "#b8b58a", land: "#547a50", accent: "#b0f080", base: "swamp",
+    ground: [G.MOSS, G.MUSHROOM, G.GRASS], obstacles: [G.MUSHROOM, G.DTREE, G.BUSH], obstacleDensity: 0.12,
+    weather: { mode: "rise", color: "#a0e0a0", n: 65, glow: true }, resources: [{ item: "goo", n: 18 }, { item: "herb", n: 14 }], enemies: ["frog", "wisp", "treant"],
+    boss: { name: "Matriarca das Raízes", kind: "treant", tint: "#70b060", scale: 2.5, hp: 12, drop: "wood", dropQty: 10, lore: "Move o próprio pântano para proteger a nascente primordial." },
+    quests: [{ title: "Esporos na névoa", text: "Colete 10 Esporos." }, { title: "Raízes despertas", text: "Derrote a Matriarca das Raízes." }, { title: "O rio oculto", text: "Leia o monólito de origem no centro da ilha." }], relic: { item: "herb_amulet", qty: 1 } }, 9),
+  isl({ id: "cavern", name: "Gruta do Eco Mineral", biome: "Cavernas de Cristal Ecoante", size: "small", x: 2600, y: 400, tier: 1,
+    origin: "Uma caverna aberta para o céu durante a Ruptura aprisionou ecos de vozes em seus cristais. Morcegos cegos navegam pelo som e os veios de mana pulsam como corações sob a rocha.",
+    grade: [150, 130, 210, 0.18], sand: "#aaa0b0", land: "#665a78", accent: "#d0a0ff", base: "cave",
+    ground: [G.ROCK, G.CRYSTAL, G.COBBLE], obstacles: [G.ROCK, G.CRYSTAL, G.PILLAR], obstacleDensity: 0.12,
+    weather: { mode: "drift", color: "#d0a0ff", n: 45, glow: true }, resources: [{ item: "crystal_ore", n: 16 }, { item: "iron_ore", n: 12 }], enemies: ["golem", "bat", "wisp"],
+    boss: { name: "Golem Ressonante", kind: "golem", tint: "#bd80ff", scale: 2.5, hp: 13, drop: "crystal_ore", dropQty: 8, lore: "Seu corpo cristalino devolve cada golpe como um trovão subterrâneo." },
+    quests: [{ title: "Veios cintilantes", text: "Colete 8 Cristais de Mana." }, { title: "Silêncio na gruta", text: "Derrote o Golem Ressonante." }, { title: "Vozes na pedra", text: "Leia o monólito de origem no centro da ilha." }], relic: { item: "mana_ring", qty: 1 } }, 10),
+  isl({ id: "canopy", name: "Copas da Chuva Suspensa", biome: "Selva de Copas Suspensas", size: "small", x: 3200, y: 400, tier: 2,
+    origin: "A gravidade falha entre as copas desta selva: gotas sobem, cipós flutuam e pássaros constroem ninhos no ar. As árvores antigas protegem sementes que sobreviveram ao dilúvio celeste.",
+    grade: [80, 200, 120, 0.18], sand: "#d8d09a", land: "#398050", accent: "#a0ff90", base: "jungle",
+    ground: [G.GRASS, G.MOSS, G.MEADOW], obstacles: [G.TREE, G.DTREE, G.PALM], obstacleDensity: 0.14,
+    weather: { mode: "rise", color: "#a0ffc0", n: 70 }, resources: [{ item: "wood", n: 22 }, { item: "herb", n: 12 }], enemies: ["boar", "crow", "pixie"],
+    boss: { name: "Guardião das Copas", kind: "treant", tint: "#50c878", scale: 2.6, hp: 14, drop: "wood", dropQty: 12, lore: "Enraíza-se no vazio para manter as copas suspensas." },
+    quests: [{ title: "Sementes do alto", text: "Colete 12 unidades de Madeira Ancestral." }, { title: "O guardião suspenso", text: "Derrote o Guardião das Copas." }, { title: "Chuva ao contrário", text: "Leia o monólito de origem no centro da ilha." }], relic: { item: "elven_bow", qty: 1 } }, 11),
+  isl({ id: "meadow", name: "Prado dos Ventos Mudos", biome: "Pradaria de Ventos Silenciosos", size: "small", x: 3800, y: 400, tier: 1,
+    origin: "O vento desapareceu aqui no instante em que o mundo se partiu. As flores ainda ondulam sem brisa, guiadas por espíritos minúsculos que guardam o último sopro da ilha.",
+    grade: [190, 210, 140, 0.15], sand: "#e5d9a8", land: "#a4bf68", accent: "#e8f090", base: "meadow",
+    ground: [G.MEADOW, G.FLOWER, G.GRASS], obstacles: [G.BUSH, G.TREE, G.PALM], obstacleDensity: 0.06,
+    weather: { mode: "drift", color: "#efffc0", n: 35 }, resources: [{ item: "herb", n: 18 }, { item: "raw_flax", n: 10 }], enemies: ["sprite", "crow", "boar"],
+    boss: { name: "Cervo do Sopro Preso", kind: "wolf", tint: "#d4e890", scale: 2.4, hp: 11, drop: "frost_herb", dropQty: 8, lore: "Corre sem fazer ruído, carregando a brisa que falta ao prado." },
+    quests: [{ title: "Flores sem brisa", text: "Colete 10 Ervas Medicinais." }, { title: "Corrida silenciosa", text: "Derrote o Cervo do Sopro Preso." }, { title: "O último sopro", text: "Leia o monólito de origem no centro da ilha." }], relic: { item: "wolf_ring", qty: 1 } }, 12),
+  isl({ id: "ruins", name: "Observatório das Cinzas", biome: "Observatório de Cinzas Antigas", size: "small", x: 4400, y: 400, tier: 2,
+    origin: "Astrônomos tentaram prever a Ruptura neste observatório, mas as estrelas caíram antes que terminassem os cálculos. Cinzas preservam seus mapas e os espectros repetem noites que já não existem.",
+    grade: [160, 150, 170, 0.17], sand: "#c0b0a0", land: "#716568", accent: "#e0b0a0", base: "ruins",
+    ground: [G.ASH, G.RUINS, G.COBBLE], obstacles: [G.PILLAR, G.ROCK, G.DTREE], obstacleDensity: 0.1,
+    weather: { mode: "fall", color: "#d0b0a0", n: 60 }, resources: [{ item: "mana_shard", n: 14 }, { item: "iron_ore", n: 10 }], enemies: ["skeleton", "wraith", "gargoyle"],
+    boss: { name: "Astrônomo Sem Rosto", kind: "wraith", tint: "#c090a0", scale: 2.5, hp: 14, drop: "mana_shard", dropQty: 8, lore: "Ainda calcula um céu que se desfez em fragmentos." },
+    quests: [{ title: "Mapas em cinza", text: "Colete 8 Fragmentos de Mana." }, { title: "A previsão final", text: "Derrote o Astrônomo Sem Rosto." }, { title: "Constelação perdida", text: "Leia o monólito de origem no centro da ilha." }], relic: { item: "crystal_plate", qty: 1 } }, 13),
+  isl({ id: "frost", name: "Agulhas da Geada Azul", biome: "Cordilheira de Geada Azul", size: "small", x: 5000, y: 400, tier: 2,
+    origin: "Estas agulhas de gelo cresceram contra a gravidade e perfuram nuvens baixas. Lobos de pelo translúcido rondam as fontes termais, onde ervas resistem ao frio eterno.",
+    grade: [130, 190, 240, 0.18], sand: "#d0e0e8", land: "#769bb8", accent: "#c0f0ff", base: "mountain",
+    ground: [G.SNOW, G.ICE, G.ROCK], obstacles: [G.PINE, G.ROCK, G.PILLAR], obstacleDensity: 0.1,
+    weather: { mode: "fall", color: "#d0f0ff", n: 75 }, resources: [{ item: "frost_herb", n: 16 }, { item: "wolf_pelt", n: 10 }], enemies: ["wolf", "skeleton", "golem"],
+    boss: { name: "Loba da Geada Azul", kind: "wolf", tint: "#80d8ff", scale: 2.6, hp: 15, drop: "wolf_pelt", dropQty: 8, lore: "Uiva para manter as agulhas de gelo de pé contra o degelo." },
+    quests: [{ title: "Ervas do gelo", text: "Colete 10 Ervas Gélidas." }, { title: "Uivo cristalino", text: "Derrote a Loba da Geada Azul." }, { title: "A fonte escondida", text: "Leia o monólito de origem no centro da ilha." }], relic: { item: "frost_mail", qty: 1 } }, 14),
+  isl({ id: "tidepool", name: "Poças da Maré Reversa", biome: "Costa de Maré Reversa", size: "small", x: 5600, y: 400, tier: 1,
+    origin: "A maré destas poças sobe quando a lua desce. Pequenos caranguejos recolhem metais deixados por navios antigos, enquanto algas medicinais crescem em piscinas isoladas do oceano.",
+    grade: [100, 190, 200, 0.16], sand: "#d8e0c0", land: "#57998c", accent: "#a0fff0", base: "coast",
+    ground: [G.SAND, G.MOSS, G.FLOWER], obstacles: [G.ROCK, G.PALM, G.BUSH], obstacleDensity: 0.07,
+    weather: { mode: "rise", color: "#a0e8ff", n: 50 }, resources: [{ item: "coral_shard", n: 14 }, { item: "tide_iron", n: 10 }], enemies: ["crab", "jelly", "frog"],
+    boss: { name: "Caranguejo da Maré Invertida", kind: "crab", tint: "#40c8d0", scale: 2.5, hp: 12, drop: "tide_iron", dropQty: 8, lore: "Sua carapaça marca o ritmo contrário das marés." },
+    quests: [{ title: "Poças vivas", text: "Colete 8 Lasca(s) de Coral Rosado." }, { title: "Maré ao contrário", text: "Derrote o Caranguejo da Maré Invertida." }, { title: "A lua submersa", text: "Leia o monólito de origem no centro da ilha." }], relic: { item: "copper_ring", qty: 1 } }, 15),
 ];
 
 // ---------------------------------------------------------------- forma das ilhas
@@ -214,6 +272,8 @@ export const CURRENTS: Current[] = [
   { x: 3000, y: 1500, r: 420, vx: 55, vy: 0 }, { x: 4500, y: 3000, r: 380, vx: 0, vy: 60 },
   { x: 3000, y: 4500, r: 420, vx: -55, vy: 0 }, { x: 1500, y: 3000, r: 380, vx: 0, vy: -60 },
   { x: 1600, y: 900, r: 360, vx: -40, vy: -40 }, { x: 5200, y: 5200, r: 360, vx: 45, vy: 30 },
+  { x: 1400, y: 850, r: 340, vx: 30, vy: -35 }, { x: 2600, y: 850, r: 360, vx: 0, vy: 50 },
+  { x: 3800, y: 850, r: 360, vx: -35, vy: 20 }, { x: 5000, y: 850, r: 360, vx: 45, vy: -20 },
 ];
 export function currentAt(x: number, y: number) {
   let vx = 0, vy = 0;

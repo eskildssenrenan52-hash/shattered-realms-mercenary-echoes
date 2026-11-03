@@ -4,7 +4,7 @@ import worldArt from "@/assets/mana-world.jpg";
 import gehennaRelicArt from "@/assets/depths/game/gehenna-relic.png";
 import { CROPS, STRUCTURES, isPlayerHome, upgradeHome, type Tool, type CropKind, type StructureKind } from "@/odyssey/settlement";
 import { FURNITURE, HOME_LEVELS, type FurnitureKind } from "@/odyssey/home";
-import { Pickaxe, Axe, Shovel, Sprout, Droplets, Hammer, House, Anvil, ChevronRight, Leaf, Sun, Swords, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Crown } from "lucide-react";
+import { Pickaxe, Axe, Shovel, Sprout, Droplets, Hammer, House, Anvil, ChevronRight, Leaf, Sun, Swords, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Crown, CalendarDays } from "lucide-react";
 import { BIOME_LIST } from "@/odyssey/world";
 import { BIOME_NAMES } from "@/odyssey/data";
 import { createFileRoute } from "@tanstack/react-router";
@@ -42,6 +42,8 @@ import { secretStats } from "@/odyssey/secret-play";
 import { SAGA_REALMS, actRealmUnlocked, sagaBossId } from "@/odyssey/saga";
 import { sagaModeStatus, sagaPlaza, travelToActMap } from "@/odyssey/saga-play";
 import { ECHOES_BEYOND_CHRONICLES } from "@/odyssey/echoes-beyond";
+import { DailyLoginPanel } from "@/components/DailyLoginPanel";
+import { claimDailyLogin, createDailyLoginState, DAILY_REWARDS, dailyLoginSnapshot, type DailyLoginState, type DailyReward } from "@/odyssey/daily-login";
 
 export const Route = createFileRoute("/odyssey")({
   head: () => ({
@@ -59,6 +61,35 @@ export const Route = createFileRoute("/odyssey")({
 });
 
 type Panel = null | "inv" | "char" | "quest" | "map" | "secrets" | "workshop" | "build" | "farm" | "home" | "chronicle" | "bestiary" | "grimoire" | "epic" | "pets" | "echoes" | "mercenaries";
+
+const DAILY_STATE_KEY = "shattered-realms:daily-login:v1";
+const DAILY_RECEIPTS_KEY = "shattered-realms:daily-receipts:v1";
+interface DailyReceipt { date: string; reward: DailyReward; applied: boolean }
+function readDailyState(): DailyLoginState {
+  try {
+    const raw = window.localStorage.getItem(DAILY_STATE_KEY);
+    if (!raw) return createDailyLoginState();
+    const value = JSON.parse(raw) as Partial<DailyLoginState>;
+    return { lastClaimDate: typeof value.lastClaimDate === "string" ? value.lastClaimDate : null, streak: Number.isInteger(value.streak) ? Math.max(0, value.streak as number) : 0 };
+  } catch { return createDailyLoginState(); }
+}
+function readDailyReceipts(): DailyReceipt[] {
+  try {
+    const raw = window.localStorage.getItem(DAILY_RECEIPTS_KEY);
+    if (!raw) return [];
+    const values: unknown = JSON.parse(raw);
+    if (!Array.isArray(values)) return [];
+    return values.flatMap((entry): DailyReceipt[] => {
+      if (!entry || typeof entry !== "object") return [];
+      const row = entry as Partial<DailyReceipt>, date = row.date;
+      if (typeof date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return [];
+      const reward = DAILY_REWARDS.find((item) => item.day === row.reward?.day);
+      return reward ? [{ date, reward, applied: row.applied === true }] : [];
+    });
+  } catch { return []; }
+}
+function persistDailyState(state: DailyLoginState) { try { window.localStorage.setItem(DAILY_STATE_KEY, JSON.stringify(state)); } catch { /* Storage can be disabled in private browsing. */ } }
+function persistDailyReceipts(receipts: DailyReceipt[]) { try { window.localStorage.setItem(DAILY_RECEIPTS_KEY, JSON.stringify(receipts)); } catch { /* Receipts stay in memory until a later save. */ } }
 
 function Icon({ id, size = 32 }: { id: string; size?: number }) {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -106,6 +137,11 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
   const [panel, setPanel] = useState<Panel>(null);
   const [title, setTitle] = useState(true);
   const [hasSave, setHasSave] = useState(false);
+  const [dailyState, setDailyState] = useState<DailyLoginState>(() => typeof window === "undefined" ? createDailyLoginState() : readDailyState());
+  const dailyReceiptsRef = useRef<DailyReceipt[]>(typeof window === "undefined" ? [] : readDailyReceipts());
+  const [, setDailyReceipts] = useState<DailyReceipt[]>(dailyReceiptsRef.current);
+  const [dailyOpen, setDailyOpen] = useState(false);
+  const [dailyMessage, setDailyMessage] = useState("");
   const [mapUrl, setMapUrl] = useState("");
   const [fullscreen,setFullscreen]=useState(false);
   const [menuOpen,setMenuOpen]=useState(false);
@@ -137,6 +173,7 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
     setHasSave(Game.hasSave());
     const mapT = window.setTimeout(() => setMapUrl(g.mapDataUrl()), 1200);
     g.onMapClick = () => setPanel("map");
+    g.onWorldChanged = () => setMapUrl(g.mapDataUrl());
     let raf = 0, last = performance.now(), firstFrame = true;
     // Laço protegido: um erro isolado num quadro nunca derruba o jogo, e o governador
     // de qualidade mede o intervalo real entre quadros (inclui GPU — o gargalo no celular).
@@ -226,11 +263,41 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
     game.tutorialModalPending = false; game.tutorialModalDone = true; clearTutorialInput(game); game.save();
     setTutorialMode("none"); setPanel("quest");
   };
+  const handleDailyClaim = (date: string) => {
+    const result = claimDailyLogin(dailyState, date);
+    if (!result.claimed || !result.reward) {
+      setDailyMessage(result.reason === "clock-rollback" ? "O relógio deste aparelho está antes da última data registrada." : "O presente de hoje já foi resgatado.");
+      return;
+    }
+    setDailyState(result.state); persistDailyState(result.state);
+    const receipts = [...dailyReceiptsRef.current, { date, reward: result.reward, applied: false }];
+    dailyReceiptsRef.current = receipts; setDailyReceipts(receipts); persistDailyReceipts(receipts);
+    setDailyMessage("Resgate registrado offline. Inicie ou continue uma jornada para receber ouro, XP e o item na mochila.");
+  };
+  const applyDailyReceipts = (game: Game) => {
+    let changed = false;
+    const receipts = dailyReceiptsRef.current.map((receipt) => {
+      if (receipt.applied) return receipt;
+      const id = `daily-reward:${receipt.date}`;
+      if (!game.discoveries.has(id)) {
+        game.discoveries.add(id);
+        game.p.gold += receipt.reward.gold;
+        game.gainXp(receipt.reward.xp);
+        if (!game.addItem(receipt.reward.item, receipt.reward.qty)) game.p.gold += Math.max(1, (ITEMS[receipt.reward.item]?.price ?? 1) * receipt.reward.qty);
+      }
+      changed = true;
+      return { ...receipt, applied: true };
+    });
+    if (changed) {
+      dailyReceiptsRef.current = receipts; setDailyReceipts(receipts); persistDailyReceipts(receipts);
+      game.toast("Presente diário aplicado à jornada.", "#ffd77a"); game.save();
+    }
+  };
   const start = (load: boolean) => {
     const game = gameRef.current;
     if (!game) return;
     if (load) game.load();
-    game.started = true; game.audio.init(); setTitle(false);
+    game.started = true; game.audio.init(); setTitle(false); setDailyOpen(false); applyDailyReceipts(game);
     if (!load) {
       petsNewGame(game); game.fireBeats("new"); epicNewGame(game);
       if (!game.tutorialDone) { startTutorial(game); setTutorialMode("dungeon"); setPanel(null); }
@@ -259,6 +326,8 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
   const stats = g?.stats();
   const liveOn = Boolean(g && (g.live || g.bossCard));
   const mode = g ? sagaModeStatus(g) : null;
+  const dailyToday = new Date().toISOString().slice(0, 10);
+  const dailySnapshot = dailyLoginSnapshot(dailyState, dailyToday);
 
   return (
     <main className="game-shell min-h-screen bg-background text-foreground select-none">
@@ -489,11 +558,13 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
               <div className="title-subtitle">CRÔNICAS DE UM MUNDO VIVO</div>
               <p className="title-story">Dezessete notas sustentavam o mundo. O Silêncio as apagou, uma a uma.<br/>Ouça a Canção. Reacenda os Ecos.</p>
               <div className="title-actions"><Button onClick={() => start(false)} className="start-button"><Play size={16} fill="currentColor"/>Nova jornada<ChevronRight size={16}/></Button>{hasSave && <Button variant="outline" onClick={()=>start(true)} className="continue-button">Continuar</Button>}</div>
+              <button type="button" className="title-daily-card mx-auto mt-3 flex w-full max-w-[30rem] items-center gap-3 rounded-xl border border-amber-200/20 bg-slate-950/75 px-4 py-3 text-left text-amber-100 shadow-lg backdrop-blur transition hover:border-amber-100/50 hover:bg-slate-900/85" onClick={() => { setDailyMessage(""); setDailyOpen(true); }} aria-label="Abrir calendário de presentes diários"><CalendarDays size={18}/><span className="min-w-0 flex-1"><b className="block">Presente diário</b><small className="block truncate text-amber-100/70">{dailySnapshot.claimedToday ? `Resgatado · sequência ${dailySnapshot.streak}` : `Dia ${dailySnapshot.nextReward.day} · ${dailySnapshot.nextReward.gold} ouro + ${dailySnapshot.nextReward.xp} XP`}</small></span><ChevronRight size={16}/></button>
               <span className="title-chapter"><Sparkles size={12}/> O mundo floresce com cada escolha.</span>
             </div>
             <span className="scene-label"><span className="world-status"/> ÁRVORE DE MANA · POTOS</span>
           </div>
         )}
+        {title && dailyOpen && <Modal title="Calendário de Presentes · 7 dias" onClose={() => setDailyOpen(false)} wide><DailyLoginPanel state={dailyState} onClaim={handleDailyClaim}/>{dailyMessage && <p role="status" className="mt-3 rounded-md border border-amber-300/20 bg-amber-300/5 p-3 text-sm text-amber-100">{dailyMessage}</p>}</Modal>}
         {g && !title && !liveOn && (panel === 'farm' || panel === 'build' || panel === 'workshop') && <Modal title={panel === 'farm' ? 'Jardim & colheita' : panel === 'build' ? 'Construir um lar' : 'Oficinas de Potos'} onClose={()=>setPanel(null)}>
           {panel === 'farm' ? <><div className="choice-grid">{(Object.entries(CROPS) as [CropKind,typeof CROPS.carrot][]).map(([id,crop])=><Button variant="outline" key={id} className="choice-item" onClick={()=>{g.crop=id;g.tool='seed';setPanel(null);}}><Sprout/><span>{crop.name}<small>{g.count(crop.seed)} sementes · {crop.seconds}s</small></span></Button>)}</div><div className="flex gap-2 mt-4"><Button variant="secondary" onClick={()=>{g.tool='till';setPanel(null);}}><Shovel/>Preparar terra</Button><Button variant="secondary" onClick={()=>{g.tool='water';setPanel(null);}}><Droplets/>Regar</Button></div><div className="progress-line mt-5">{g.settlement.plots.length} canteiros · {g.settlement.harvests} colheitas</div></> : panel === 'build' ? <div className="choice-grid">{(Object.entries(STRUCTURES) as [StructureKind,typeof STRUCTURES.home][]).map(([id,def])=><Button variant="outline" className="choice-item" key={id} onClick={()=>{g.structure=id;g.tool='build';setPanel(null);}}><House/><span>{def.name}<small>{Object.entries(def.cost).map(([key,n])=>`${ITEMS[key].name} ${g.count(key)}/${n}`).join(' · ')}</small></span></Button>)}</div> : <div className="choice-grid"><Button variant="outline" className="choice-item" onClick={()=>{g.openStation='carpenter';setPanel(null);}}><Hammer/><span>Carpintaria<small>Tábuas e materiais</small></span></Button><Button variant="outline" className="choice-item" onClick={()=>{g.openStation='smith';setPanel(null);}}><Anvil/><span>Forja<small>Lingotes, armas e armaduras</small></span></Button><Button variant="outline" className="choice-item" onClick={()=>{g.openStation='alchemist';setPanel(null);}}><Sparkles/><span>Alquimia<small>Poções e amuletos</small></span></Button><Button variant="outline" className="choice-item" onClick={()=>{g.openStation='shop';setPanel(null);}}><Backpack/><span>Mercado<small>Sementes e suprimentos</small></span></Button></div>}
         </Modal>}

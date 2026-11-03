@@ -3,7 +3,7 @@ import type { Game, Enemy } from './engine';
 import { BEASTS, pickBeast } from './bestiary';
 import { ABYSS_DOOR, ABYSS_ENTRY, ABYSS_FLOORS, ABYSS_BOSS_LOOK, FINAL_BOSS, GUARDIANS, checkpoints, generateFloor, isGuardianFloor, type DungeonFloor, type Theme } from './dungeon';
 import { TEMPLES, templeDoor, templeFootprint, generateTempleFloor, drawTemple, drawAbyssGate, drawStairs, drawWallTorch, type Temple, type StairStyle } from './depths';
-import { QUESTS, type BossDef, type NpcDef } from './data';
+import { BIOME_NAMES, QUESTS, type Biome, type BossDef, type NpcDef } from './data';
 import { T, TS, W, H, type World } from './world';
 import { cycleBonus } from './story';
 import { drawTreasure } from './scenery';
@@ -22,10 +22,12 @@ import {
 } from './demon-citadel';
 import { siegeDepthAction, siegeSurfaceAction, drawSiegeWorld, drawSiegePortal, onSiegeLeave } from './siege-play';
 import { SIEGE_PORTAL } from './siege';
+import { generateBiomeMineFloor, biomeMineBestFloor, recordBiomeMineFloor, BIOME_MINE_FLOORS } from './biome-mines';
+import { biomeMineEntranceNear } from './biome-mine-sites';
 
 for (const [i, r] of ALL_REALMS.entries()) ITEMS[r.relic] ??= { id: r.relic, name: r.relicName, type: 'amulet', bonus: { str: 4 + i * 2, int: 4 + i * 2, vit: 3 + i * 2, hp: 60 + i * 40, mp: 30 + i * 20 }, desc: `Relíquia oculta do ${r.name}.`, color: r.color, price: 2000 + i * 1500 };
 
-export interface DepthState { kind: 'abyss' | 'temple' | 'tutorial' | 'dream' | 'storm'; profile?: 'citadel' | 'siege' | 'dream' | 'storm'; floor: number; temple?: Temple; data: DungeonFloor; stair: StairStyle }
+export interface DepthState { kind: 'abyss' | 'temple' | 'tutorial' | 'dream' | 'storm' | 'biome-mine'; profile?: 'citadel' | 'siege' | 'dream' | 'storm'; floor: number; biome?: Biome; temple?: Temple; data: DungeonFloor; stair: StairStyle }
 
 export const ABYSS_KEEPER: NpcDef = { id: 'abyss_keeper', name: 'Guardião do Abismo', title: 'Vigia dos Cem Andares', tx: ABYSS_DOOR.tx, ty: ABYSS_DOOR.ty, pal: { skin: '#d8c8b8', hair: '#3a2a5a', body: '#2a1a40', legs: '#120a20', accent: '#c78bff' }, lines: [] };
 export const CITADEL_KEEPER: NpcDef = { id: 'citadel_keeper', name: 'Sentinela de Gehenna', title: 'Guardiã da Estrada ao Trono', tx: CITADEL_DOOR.tx, ty: CITADEL_DOOR.ty, pal: { skin: '#b8a0a0', hair: '#201020', body: '#7a2028', legs: '#301018', accent: '#ff7050' }, lines: [] };
@@ -189,6 +191,19 @@ export function enterAbyss(g: Game, floor: number) {
   g.save();
 }
 
+/** Uma mina independente por bioma; discoveries guarda os checkpoints sem alterar saves antigos. */
+export function enterBiomeMine(g: Game, biome: Biome, requestedFloor?: number) {
+  const best = biomeMineBestFloor(g.discoveries, biome);
+  const floor = Math.max(1, Math.min(BIOME_MINE_FLOORS, requestedFloor ?? (best || 1)));
+  const data = generateBiomeMineFloor(biome, floor);
+  enter(g, { kind: 'biome-mine', biome, floor, data, stair: 'crystal' }, 1 + floor * 0.025);
+  recordBiomeMineFloor(g.discoveries, biome, floor);
+  g.discoveries.add(`mine:${biome}:entered`);
+  g.biomeBanner = { name: `Mina de ${BIOME_NAMES[biome]} · Andar ${floor}/${BIOME_MINE_FLOORS}`, t: 4 };
+  for (const q of QUESTS) if (g.questStatus[q.id] === 'active' && q.goal.kind === 'mine' && q.goal.biome === biome && q.goal.floor <= floor) g.toast(`Missão pronta: ${q.title}`, '#a0ffa0');
+  g.save();
+}
+
 /** Entra num piso da Cidadela usando discoveries, sem tocar no recorde do Abismo ou nos saves antigos. */
 export function enterCitadel(g: Game, floor: number) {
   const best = citadelBest(g.discoveries);
@@ -239,9 +254,10 @@ export function leaveDepth(g: Game, silent = false) {
   if (g.depth.profile === 'siege') onSiegeLeave(g);
   if (g.depth.profile === 'storm') g.echoSystems.storms.active = false;
   if (g.depth.kind === 'dream') g.echoSystems.dreams.activeRun = null;
-  g.depth = null; g.world = g.overworld; g.enemies = g.surfaceEnemies; g.surfaceEnemies = [];
+  g.depth = null; g.world = g.farlandsActive && g.farlandsWorld ? g.farlandsWorld : g.overworld; g.enemies = g.surfaceEnemies; g.surfaceEnemies = [];
   g.activeBoss = null; g.audio.boss = false;
   g.p.x = g.depthReturn.x; g.p.y = g.depthReturn.y;
+  g.buildMinimap(); g.onWorldChanged?.();
   if (!silent) { g.clearTransition(); g.toast('De volta à superfície.', '#bfefff'); g.save(); }
 }
 
@@ -298,6 +314,26 @@ function citadelDepthAction(g: Game, run: boolean): string {
   return '';
 }
 
+function biomeMineDepthAction(g: Game, run: boolean): string {
+  const d = g.depth;
+  if (!d || d.kind !== 'biome-mine' || !d.biome) return '';
+  if (near(g, d.data.start.tx, d.data.start.ty, 20)) {
+    if (run) { if (d.floor > 1) enterBiomeMine(g, d.biome, d.floor - 1); else leaveDepth(g); }
+    return d.floor > 1 ? `E · Subir ao andar ${d.floor - 1}` : 'E · Voltar à superfície';
+  }
+  if (near(g, d.data.stairs.tx, d.data.stairs.ty, 20)) {
+    const boss = d.data.boss, locked = !!boss && !g.bossesDone.has(boss.id);
+    if (locked) { if (run) g.toast(`${boss!.name} sela a saída. Derrote-o primeiro.`, '#ff7777'); return 'Saída selada pelo chefe'; }
+    if (run) { if (d.floor >= BIOME_MINE_FLOORS) leaveDepth(g); else enterBiomeMine(g, d.biome, d.floor + 1); }
+    return d.floor >= BIOME_MINE_FLOORS ? 'E · Sair da mina após a vitória' : `E · Descer ao andar ${d.floor + 1}`;
+  }
+  for (const chest of d.data.chests) if (near(g, chest.tx, chest.ty)) {
+    if (run) g.claimChest(chest.id, chest.gold, chest.item, chest.qty, `Baú da Mina de ${BIOME_NAMES[d.biome]}`);
+    return g.openedChests.has(chest.id) ? 'Baú vazio' : 'E · Abrir cache de minério';
+  }
+  return '';
+}
+
 /** Expedições de Ecos Além compartilham o gerador, mas mantêm saída e recompensa próprias. */
 function echoDepthAction(g: Game, run: boolean): string {
   const d = g.depth; if (!d || (d.kind !== 'dream' && d.kind !== 'storm')) return '';
@@ -340,6 +376,7 @@ export function depthAction(g: Game, run: boolean): string {
   if (d.profile === 'siege') return siegeDepthAction(g, run);
   if (d.kind === 'tutorial') return tutorialDepthAction(g, run);
   if (d.kind === 'dream' || d.kind === 'storm') return echoDepthAction(g, run);
+  if (d.kind === 'biome-mine') return biomeMineDepthAction(g, run);
   if (d.profile === 'citadel') return citadelDepthAction(g, run);
   const sg = sagaDepthAction(g, run); if (sg) return sg;
   const sec = secretDepthAction(g, run); if (sec) return sec;
@@ -367,6 +404,8 @@ export function depthAction(g: Game, run: boolean): string {
 /** Interação na superfície com as entradas. */
 export function surfaceEntrance(g: Game, run: boolean): string {
   const siege = siegeSurfaceAction(g, run); if (siege) return siege;
+  const mine = biomeMineEntranceNear(g);
+  if (mine) { if (run) enterBiomeMine(g, mine.biome); return `E · Mina de ${BIOME_NAMES[mine.biome]} · ${biomeMineBestFloor(g.discoveries, mine.biome)}/${BIOME_MINE_FLOORS}`; }
   if (near(g, CITADEL_DOOR.tx, CITADEL_DOOR.ty, 28)) {
     if (!citadelUnlocked(g.bossesDone)) { if (run) g.toast('A porta reage à Coroa de Gehenna. Derrote Azrakel na Saga para abri-la.', '#ff7777'); return 'Portões selados · complete Gehenna'; }
     if (run) openCitadelGate(g);
@@ -414,8 +453,8 @@ export function drawDepth(g: Game, c: CanvasRenderingContext2D, x0: number, y0: 
   }
   if (drawSagaStairs(g, c, wt)) { for (const ch of data.chests) if (vis(ch.tx, ch.ty)) drawTreasure(c, ch.tx * TS + 8, ch.ty * TS + 12, g.openedChests.has(ch.id), wt); for (const t of data.torches) if (vis(t.tx, t.ty)) drawWallTorch(c, t.tx, t.ty, wt); return; }
   drawStairs(c, d.stair, data.start.tx, data.start.ty, false, wt);
-  if ((d.kind === 'abyss' && d.floor < ABYSS_FLOORS) || d.kind === 'tutorial') drawStairs(c, d.stair, data.stairs.tx, data.stairs.ty, true, wt, d.kind === 'tutorial' ? g.enemies.some((e) => e.alive) : !!data.boss && !g.bossesDone.has(data.boss.id));
-  if (d.kind === 'temple' || d.floor >= ABYSS_FLOORS) drawTreasure(c, data.stairs.tx * TS + 8, data.stairs.ty * TS + 12, g.openedChests.has(`${d.temple?.id}-relic`), wt);
+  if ((d.kind === 'abyss' && d.floor < ABYSS_FLOORS) || d.kind === 'tutorial' || d.kind === 'biome-mine') drawStairs(c, d.stair, data.stairs.tx, data.stairs.ty, true, wt, d.kind === 'tutorial' ? g.enemies.some((e) => e.alive) : !!data.boss && !g.bossesDone.has(data.boss.id));
+  if (d.kind === 'temple' || (d.kind === 'abyss' && d.floor >= ABYSS_FLOORS)) drawTreasure(c, data.stairs.tx * TS + 8, data.stairs.ty * TS + 12, g.openedChests.has(`${d.temple?.id}-relic`), wt);
   for (const ch of data.chests) if (vis(ch.tx, ch.ty)) drawTreasure(c, ch.tx * TS + 8, ch.ty * TS + 12, g.openedChests.has(ch.id), wt);
   for (const t of data.torches) if (vis(t.tx, t.ty)) drawWallTorch(c, t.tx, t.ty, wt);
 }

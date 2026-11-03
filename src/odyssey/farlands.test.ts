@@ -1,0 +1,45 @@
+import { describe, expect, it } from "vitest";
+import { ITEMS } from "./data";
+import { BIOME_LIST } from "./world";
+import { FARLANDS_SEED, FARLANDS_SITES, farlandsInteractionId, generateFarlandsWorld, resolveFarlandsSites } from "./farlands";
+import { generateWorld, SOLID, T, W } from "./world";
+import { carveBiomeMineEntrances } from "./biome-mine-sites";
+
+describe("Farlands", () => {
+  it("expõe 24 locais nomeados, em biomas existentes e com recompensas do catálogo", () => {
+    expect(FARLANDS_SITES).toHaveLength(24);
+    expect(new Set(FARLANDS_SITES.map((s) => s.id)).size).toBe(24);
+    expect(new Set(FARLANDS_SITES.map((s) => farlandsInteractionId(s.id))).size).toBe(24);
+    for (const site of FARLANDS_SITES) {
+      expect(BIOME_LIST).toContain(site.biome);
+      expect(ITEMS[site.reward]).toBeDefined();
+      expect(site.name.length).toBeGreaterThan(0);
+      expect(site.lore.length).toBeGreaterThan(0);
+      expect(site.illustration).toBeDefined();
+    }
+  });
+
+  it("resolve coordenadas determinísticas, únicas e caminháveis", () => {
+    const world = generateFarlandsWorld();
+    const first = resolveFarlandsSites(world);
+    const second = resolveFarlandsSites(world);
+    expect(first.map(({ x, y }) => [x, y])).toEqual(second.map(({ x, y }) => [x, y]));
+    expect(new Set(first.map(({ x, y }) => y * W + x)).size).toBe(24);
+    for (const site of first) expect(SOLID.has(world.tiles[site.y * W + site.x]!)).toBe(false);
+    const mines = carveBiomeMineEntrances(world);
+    expect(mines).toHaveLength(BIOME_LIST.length);
+    expect(new Set(mines.map((mine) => mine.biome)).size).toBe(BIOME_LIST.length);
+    for (const mine of mines) {
+      expect(world.tiles[mine.ty * W + mine.tx]).toBe(T.PATH);
+      expect(SOLID.has(world.tiles[mine.ty * W + mine.tx]!)).toBe(false);
+    }
+  });
+
+  it("usa geografia diferente da seed legada zero", () => {
+    expect(FARLANDS_SEED).not.toBe(0);
+    const farlands = generateFarlandsWorld();
+    const legacy = generateWorld(0);
+    const samples = [0, 126 * W + 122, 215 * W + 315, 900 * W + 1800, 2100 * W + 3000];
+    expect(samples.some((i) => farlands.tiles[i] !== legacy.tiles[i] || farlands.biomes[i] !== legacy.biomes[i])).toBe(true);
+  });
+});
