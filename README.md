@@ -13,7 +13,7 @@ RPG de ação 2D em Canvas com campanha, Saga, arquipélago, combate procedural,
 - Saves antigos recebem defaults compatíveis; escolhas, rotas, memórias, museu, votações e desfechos pós-campanha são salvos sem substituir os IDs antigos da campanha.
 - O Guia completo dentro do jogo foi ampliado para 43 passos e explica controles, combate, progressão, Cidadela e os dez sistemas novos.
 - A Companhia de Mercenários permite contratar até dois aliados simultâneos. Cada um tem vida, defesa, nível, vínculo, habilidade, capítulos pessoais e comportamento próprio; ao chegar a 15% de HP, recua e só retorna após uma recuperação demorada.
-- O Contrato Gacha usa somente ouro e Selos de Contrato ganhos em chefes. Há dez personagens, cinco raridades, pity na décima tentativa, roster persistente, sinergias de dupla e capítulos que avançam pelo convívio; não existe compra com dinheiro real, energia limitada ou pressão de monetização.
+- O Contrato Gacha usa somente ouro e Selos de Contrato ganhos em chefes. Há vinte personagens, cinco raridades, pity na décima tentativa, roster persistente, sinergias de dupla e capítulos que avançam pelo convívio; não existe compra com dinheiro real, energia limitada ou pressão de monetização.
 - A nova camada narrativa evita exposição forçada: as histórias entram por contratos, retornos a Potos, decisões de companhia, consequências de recuo e diálogos curtos que recontextualizam reinos já visitados.
 
 ## Desenvolvimento e validação

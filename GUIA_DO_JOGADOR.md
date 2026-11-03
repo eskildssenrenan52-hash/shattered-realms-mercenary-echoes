@@ -190,7 +190,7 @@ A Companhia fica disponível no menu móvel e no botão de espadas da barra infe
 
 ### Como contratar
 
-A Agência oferece dez personagens. Você pode pagar 140 ouro por contrato ou gastar um Selo de Contrato. Selos são ganhos ao derrotar chefes e são salvos na jornada. O gacha é exclusivamente uma regra de progressão interna: não há dinheiro real, compra externa, energia, anúncios nem temporizador de ansiedade.
+A Agência oferece vinte personagens. Você pode pagar 140 ouro por contrato ou gastar um Selo de Contrato. Selos são ganhos ao derrotar chefes e são salvos na jornada. O gacha é exclusivamente uma regra de progressão interna: não há dinheiro real, compra externa, energia, anúncios nem temporizador de ansiedade.
 
 Cada tentativa aumenta o contador de pity. Se as nove anteriores não trouxerem uma unidade Raro ou superior, a décima garante uma raridade Raro, Épico ou Lendário. Personagens já obtidos não são repetidos pelo gacha; o resultado sempre amplia o roster. Isso torna a coleção extensa sem transformar a história em uma loteria infinita.
 
