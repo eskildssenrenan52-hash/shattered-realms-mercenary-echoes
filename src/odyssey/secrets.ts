@@ -1,4 +1,4 @@
-// Os Segredos do Cântico Oculto: 300 enigmas em várias etapas e 13 biomas secretos (Reinos Ocultos).
+// Os Segredos do Cântico Oculto: 450 enigmas em várias etapas e 18 biomas secretos (Reinos Ocultos).
 // Dado puro e determinístico (sem canvas) para que os testes validem todas as cadeias.
 import type { Biome, EnemyKind } from './data';
 import { T } from './world';
@@ -38,13 +38,17 @@ export const REALMS: RealmDef[] = [
   { id: 'abismo_cores', name: 'Abismo das Cores Roubadas', short: 'Cores', color: '#ff80c0', lore: 'Todas as cores que o Silêncio apagou do mundo vieram parar aqui.', floor: T.CAVE, wall: T.CWALL, deco: T.CRYSTAL, biome: 'cave', enemies: ['shade', 'golem', 'sporeling'] },
   { id: 'jardim_ecos', name: 'Jardim dos Ecos Suspensos', short: 'Ecos', color: '#a0ffc0', lore: 'Cada flor guarda uma frase que alguém não teve coragem de dizer.', floor: T.MOSS, wall: T.PANEL, deco: T.MUSHROOM, biome: 'forest', enemies: ['treant', 'pixie', 'wisp'] },
   { id: 'mare_sonhos', name: 'Maré dos Sonhos Perdidos', short: 'Sonhos', color: '#80c8ff', lore: 'Os sonhos que as pessoas esqueceram ao acordar boiam aqui, esperando dono.', floor: T.ICE, wall: T.WALL, deco: T.WATER, biome: 'coast', enemies: ['jelly', 'wisp', 'wraith'] },
+  { id: 'cidade_lanternas', name: 'Cidade das Lanternas Imóveis', short: 'Lanternas', color: '#ffd080', lore: 'Uma cidade suspensa em cavernas de âmbar. Suas lanternas só acendem quando alguém conta uma lembrança verdadeira.', floor: T.COBBLE, wall: T.PANEL, deco: T.CRYSTAL, biome: 'ruins', enemies: ['shade', 'gargoyle', 'pixie'] },
+  { id: 'bosque_relogios', name: 'Bosque dos Relógios Enraizados', short: 'Relógios', color: '#b0e8a0', lore: 'Árvores crescem por dentro de relógios gigantes; cada anel de madeira marca uma estação que nunca aconteceu.', floor: T.MOSS, wall: T.ROCK, deco: T.MUSHROOM, biome: 'forest', enemies: ['treant', 'goblin', 'wisp'] },
+  { id: 'catedral_sal', name: 'Catedral de Sal Cantante', short: 'Sal', color: '#d8f0ff', lore: 'Colunas de sal cristalizado guardam a última nota de cada navio que naufragou no mar interior.', floor: T.ICE, wall: T.CWALL, deco: T.CRYSTAL, biome: 'coast', enemies: ['wraith', 'jelly', 'golem'] },
+  { id: 'forja_cometas', name: 'Forja dos Cometas Adormecidos', short: 'Cometas', color: '#ff9870', lore: 'Fragmentos de estrelas esfriam em fornalhas sem fogo; o ferreiro espera um céu que ainda não nasceu.', floor: T.ASH, wall: T.ROCK, deco: T.LAVA, biome: 'volcanic', enemies: ['golem', 'salamander', 'imp'] },
 ].map((r, i) => ({
   ...r, need: REALM_NEED, level: 18 + i * 9,
   relic: `realm_relic_${r.id}`, relicName: `Relíquia do ${r.short}`,
   anchor: (i * 5 + 2) % 30, dx: (i % 2 ? 1 : -1) * (9 + (i % 4) * 3), dy: (i % 3 - 1) * 9 + 8,
 })) as RealmDef[];
 
-/** O 13º reino: só abre quando as 12 relíquias ocultas foram honradas. */
+/** O 19º reino: só abre quando as 18 relíquias ocultas foram honradas. */
 export const HEART_REALM: RealmDef = {
   id: 'coracao_oculto', name: 'Coração do Cântico Oculto', short: 'Coração', color: '#fff0a0', need: 12, level: 140,
   lore: 'Lírien guardou aqui a décima nona nota. Ninguém sabia que existia. Agora você sabe.',
@@ -93,7 +97,7 @@ const RIDDLES: Riddle[] = [
   { q: 'Qual flor guarda frases não ditas?', options: ['A do Jardim dos Ecos', 'A rosa do deserto', 'A flor da lua'], correct: 0 },
   { q: 'Onde boiam os sonhos esquecidos?', options: ['No Mar de Vidro', 'Na Maré dos Sonhos', 'No Véu Estelar'], correct: 1 },
   { q: 'O que a Maré devolve quando a lua está cheia?', options: ['Sonhos', 'Sal', 'Espuma'], correct: 0 },
-  { q: 'Quantos Reinos Ocultos cercam o Coração?', options: ['Doze', 'Catorze', 'Dez'], correct: 1 },
+  { q: 'Quantos Reinos Ocultos cercam o Coração?', options: ['Dezoito', 'Dezesseis', 'Catorze'], correct: 0 },
   { q: 'O que o Baú Falso guarda de verdade?', options: ['Fome', 'Ouro', 'Chaves'], correct: 0 },
   { q: 'Quem martela o sol todas as manhãs?', options: ['A Forja da Aurora', 'O Colosso', 'Gorm'], correct: 0 },
 ];

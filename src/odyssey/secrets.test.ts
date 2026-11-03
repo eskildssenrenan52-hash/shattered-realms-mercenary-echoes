@@ -3,11 +3,26 @@ import { SECRETS, REALMS, ALL_REALMS, REALM_NEED, stepOf, stepKey, realmOpen, ch
 import { ITEMS } from './data';
 
 describe('Segredos do Cântico Oculto', () => {
-  it('tem 350 segredos, cada um com 3 a 6 etapas', () => {
-    expect(SECRETS.length).toBe(350);
+  it('tem 450 segredos, cada um com 3 a 6 etapas', () => {
+    expect(SECRETS.length).toBe(450);
     for (const s of SECRETS) { expect(s.steps.length).toBeGreaterThanOrEqual(3); expect(s.steps.length).toBeLessThanOrEqual(6); }
   });
-  it('tem 14 reinos ocultos mais o Coração', () => { expect(REALMS.length).toBe(14); expect(ALL_REALMS.length).toBe(15); });
+  it('tem 18 reinos ocultos mais o Coração', () => { expect(REALMS.length).toBe(18); expect(ALL_REALMS.length).toBe(19); });
+  it('acrescenta quatro regiões com biomas, inimigos e relíquias próprios sem reutilizar IDs', () => {
+    const added = REALMS.slice(-4);
+    expect(added.map((r) => r.id)).toEqual(['cidade_lanternas', 'bosque_relogios', 'catedral_sal', 'forja_cometas']);
+    expect(new Set(REALMS.map((r) => r.id)).size).toBe(REALMS.length);
+    for (const [index, realm] of added.entries()) {
+      expect(SECRETS.filter((s) => s.circle === index + 14)).toHaveLength(25);
+      expect(realm.relic).toContain(realm.id);
+      expect(realm.lore.length).toBeGreaterThan(30);
+    }
+  });
+  it('mantém a charada do Coração sincronizada com o catálogo de reinos', () => {
+    const riddle = SECRETS.flatMap((secret) => secret.steps).find((step) => step.riddle?.q === 'Quantos Reinos Ocultos cercam o Coração?')?.riddle;
+    expect(riddle?.options[riddle.correct]).toBe('Dezoito');
+    expect(REALMS.length).toBe(18);
+  });
   it('a primeira etapa nunca é no Abismo e as oferendas usam itens reais', () => {
     for (const s of SECRETS) {
       expect(s.steps[0]!.kind).not.toBe('depth');

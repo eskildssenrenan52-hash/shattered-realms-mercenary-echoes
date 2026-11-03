@@ -15,6 +15,8 @@ RPG de ação 2D em Canvas com campanha, Saga, arquipélago, combate procedural,
 - A Companhia de Mercenários permite contratar até dois aliados simultâneos. Cada um tem vida, defesa, nível, vínculo, habilidade, capítulos pessoais e comportamento próprio; ao chegar a 15% de HP, recua e só retorna após uma recuperação demorada.
 - O Contrato Gacha usa somente ouro e Selos de Contrato ganhos em chefes. Há vinte personagens, cinco raridades, pity na décima tentativa, roster persistente, sinergias de dupla e capítulos que avançam pelo convívio; não existe compra com dinheiro real, energia limitada ou pressão de monetização.
 - A nova camada narrativa evita exposição forçada: as histórias entram por contratos, retornos a Potos, decisões de companhia, consequências de recuo e diálogos curtos que recontextualizam reinos já visitados.
+- O Cântico Oculto agora oferece 450 cadeias determinísticas (100 novas) e 18 Reinos Ocultos mais o Coração. Quatro regiões adicionais têm paletas, terreno, inimigos, relíquias e lore próprios: Cidade das Lanternas Imóveis, Bosque dos Relógios Enraizados, Catedral de Sal Cantante e Forja dos Cometas Adormecidos.
+- Potos recebeu quatro construções exploráveis ligadas às novas regiões; os IDs antigos de progresso e as chaves de save foram preservados.
 
 ## Desenvolvimento e validação
 

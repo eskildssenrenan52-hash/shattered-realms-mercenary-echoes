@@ -27,6 +27,10 @@ export const BUILDINGS: Building[] = [
   { id: 'temple', name: 'Templo do Sol Afogado', x: 258, y: 156, w: 7, h: 5, kind: 'ruin', secret: true, note: 'O império caiu. A luz permaneceu.' },
   { id: 'crypt', name: 'Cripta da Aurora', x: 72, y: 23, w: 5, h: 4, kind: 'ruin', secret: true, note: 'Os guardiões gravaram seus nomes em cristais de gelo.' },
   { id: 'roots', name: 'Santuário das Raízes', x: 144, y: 190, w: 7, h: 5, kind: 'ruin', secret: true, note: 'A Árvore de Mana se estende muito além do que os olhos alcançam.' },
+  { id: 'lantern-hall', name: 'Salão das Lanternas Imóveis', x: 187, y: 91, w: 6, h: 5, kind: 'library', resident: 'elder', note: 'Uma lanterninha âmbar se acende quando alguém conta uma lembrança verdadeira.' },
+  { id: 'sky-observatory', name: 'Observatório do Bosque Enraizado', x: 240, y: 102, w: 6, h: 5, kind: 'library', resident: 'hermit', note: 'O astrônomo planta relógios no solo para descobrir quando a próxima estação esquecida chegará.' },
+  { id: 'salt-inn', name: 'Pousada da Maré de Sal', x: 263, y: 132, w: 6, h: 4, kind: 'inn', resident: 'nomad', note: 'Os viajantes deixam conchas nas janelas; cada uma contém uma nota de uma cidade submersa.' },
+  { id: 'comet-forge', name: 'Forja dos Cometas', x: 236, y: 184, w: 6, h: 5, kind: 'smith', resident: 'smith', note: 'O ferreiro usa pedra estelar fria e espera o dia em que o céu volte a nascer.' },
 ];
 export const doorOf = (b: Building) => ({ tx: b.x + Math.floor(b.w / 2), ty: b.y + b.h - 1 });
 export interface Treasure { id: string; tx: number; ty: number; gold: number; item: string; qty: number; name: string }

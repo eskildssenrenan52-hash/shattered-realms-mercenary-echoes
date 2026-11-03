@@ -33,7 +33,7 @@ describe('Player home', () => {
 });
 describe('Greater Potos', () => {
   it('has many more enterable buildings with doors', () => {
-    expect(BUILDINGS.length).toBeGreaterThanOrEqual(23);
+    expect(BUILDINGS.length).toBeGreaterThanOrEqual(27);
     const w = generateWorld(); prepareExploration(w);
     for (const b of BUILDINGS) { const d = doorOf(b); expect(w.tiles[d.ty * W + d.tx]).toBe(T.DOOR); expect(SOLID.has(w.tiles[(d.ty + 1) * W + d.tx])).toBe(false); }
   });

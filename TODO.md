@@ -9,3 +9,10 @@
 - [x] Adicionar sinergias de dupla, capítulos manuais, progressão de vínculo, recompensa de chefes e história emergente por contratos, ferimentos e retornos a Potos.
 - [x] Gerar cinco designs de mercenários com IA no mesmo direcionamento pixel-art das skins do jogador; manter PNGs-mestres e versões WebP 512×512 para runtime.
 - [ ] Validar visualmente todos os cinco retratos no navegador e executar build/pacote offline final antes do próximo push.
+
+## Expansão de regiões ocultas e exploração
+
+- [x] Acrescentar quatro Reinos Ocultos com identidades próprias — Cidade das Lanternas Imóveis, Bosque dos Relógios Enraizados, Catedral de Sal Cantante e Forja dos Cometas Adormecidos — com lore, terreno, paleta, inimigos e relíquias específicos.
+- [x] Acrescentar 25 cadeias determinísticas de segredos por novo Reino (100 novas cadeias; 450 no total), sem alterar os IDs e a progressão dos 350 segredos já existentes.
+- [x] Acrescentar quatro construções exploráveis a Potos, preservando entrada, interiores e compatibilidade com saves antigos.
+- [ ] Executar testes, verificação TypeScript, build web e embalagem Android offline; criar APK debug se SDK/build-tools estiverem disponíveis.
