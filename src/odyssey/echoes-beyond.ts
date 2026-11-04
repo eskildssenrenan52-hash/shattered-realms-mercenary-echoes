@@ -91,4 +91,5 @@ export const AMBITIOUS_SYSTEMS = [
   ['museu', 'Museu das Canções Perdidas', 'Relíquias liberam cenas; a curadoria preserva ou liberta a lembrança, com escolha persistente.'],
   ['tempestades', 'Tempestades de Fratura', 'Eventos opt-in instanciados distorcem uma região, geram cache e Arauto raro sem interromper outros jogadores.'],
   ['ciclo-alem', 'Novo Ciclo: Ecos Além', 'Cinco desfechos persistentes reabrem os reinos e modificam escala e recompensas dos chefes.'],
+  ['nemesis', 'Caçador de Ecos · Nêmesis', 'Campanha pós-Ato V de 12 arenas procedurais; o rival observa sua arma, adapta a defesa e evolui até o duelo final.'],
 ] as const;

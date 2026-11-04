@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ECHOES_BEYOND_REALMS, AMBITIOUS_SYSTEMS } from "@/odyssey/echoes-beyond";
 import { SAGA_REALMS, sagaBossId } from "@/odyssey/saga";
 import { FACTIONS } from "@/odyssey/epic";
+import { NEMESIS_STAGE_COUNT, nemesisForm } from "@/odyssey/nemesis";
 import { epic } from "@/odyssey/epic-play";
 import type { Game } from "@/odyssey/engine";
 import {
@@ -26,7 +27,9 @@ import {
   enterHeartByConstellation,
   isInPotos,
   museumScene,
+  nemesisStyleName,
   setMuseumVariant,
+  startNemesisHunt,
   setStormRealm,
   startBeyondCycle,
   startDreamExpedition,
@@ -633,6 +636,61 @@ export function EchoesBeyondPanel({ g, onClose }: Props) {
             </Button>
           </div>
         )}
+
+        {active === "nemesis" &&
+          (() => {
+            const state = g.echoSystems.nemesis;
+            const nextStage = Math.min(NEMESIS_STAGE_COUNT, state.victories + 1);
+            const form = state.victories < NEMESIS_STAGE_COUNT ? nemesisForm(nextStage) : null;
+            const style = state.adaptation;
+            const busy = !!g.depth || !!g.interior || !!g.island || !!g.sea || !!g.siege;
+            return (
+              <div className="space-y-3">
+                <p className="font-body text-base opacity-80">
+                  O Caçador de Ecos registra os golpes diretos de arma que mais o feriram em cada duelo. Na arena seguinte,
+                  ele cria resistência contra esse estilo — troque seu equipamento, use habilidades e
+                  aliados, e vença doze formas cada vez mais fortes. As arenas são procedurais e cada
+                  marca, recompensa e adaptação fica no save local.
+                </p>
+                <div className="game-panel space-y-2 p-3">
+                  <div className="flex items-center justify-between gap-2 text-sm">
+                    <b className="text-primary">As Doze Marcas</b>
+                    <b>{state.victories}/{NEMESIS_STAGE_COUNT}</b>
+                  </div>
+                  <Meter value={state.victories} max={NEMESIS_STAGE_COUNT} />
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="game-panel p-2">
+                      Próxima forma <b className="block">{form?.name ?? "A jornada foi concluída"}</b>
+                    </div>
+                    <div className="game-panel p-2">
+                      Estilo aprendido
+                      <b className="block">{style ? `Resiste a ${nemesisStyleName(style)}` : "Ainda não observado"}</b>
+                    </div>
+                  </div>
+                  {style && (
+                    <div className="text-xs opacity-70">
+                      Golpes de arma no duelo: espada {state.styleHits.sword} · arco {state.styleHits.bow} ·
+                      cajado {state.styleHits.staff} · lança {state.styleHits.spear}
+                    </div>
+                  )}
+                </div>
+                <Button
+                  variant="secondary"
+                  className="w-full"
+                  disabled={!unlocked || busy || state.victories >= NEMESIS_STAGE_COUNT}
+                  onClick={() => update(() => startNemesisHunt(g))}
+                >
+                  {state.victories >= NEMESIS_STAGE_COUNT
+                    ? "Todas as doze marcas foram vencidas"
+                    : `Iniciar duelo ${nextStage}/${NEMESIS_STAGE_COUNT}`}
+                </Button>
+                <div className="text-xs opacity-70">
+                  A resistência reduz apenas o dano direto da arma detectada no duelo anterior; habilidades e aliados continuam efetivos.
+                  Não há limite de tentativas nem custo de entrada.
+                </div>
+              </div>
+            );
+          })()}
 
         {active === "ciclo-alem" &&
           (() => {

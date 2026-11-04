@@ -1,6 +1,6 @@
 import type { Game } from "./engine";
 import { generateFloor, type DungeonFloor, type Theme } from "./dungeon";
-import { enterDepthState, enterRealm } from "./depthplay";
+import { enterDepthState, enterRealm, type DepthState } from "./depthplay";
 import { ECHOES_BEYOND_REALMS } from "./echoes-beyond";
 import { actRealmUnlocked, realmUnlocked, sagaBossId, SAGA_REALMS, zoneUnlocked } from "./saga";
 import { enterSagaZone } from "./saga-play";
@@ -10,7 +10,8 @@ import { clampRep, type FactionId } from "./epic";
 import { petsOf } from "./pet-play";
 import { petById, SPECIES_BY_ID } from "./pets";
 import { HEART_REALM, realmOpen } from "./secrets";
-import type { MemoryVariant, RealmEndingChoice } from "./echoes-state";
+import { NEMESIS_COMBAT_STYLES, type MemoryVariant, type NemesisCombatStyle, type RealmEndingChoice } from "./echoes-state";
+import { NEMESIS_STAGE_COUNT, nemesisArenaData, nemesisBossId, nemesisForm, nemesisStageLoot } from "./nemesis";
 
 export const COUNCIL_AGENDAS = [
   {
@@ -733,6 +734,93 @@ export function startBeyondCycle(g: Game) {
   g.toast(
     `Ciclo Ecos Além ${g.echoSystems.beyond.cycle + 1} começou. Chefes terão modificadores definidos por suas escolhas anteriores.`,
     "#d8a0ff",
+  );
+  g.audio.sfx("level");
+  g.save();
+  return true;
+}
+
+/** Abre a próxima arena do rival adaptativo; a tentativa atual nunca bloqueia uma jornada salva. */
+export function startNemesisHunt(g: Game) {
+  const state = g.echoSystems.nemesis;
+  if (!actRealmUnlocked(5, g.questStatus)) {
+    g.toast("O Caçador de Ecos só aparece depois da conclusão do Ato V.", "#a0a0c0");
+    return false;
+  }
+  if (state.victories >= NEMESIS_STAGE_COUNT) {
+    g.toast("As doze marcas foram vencidas. O Caçador não tem mais ecos para tomar.", "#ffe39a");
+    return false;
+  }
+  if (g.depth || g.interior || g.island || g.sea || g.siege || state.active) {
+    g.toast("Termine a atividade atual antes de aceitar uma Caçada Nêmesis.", "#ffb060");
+    return false;
+  }
+  const stage = state.victories + 1;
+  const form = nemesisForm(stage);
+  const data = nemesisArenaData(stage, g.p.level);
+  state.active = true;
+  state.styleHits = { sword: 0, bow: 0, staff: 0, spear: 0 };
+  state.lastBossId = nemesisBossId(stage);
+  const arena: DepthState = { kind: "dream", profile: "nemesis", floor: 1, data, stair: "crystal" };
+  enterDepthState(g, arena, 1.05 + stage * 0.025);
+  const rival = g.enemies.find((enemy) => enemy.boss?.def.id === state.lastBossId);
+  if (rival) {
+    rival.level = g.p.level + stage;
+    if (state.adaptation) rival.nemesisResistance = state.adaptation;
+  }
+  g.biomeBanner = { name: `Caçada Nêmesis · Marca ${stage}/${NEMESIS_STAGE_COUNT}`, t: 5 };
+  g.toast(
+    state.adaptation
+      ? `${form.name} retorna resistente a golpes de ${nemesisStyleName(state.adaptation)}. Mude sua estratégia.`
+      : `${form.name}: ${form.lore}`,
+    form.color,
+  );
+  g.save();
+  return true;
+}
+
+export function nemesisStyleName(style: NemesisCombatStyle) {
+  return { sword: "espada", bow: "arco", staff: "magia do cajado", spear: "lança" }[style];
+}
+
+/** O rival registra apenas golpes no próprio chefe, não aliados ou lutas da campanha. */
+export function recordNemesisHitStyle(g: Game, style: NemesisCombatStyle) {
+  const state = g.echoSystems.nemesis;
+  if (!state.active || g.depth?.profile !== "nemesis" || !NEMESIS_COMBAT_STYLES.includes(style)) return;
+  state.styleHits[style] = Math.min(100_000, state.styleHits[style] + 1);
+}
+
+/** Chamado pelo motor apenas após a vitória real sobre o chefe da marca em andamento. */
+export function recordNemesisBossVictory(g: Game, bossId: string) {
+  const match = /^echo_nemesis_(\d+)$/.exec(bossId);
+  const state = g.echoSystems.nemesis;
+  if (!match || !state.active || g.depth?.profile !== "nemesis") return false;
+  const stage = Number(match[1]);
+  if (stage !== state.victories + 1 || stage > NEMESIS_STAGE_COUNT) return false;
+
+  const leadingStyle = NEMESIS_COMBAT_STYLES.reduce<NemesisCombatStyle | null>(
+    (best, style) => !best || state.styleHits[style] > state.styleHits[best] ? style : best,
+    null,
+  );
+  const learnedStyle = leadingStyle && state.styleHits[leadingStyle] > 0 ? leadingStyle : null;
+  state.victories = stage;
+  state.bestStage = Math.max(state.bestStage, stage);
+  state.active = false;
+  if (learnedStyle) state.adaptation = learnedStyle;
+  state.lastBossId = bossId;
+  g.discoveries.add(`nemesis:mark:${stage}`);
+  const loot = nemesisStageLoot(stage);
+  g.p.gold += loot.gold;
+  g.gainXp(loot.xp);
+  for (let i = 0; i < loot.shards; i++) g.addItem("eco_shard");
+  if (stage === NEMESIS_STAGE_COUNT) g.discoveries.add("nemesis:complete");
+  g.toast(
+    stage === NEMESIS_STAGE_COUNT
+      ? "A décima segunda marca se apaga. O Caçador aprende que nenhuma vitória precisa repetir a anterior."
+      : learnedStyle
+        ? `Marca ${stage}/${NEMESIS_STAGE_COUNT} vencida. O rival aprendeu seu uso de ${nemesisStyleName(learnedStyle)} e se adaptará no próximo duelo.`
+        : `Marca ${stage}/${NEMESIS_STAGE_COUNT} vencida. Seu próximo duelo já está preparado.`,
+    "#ffe39a",
   );
   g.audio.sfx("level");
   g.save();

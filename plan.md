@@ -35,7 +35,7 @@ Continuar o RPG 2D Canvas/React trazido do GitHub, sem trocar seu motor nem romp
 8. **Biomas vivos.** Aumentar em cerca de 3× a densidade de microdetalhes compostos em cache nos tiles de todos os biomas e acrescentar camadas ambientais animadas pixeladas, determinísticas e adaptativas à qualidade do aparelho, sem criar objetos, canvases ou partículas ilimitadas a cada quadro.
 9. **Continuidade de entrega.** Conservar português, arte pixel-art, modo offline, controles móveis, save único e comportamento atual; executar as verificações do projeto, revisar os caminhos críticos independentemente, publicar no mesmo GitHub e recompilar o APK offline com tela inicial.
 
-## Dez sistemas ambiciosos adicionais
+## Onze sistemas ambiciosos adicionais
 
 1. **Cartografia viva de Vésper:** mapas que mudam conforme escolhas, segredos e ilhas exploradas.
 2. **Reconstrução de Potos:** moradores retornam, lojas e atalhos surgem conforme os reinos são libertos.
@@ -47,6 +47,7 @@ Continuar o RPG 2D Canvas/React trazido do GitHub, sem trocar seu motor nem romp
 8. **Museu das Canções Perdidas:** coleção de relíquias com cenas, desafios e versões alternativas de eventos.
 9. **Tempestades de Fratura:** eventos mundiais opt-in que transformam regiões e liberam chefes raros.
 10. **Novo Ciclo “Ecos Além”:** pós-campanha escalável com escolhas persistentes, modificadores e finais de reinos.
+11. **Caçador de Ecos — sistema Nêmesis:** campanha opcional de 12 duelos pós-Ato V em arenas procedurais; o rival registra apenas acertos diretos de arma, reduz somente essa categoria no duelo seguinte e evolui de forma, atributos e recompensas até o confronto final.
 
 ## Design
 
@@ -68,6 +69,7 @@ Continuar o RPG 2D Canvas/React trazido do GitHub, sem trocar seu motor nem romp
 - `src/odyssey/farlands.ts` e `farlands-play.ts`: novo continente procedural, portal, destinos de exploração e persistência por IDs sem redimensionar o mapa legado.
 - `src/odyssey/depths.ts`, `dungeon.ts` e `depthplay.ts`: escadarias de dez andares por bioma, nós de minério, boss final temático e transições de retorno, mantendo o Abismo de 100 andares separado.
 - `src/odyssey/daily-login.ts` e componentes React: calendário local de retorno diário e sua apresentação na tela inicial.
+- `src/odyssey/nemesis.ts`, `echoes-state.ts`, `echoes-play.ts` e `EchoesBeyondPanel.tsx`: arenas do Caçador, estilo observado, adaptação persistente, progressão de doze duelos e interface da caçada.
 - `src/odyssey/data.ts`, `engine.ts`, `mercenaries.ts`, `story.ts` e `sidequests.ts`: contratos, objetivos, minérios, receitas, progressão e save compatível.
 - `src/components/MercenariesPanel.tsx` e `src/routes/odyssey.tsx`: gestão dos equipamentos/talentos da companhia, quadro de contratos, oficina e resgate diário.
 - `src/odyssey/biome-tiles.ts`, `biome-anim.ts`, `scenery.ts` e módulos de testes: camadas visuais em cache, animação governada pela qualidade e cobertura de determinismo/performance.

@@ -1,5 +1,7 @@
 export type RealmEndingChoice = "preserve" | "transform";
 export type MemoryVariant = "remember" | "release";
+export const NEMESIS_COMBAT_STYLES = ["sword", "bow", "staff", "spear"] as const;
+export type NemesisCombatStyle = (typeof NEMESIS_COMBAT_STYLES)[number];
 
 export interface CaravanOrder {
   id: string;
@@ -41,6 +43,14 @@ export interface EchoSystemsState {
     choices: Record<string, RealmEndingChoice>;
     history: BeyondCycleRecord[];
   };
+  nemesis: {
+    victories: number;
+    bestStage: number;
+    active: boolean;
+    adaptation: NemesisCombatStyle | null;
+    styleHits: Record<NemesisCombatStyle, number>;
+    lastBossId: string | null;
+  };
 }
 
 export function freshEchoSystems(): EchoSystemsState {
@@ -62,6 +72,14 @@ export function freshEchoSystems(): EchoSystemsState {
       lastBossId: null,
     },
     beyond: { cycle: 0, choices: {}, history: [] },
+    nemesis: {
+      victories: 0,
+      bestStage: 0,
+      active: false,
+      adaptation: null,
+      styleHits: { sword: 0, bow: 0, staff: 0, spear: 0 },
+      lastBossId: null,
+    },
   };
 }
 
@@ -132,6 +150,12 @@ export function sanitizeEchoSystems(raw: unknown): EchoSystemsState {
       })
     : [];
   const storms = d.storms && typeof d.storms === "object" ? d.storms : base.storms;
+  const nemesis = d.nemesis && typeof d.nemesis === "object" ? d.nemesis : base.nemesis;
+  const styleHitsRaw: Record<string, unknown> =
+    nemesis.styleHits && typeof nemesis.styleHits === "object" ? nemesis.styleHits : {};
+  const adaptation = NEMESIS_COMBAT_STYLES.includes(nemesis.adaptation as NemesisCombatStyle)
+    ? (nemesis.adaptation as NemesisCombatStyle)
+    : null;
   return {
     v: 1,
     cartography: { routes: strings(d.cartography?.routes, 100) },
@@ -174,6 +198,20 @@ export function sanitizeEchoSystems(raw: unknown): EchoSystemsState {
       lastBossId: typeof storms.lastBossId === "string" ? storms.lastBossId.slice(0, 120) : null,
     },
     beyond: { cycle: nonNegativeInt(beyond.cycle, 99), choices, history },
+    nemesis: {
+      victories: Math.min(12, nonNegativeInt(nemesis.victories, 12)),
+      bestStage: Math.min(12, nonNegativeInt(nemesis.bestStage, 12)),
+      // Uma arena não é restaurada ao reabrir o jogo; a próxima tentativa é segura.
+      active: false,
+      adaptation,
+      styleHits: {
+        sword: nonNegativeInt(styleHitsRaw["sword"], 100_000),
+        bow: nonNegativeInt(styleHitsRaw["bow"], 100_000),
+        staff: nonNegativeInt(styleHitsRaw["staff"], 100_000),
+        spear: nonNegativeInt(styleHitsRaw["spear"], 100_000),
+      },
+      lastBossId: typeof nemesis.lastBossId === "string" ? nemesis.lastBossId.slice(0, 120) : null,
+    },
   };
 }
 

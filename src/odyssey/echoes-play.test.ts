@@ -7,10 +7,11 @@ import {
   dreamFloorData,
 } from "./echoes-play";
 import { freshEchoSystems, sanitizeEchoSystems } from "./echoes-state";
-import { ECHOES_BEYOND_REALMS } from "./echoes-beyond";
+import { ECHOES_BEYOND_REALMS, AMBITIOUS_SYSTEMS } from "./echoes-beyond";
+import { NEMESIS_STAGE_COUNT, nemesisArenaData, nemesisBossId, nemesisForm } from "./nemesis";
 
 describe("Ecos Além · estado e migração", () => {
-  it("inicializa os dez sistemas sem exigir campos em saves anteriores", () => {
+  it("inicializa os onze sistemas sem exigir campos em saves anteriores", () => {
     const state = sanitizeEchoSystems(undefined);
     expect(state.v).toBe(1);
     expect(state.cartography.routes).toEqual([]);
@@ -19,6 +20,9 @@ describe("Ecos Além · estado e migração", () => {
     expect(state.constellations.stage).toBe(0);
     expect(state.caravans.active).toBeNull();
     expect(state.storms.active).toBe(false);
+    expect(state.nemesis.victories).toBe(0);
+    expect(state.nemesis.adaptation).toBeNull();
+    expect(state.nemesis.active).toBe(false);
     expect(state.beyond.history).toEqual([]);
   });
 
@@ -40,6 +44,7 @@ describe("Ecos Além · estado e migração", () => {
         completions: 2,
         lastBossId: "fracture_storm_2",
       },
+      nemesis: { victories: 99, bestStage: -1, active: true, adaptation: "bow", styleHits: { bow: 5, sword: -3 }, lastBossId: "echo_nemesis_1" },
       beyond: {
         cycle: 1,
         choices: { ferrolume: "preserve", invalid: "skip" },
@@ -56,6 +61,11 @@ describe("Ecos Além · estado e migração", () => {
     expect(state.museum.variants).toEqual({ beyond_ferrolume: "remember" });
     expect(state.storms.active).toBe(false);
     expect(state.storms.optIn).toBe(true);
+    expect(state.nemesis.victories).toBe(12);
+    expect(state.nemesis.bestStage).toBe(0);
+    expect(state.nemesis.active).toBe(false);
+    expect(state.nemesis.adaptation).toBe("bow");
+    expect(state.nemesis.styleHits).toEqual({ sword: 0, bow: 5, staff: 0, spear: 0 });
     expect(state.beyond.choices).toEqual({ ferrolume: "preserve" });
     expect(state.beyond.history[0]?.choices).toEqual({ ferrolume: "transform" });
   });
@@ -124,6 +134,21 @@ describe("Ecos Além · regras e expedições", () => {
     expect(first.rooms).toEqual(second.rooms);
     expect(first.spawns).toEqual(second.spawns);
     expect(first.stairs).toEqual(second.stairs);
+  });
+
+  it("gera doze formas com arenas procedurais determinísticas e um chefe único cada", () => {
+    expect(NEMESIS_STAGE_COUNT).toBe(12);
+    const first = nemesisArenaData(1, 64);
+    const repeat = nemesisArenaData(1, 64);
+    expect(first.theme.name).toContain("Anel das Lembranças");
+    expect(first.boss?.id).toBe(nemesisBossId(1));
+    expect(first.boss?.reward).toContain("eco_shard");
+    expect(first.spawns.length).toBeGreaterThan(0);
+    expect(first.rooms).toEqual(repeat.rooms);
+    expect(first.spawns).toEqual(repeat.spawns);
+    expect(first.chests[0]?.id).toBe("nemesis-1-cache");
+    expect(new Set(Array.from({ length: 12 }, (_, index) => nemesisForm(index + 1).name)).size).toBe(12);
+    expect(AMBITIOUS_SYSTEMS.some(([id]) => id === "nemesis")).toBe(true);
   });
 
   it("gera uma Tempestade temática com cache e Arauto de ID próprio por tentativa", () => {

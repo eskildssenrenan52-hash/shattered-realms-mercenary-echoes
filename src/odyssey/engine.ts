@@ -9,7 +9,7 @@ import { WorldArt, TREE_TILES, hasProp } from './world-art';
 import { TEMPLES } from './depths';
 import { ABYSS_ENTRY } from './dungeon';
 import { freshEchoSystems, sanitizeEchoSystems, type EchoSystemsState } from './echoes-state';
-import { recordStormBossVictory } from './echoes-play';
+import { recordStormBossVictory, recordNemesisBossVictory, recordNemesisHitStyle } from './echoes-play';
 import { ECHOES_BEYOND_REALMS } from './echoes-beyond';
 import { drawDepthProps } from './depth-props';
 import { drawSecrets, secretLights, isRealm } from './secret-play';
@@ -21,7 +21,7 @@ import { createHomeInterior, drawHome, drawFurniture, FURNITURE, freshHome, type
 import { isPlayerHome, freshSettlement, growPlots, useWorldTool, interactSettlement, renderSettlement, applyStructures, CARPENTRY_RECIPES, type Tool, type CropKind, type StructureKind } from "./settlement";
 import {
   BIOME_ENEMIES, BIOME_NAMES, BOSSES, ENEMIES, ITEMS, NPCS, QUESTS, RECIPES, SPIRITS, STATUES,
-  type Biome, type BossDef, type EnemyKind, type NpcDef, type QuestDef, type Recipe, type Slot, type SpiritId, type Stats,
+  type Biome, type BossDef, type EnemyKind, type NpcDef, type QuestDef, type Recipe, type Slot, type SpiritId, type Stats, type WeaponKind,
 } from "./data";
 import { generateWorld, W, H, TS, T, tileAt, biomeOf, solidAt, BIOME_LIST, hash, type World } from "./world";
 import { BIOME_LEVEL, enemyLevel, levelScale, xpModifier } from "./levels";
@@ -96,9 +96,9 @@ interface BossState { def: BossDef; active: boolean; phase: 1 | 2 | 3 | 4 | 5; p
 export interface Enemy {
   id: number; kind: EnemyKind; x: number; y: number; hx: number; hy: number; hp: number; maxhp: number; atk: number; def: number;
   speed: number; xp: number; gold: number; level: number; cd: number; hurt: number; dir: number; alive: boolean; respawn: number;
-  slow: number; kbx: number; kby: number; wanderT: number; wx: number; wy: number; boss?: BossState; t: number; summoned?: boolean; elite?: boolean; species?: number;
+  slow: number; kbx: number; kby: number; wanderT: number; wx: number; wy: number; boss?: BossState; t: number; summoned?: boolean; elite?: boolean; species?: number; tutorialSpawnKey?: string; nemesisResistance?: WeaponKind;
 }
-interface Proj { x: number; y: number; vx: number; vy: number; life: number; dmg: number; from: "p" | "e"; kind: string; r: number; color: string; slow?: boolean; fx?: FxName; h?: number }
+interface Proj { x: number; y: number; vx: number; vy: number; life: number; dmg: number; from: "p" | "e"; kind: string; r: number; color: string; slow?: boolean; fx?: FxName; h?: number; weaponStyle?: WeaponKind }
 interface Tele { x: number; y: number; r: number; t: number; max: number; dmg: number; fx?: FxName; h?: number; color?: string; ownerId?: number }
 interface Part { x: number; y: number; vx: number; vy: number; life: number; max: number; color: string; size: number; grav: number }
 interface FText { x: number; y: number; text: string; color: string; life: number }
@@ -148,6 +148,8 @@ export class Game {
   tutorialRevision = 0;
   tutorialModalPending = false;
   tutorialModalDone = false;
+  /** Coordenadas de inimigos derrotados no tutorial, indexadas por andar e mantidas até sair do treino. */
+  tutorialDefeated = new Set<string>();
   surfaceEnemies: Enemy[] = [];
   /** Velejando no Mar de Ømnia (null = em terra). */
   sea: SeaRun | null = null;
@@ -158,7 +160,7 @@ export class Game {
   abyssBest = 0;
   returnPosition = { x: 0, y: 0 };
   discoveries = new Set<string>();
-  /** Estado aditivo dos dez sistemas de Ecos Além; saves anteriores recebem defaults. */
+  /** Estado aditivo dos sistemas de Ecos Além; saves anteriores recebem defaults. */
   echoSystems: EchoSystemsState = freshEchoSystems();
   /** Companhia contratada: estado aditivo para não quebrar jornadas antigas. */
   mercenaries: MercenaryState = freshMercenaryState();
@@ -166,7 +168,7 @@ export class Game {
   openedChests = new Set<string>();
   transition = 0;
   doorCooldown = 0;
-  get areaName() { const ar = archipelagoArea(this); if (ar) return ar; const sp = sagaPosOf(this); if (sp) return `${sp.realm.name} · ${sp.zone.name}`; if (this.siege) return `Cidade de Aurélia · Onda ${this.siege.wave}`; if (this.depth?.kind === 'biome-mine' && this.depth.biome) return `Mina de ${BIOME_NAMES[this.depth.biome]} · Andar ${this.depth.floor}/${BIOME_MINE_FLOORS}`; if (this.depth) return this.depth.kind === 'tutorial' ? `Treino de Aventureiro · Andar ${this.depth.floor}/6` : this.depth.kind === 'dream' ? `Expedição onírica · Andar ${this.depth.floor}/1` : this.depth.kind === 'storm' ? `Tempestade de Fratura · Andar ${this.depth.floor}/1` : this.depth.kind === 'abyss' ? `Abismo do Cântico · Andar ${this.depth.floor}` : isRealm(this.depth.temple) ? `${this.depth.temple?.name} · Reino Oculto` : `${this.depth.temple?.name} · 2º andar`; return this.interior?.name ?? (Math.hypot(this.p.x / TS - 122, this.p.y / TS - 126) < 19 ? 'Vila de Potos' : BIOME_NAMES[this.biome]); }
+  get areaName() { const ar = archipelagoArea(this); if (ar) return ar; const sp = sagaPosOf(this); if (sp) return `${sp.realm.name} · ${sp.zone.name}`; if (this.siege) return `Cidade de Aurélia · Onda ${this.siege.wave}`; if (this.depth?.kind === 'biome-mine' && this.depth.biome) return `Mina de ${BIOME_NAMES[this.depth.biome]} · Andar ${this.depth.floor}/${BIOME_MINE_FLOORS}`; if (this.depth) return this.depth.profile === 'nemesis' ? `Caçada Nêmesis · Marca ${this.depth.data.boss?.id.match(/^echo_nemesis_(\d+)$/)?.[1] ?? Math.min(12, this.echoSystems.nemesis.victories + 1)}/12` : this.depth.kind === 'tutorial' ? `Treino de Aventureiro · Andar ${this.depth.floor}/6` : this.depth.kind === 'dream' ? `Expedição onírica · Andar ${this.depth.floor}/1` : this.depth.kind === 'storm' ? `Tempestade de Fratura · Andar ${this.depth.floor}/1` : this.depth.kind === 'abyss' ? `Abismo do Cântico · Andar ${this.depth.floor}` : isRealm(this.depth.temple) ? `${this.depth.temple?.name} · Reino Oculto` : `${this.depth.temple?.name} · 2º andar`; return this.interior?.name ?? (Math.hypot(this.p.x / TS - 122, this.p.y / TS - 126) < 19 ? 'Vila de Potos' : BIOME_NAMES[this.biome]); }
   private restoredNpcs(): NpcDef[] {
     const freed = this.echoSystems.restoration.freedRealms.slice(0, 3);
     const key = freed.join('|');
@@ -493,13 +495,16 @@ export class Game {
   }
 
   // ---------- combat ----------
-  damageEnemy(e: Enemy, raw: number, kx = 0, ky = 0, color = "#ffffff", mult = 1) {
+  damageEnemy(e: Enemy, raw: number, kx = 0, ky = 0, color = "#ffffff", mult = 1, weaponStyle?: WeaponKind) {
     if (!e.alive) return;
     const s = this.stats();
     const crit = Math.random() < 0.05 + s.dex * 0.004;
-    let dmg = Math.max(1, Math.round((raw - e.def) * (0.9 + Math.random() * 0.2) * mult * damageDealtMult(this) * petDamageMult(this) * mercDamageMult(this) * (crit ? 1.8 : 1)));
+    const nemesisResists = !!weaponStyle && e.nemesisResistance === weaponStyle;
+    const styleMultiplier = nemesisResists ? 0.45 : 1;
+    let dmg = Math.max(1, Math.round((raw - e.def) * (0.9 + Math.random() * 0.2) * mult * styleMultiplier * damageDealtMult(this) * petDamageMult(this) * mercDamageMult(this) * (crit ? 1.8 : 1)));
     if (e.boss && !e.boss.active) this.activateBoss(e);
     e.hp -= dmg;
+    if (e.boss?.def.id.startsWith("echo_nemesis_") && weaponStyle) recordNemesisHitStyle(this, weaponStyle);
     e.hurt = 0.15;
     e.kbx += kx * (e.boss ? 0.15 : 1); e.kby += ky * (e.boss ? 0.15 : 1);
     this.float(e.x, e.y - 20, crit ? `${dmg}!` : `${dmg}`, crit ? "#ffd040" : color);
@@ -515,7 +520,9 @@ export class Game {
   }
   killEnemy(e: Enemy) {
     e.alive = false;
-    e.respawn = e.summoned || e.boss ? -1 : 35;
+    const tutorialFloor = this.depth?.kind === "tutorial" ? this.depth.floor : null;
+    e.respawn = e.summoned || e.boss || tutorialFloor !== null ? -1 : 35;
+    if (tutorialFloor !== null) this.tutorialDefeated.add(e.tutorialSpawnKey ?? `${tutorialFloor}:${Math.floor(e.hx / TS)}:${Math.floor(e.hy / TS)}`);
     this.burst(e.x, e.y - 8, "#ffffff", 16, 80);
     this.fx("explosion", e.x, e.y - 10, e.boss ? 1.5 : 0.6, false, e.boss ? 0.6 : 0.4);
     this.audio.sfx("die");
@@ -547,6 +554,7 @@ export class Game {
       this.twinRolls.delete(mainId);
       const b = lead?.boss?.def ?? state.def;
       this.bossesDone.add(mainId);
+      recordNemesisBossVictory(this, mainId);
       this.mercenaries.contractSeals = Math.min(99, this.mercenaries.contractSeals + 1);
       this.toast("Selo de contrato conquistado: uma nova aliança pode nascer em Potos.", "#cba7ff");
       if (b.id === TUTORIAL_BOSS_ID) { this.tutorialActive = false; this.tutorialDone = true; this.tutorialFloor = TUTORIAL_FLOORS; this.tutorialModalPending = true; this.tutorialPauseInput = true; this.keys.clear(); this.p.points = Math.max(this.p.points, 3); }
@@ -701,7 +709,7 @@ export class Game {
         const hitR = e.boss ? 18 : 6;
         if (d > range + hitR) continue;
         const ang = Math.abs(Math.atan2(dx * ey - dy * ex, dx * ex + dy * ey));
-        if (ang < arc || d < 10 + hitR) this.damageEnemy(e, pow, dx * 120 * kb, dy * 120 * kb);
+        if (ang < arc || d < 10 + hitR) this.damageEnemy(e, pow, dx * 120 * kb, dy * 120 * kb, "#ffffff", 1, kind);
       }
       this.fx(fxName, p.x + dx * range * 0.7, p.y - 8 + dy * range * 0.7 + (fxName === "slash" || fxName === "impact" || fxName === "blood" || fxName === "void" || fxName === "explosion" || fxName === "ice" || fxName === "nature" ? 0 : 10), finisher ? 0.95 : 0.5 + step * 0.06, dx < 0, finisher ? 0.45 : 0.3, heroFx.h);
       for (let i = 0; i < 6; i++) {
@@ -712,11 +720,11 @@ export class Game {
     } else if (kind === "bow") {
       p.atkCd = 0.45 * speedMul;
       this.audio.sfx("bow");
-      this.projs.push({ x: p.x, y: p.y - 8, vx: dx * 260, vy: dy * 260, life: 0.8, dmg: pow, from: "p", kind: "arrow", r: 3, color: "#f0e0c0", fx: fxName, h: heroFx.h });
+      this.projs.push({ x: p.x, y: p.y - 8, vx: dx * 260, vy: dy * 260, life: 0.8, dmg: pow, from: "p", kind: "arrow", r: 3, color: "#f0e0c0", fx: fxName, h: heroFx.h, weaponStyle: kind });
     } else {
       p.atkCd = 0.5 * speedMul;
       this.audio.sfx("ice");
-      this.projs.push({ x: p.x, y: p.y - 8, vx: dx * 180, vy: dy * 180, life: 1, dmg: pow, from: "p", kind: "orb", r: 4, color: w.color, fx: fxName, h: heroFx.h });
+      this.projs.push({ x: p.x, y: p.y - 8, vx: dx * 180, vy: dy * 180, life: 1, dmg: pow, from: "p", kind: "orb", r: 4, color: w.color, fx: fxName, h: heroFx.h, weaponStyle: kind });
     }
   }
 
@@ -1407,7 +1415,7 @@ export class Game {
           if (Math.hypot(e.x - pr.x, e.y - 8 - pr.y) < (e.boss ? 20 : 8) + pr.r) {
             if (pr.kind === "fire") this.explode(pr);
             else {
-              this.damageEnemy(e, pr.dmg, pr.vx * 0.4, pr.vy * 0.4, pr.color);
+              this.damageEnemy(e, pr.dmg, pr.vx * 0.4, pr.vy * 0.4, pr.color, 1, pr.weaponStyle);
               if (pr.fx) this.fx(pr.fx, e.x, e.y - 8, 0.6, pr.vx < 0, 0.32, pr.h ?? 0);
               else if (pr.slow) this.fx("ice", e.x, e.y - 8, 0.45, false, 0.3);
               if (pr.slow) { e.slow = 2.5; this.burst(e.x, e.y - 8, "#c0f0ff", 6, 30); }

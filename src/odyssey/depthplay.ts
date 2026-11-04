@@ -27,7 +27,7 @@ import { biomeMineEntranceNear } from './biome-mine-sites';
 
 for (const [i, r] of ALL_REALMS.entries()) ITEMS[r.relic] ??= { id: r.relic, name: r.relicName, type: 'amulet', bonus: { str: 4 + i * 2, int: 4 + i * 2, vit: 3 + i * 2, hp: 60 + i * 40, mp: 30 + i * 20 }, desc: `Relíquia oculta do ${r.name}.`, color: r.color, price: 2000 + i * 1500 };
 
-export interface DepthState { kind: 'abyss' | 'temple' | 'tutorial' | 'dream' | 'storm' | 'biome-mine'; profile?: 'citadel' | 'siege' | 'dream' | 'storm'; floor: number; biome?: Biome; temple?: Temple; data: DungeonFloor; stair: StairStyle }
+export interface DepthState { kind: 'abyss' | 'temple' | 'tutorial' | 'dream' | 'storm' | 'biome-mine'; profile?: 'citadel' | 'siege' | 'dream' | 'storm' | 'nemesis'; floor: number; biome?: Biome; temple?: Temple; data: DungeonFloor; stair: StairStyle }
 
 export const ABYSS_KEEPER: NpcDef = { id: 'abyss_keeper', name: 'Guardião do Abismo', title: 'Vigia dos Cem Andares', tx: ABYSS_DOOR.tx, ty: ABYSS_DOOR.ty, pal: { skin: '#d8c8b8', hair: '#3a2a5a', body: '#2a1a40', legs: '#120a20', accent: '#c78bff' }, lines: [] };
 export const CITADEL_KEEPER: NpcDef = { id: 'citadel_keeper', name: 'Sentinela de Gehenna', title: 'Guardiã da Estrada ao Trono', tx: CITADEL_DOOR.tx, ty: CITADEL_DOOR.ty, pal: { skin: '#b8a0a0', hair: '#201020', body: '#7a2028', legs: '#301018', accent: '#ff7050' }, lines: [] };
@@ -76,11 +76,14 @@ export function carveEntrances(world: World) {
 
 export const hasTorch = (g: Game) => g.count('torch') > 0;
 
-function populate(g: Game, d: DungeonFloor, strength: number, abyss = false, citadel = false) {
+function populate(g: Game, d: DungeonFloor, strength: number, abyss = false, citadel = false, tutorialFloor?: number) {
   const out: Enemy[] = [];
   for (const s of d.spawns) {
+    const tutorialKey = tutorialFloor === undefined ? null : `${tutorialFloor}:${s.tx}:${s.ty}`;
+    if (tutorialKey && g.tutorialDefeated.has(tutorialKey)) continue;
     const sp = abyss ? BEASTS[pickBeast(d.floor, Math.random())]! : null;
     const e = g.makeEnemy(sp ? sp.kind : s.kind, s.tx * TS + 8, s.ty * TS + 8, s.level + cycleBonus(g.cycle));
+    if (tutorialKey) e.tutorialSpawnKey = tutorialKey;
     if (sp) { e.species = sp.id; e.maxhp = Math.round(e.maxhp * sp.hp); e.atk = Math.round(e.atk * sp.atk); e.speed = Math.round(e.speed * sp.speed); }
     e.hp = e.maxhp = Math.round(e.maxhp * strength * (s.elite ? 2.2 : 1)); e.atk = Math.round(e.atk * (s.elite ? 1.35 : 1) * (strength > 1 ? 1.12 : 1));
     if (s.elite) { e.elite = true; e.xp = Math.round(e.xp * 2.5); e.gold *= 2; }
@@ -101,7 +104,7 @@ function enter(g: Game, state: DepthState, strength: number) {
   if (g.interior) g.leaveInterior();
   if (!g.depth) { g.depthReturn = { x: g.p.x, y: g.p.y + 18 }; g.surfaceEnemies = g.enemies; }
   g.depth = state; g.world = state.data.world;
-  g.enemies = populate(g, state.data, strength, state.kind === 'abyss', state.profile === 'citadel'); g.activeBoss = null; g.audio.boss = false;
+  g.enemies = populate(g, state.data, strength, state.kind === 'abyss', state.profile === 'citadel', state.kind === 'tutorial' ? state.floor : undefined); g.activeBoss = null; g.audio.boss = false;
   g.p.x = state.data.start.tx * TS + 8; g.p.y = (state.data.start.ty + 1) * TS + 8;
   g.clearTransition(); g.biome = state.data.theme.biome; g.audio.biome = state.data.theme.biome;
 }
@@ -130,6 +133,7 @@ export function enterTutorialFloor(g: Game, floor: number) {
 }
 
 export function startTutorial(g: Game) {
+  g.tutorialDefeated.clear();
   g.tutorialActive = true;
   g.tutorialPauseInput = true;
   g.tutorialDone = false;
@@ -146,6 +150,7 @@ export function skipTutorial(g: Game) {
   g.keys.clear(); g.mouse.down = false; g.moveTarget = null; g.targetEnemy = null;
   g.tutorialDone = true;
   g.tutorialFloor = 0;
+  g.tutorialDefeated.clear();
   g.tutorialModalPending = true;
   g.p.hp = g.maxHp(); g.p.mp = g.maxMp();
   g.audio.boss = false;
@@ -160,6 +165,7 @@ export function completeTutorial(g: Game) {
   g.keys.clear(); g.mouse.down = false; g.moveTarget = null; g.targetEnemy = null;
   g.tutorialDone = true;
   g.tutorialFloor = 0;
+  g.tutorialDefeated.clear();
   g.tutorialModalPending = true;
   g.p.points = Math.max(g.p.points, 3);
   g.p.hp = g.maxHp(); g.p.mp = g.maxMp();
@@ -253,6 +259,7 @@ export function leaveDepth(g: Game, silent = false) {
   if (!g.depth) return;
   if (g.depth.profile === 'siege') onSiegeLeave(g);
   if (g.depth.profile === 'storm') g.echoSystems.storms.active = false;
+  if (g.depth.profile === 'nemesis') g.echoSystems.nemesis.active = false;
   if (g.depth.kind === 'dream') g.echoSystems.dreams.activeRun = null;
   g.depth = null; g.world = g.farlandsActive && g.farlandsWorld ? g.farlandsWorld : g.overworld; g.enemies = g.surfaceEnemies; g.surfaceEnemies = [];
   g.activeBoss = null; g.audio.boss = false;
@@ -339,16 +346,22 @@ function echoDepthAction(g: Game, run: boolean): string {
   const d = g.depth; if (!d || (d.kind !== 'dream' && d.kind !== 'storm')) return '';
   const data = d.data;
   for (const c of data.chests) if (near(g, c.tx, c.ty)) {
-    if (run) g.claimChest(c.id, c.gold, c.item, c.qty, d.kind === 'dream' ? 'Baú de uma lembrança' : 'Cache da Fratura');
+    if (run) g.claimChest(c.id, c.gold, c.item, c.qty, d.profile === 'nemesis' ? 'Cache da Caçada Nêmesis' : d.kind === 'dream' ? 'Baú de uma lembrança' : 'Cache da Fratura');
     return g.openedChests.has(c.id) ? 'Baú vazio' : 'E · Abrir baú';
   }
   if (near(g, data.start.tx, data.start.ty, 20)) {
     if (run) leaveDepth(g);
+    if (d.profile === 'nemesis') return 'E · Recuar da Caçada Nêmesis';
     return d.kind === 'dream' ? 'E · Abandonar o sonho e voltar' : 'E · Sair da Fenda (evento encerrado)';
   }
   if (near(g, data.stairs.tx, data.stairs.ty, 22)) {
     if (d.kind === 'dream') {
       const remaining = g.enemies.some((enemy) => enemy.alive);
+      if (d.profile === 'nemesis') {
+        if (remaining) { if (run) g.toast('O rival ainda está de pé. Derrote todas as sombras antes de encerrar a caçada.', '#ffb060'); return 'Escada selada · vença o Caçador'; }
+        if (run) leaveDepth(g);
+        return 'E · Encerrar a Caçada e voltar';
+      }
       if (remaining) { if (run) g.toast('O sonho ainda está preso. Derrote as sombras e o guardião antes de sair.', '#ffb060'); return 'Escada selada · derrote os inimigos'; }
       if (run) {
         const gold = 220 + g.p.level * 12;
@@ -443,6 +456,11 @@ export function drawDepth(g: Game, c: CanvasRenderingContext2D, x0: number, y0: 
     drawStairs(c, d.stair, data.start.tx, data.start.ty, false, wt);
     const locked = d.kind === 'dream' ? g.enemies.some((enemy) => enemy.alive) : !!data.boss && !g.bossesDone.has(data.boss.id);
     drawStairs(c, d.stair, data.stairs.tx, data.stairs.ty, true, wt, locked);
+    if (d.profile === 'nemesis' && data.boss && vis(data.boss.tx, data.boss.ty)) {
+      const pulse = 0.24 + Math.sin(wt * 3.8) * 0.07;
+      c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = pulse; c.strokeStyle = data.boss.color; c.lineWidth = 2;
+      c.beginPath(); c.ellipse(data.boss.tx * TS + 8, data.boss.ty * TS + 9, 18 + Math.sin(wt * 2.2) * 2, 9, wt * 0.18, 0, Math.PI * 2); c.stroke(); c.restore();
+    }
     if (d.kind === 'storm' && vis(data.stairs.tx, data.stairs.ty)) {
       c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.28 + Math.sin(wt * 4) * 0.08; c.strokeStyle = '#d080ff'; c.lineWidth = 2;
       c.beginPath(); c.ellipse(data.stairs.tx * TS + 8, data.stairs.ty * TS + 8, 22 + Math.sin(wt * 2) * 2, 13, wt * 0.2, 0, Math.PI * 2); c.stroke(); c.restore();
@@ -463,16 +481,17 @@ export function drawDepth(g: Game, c: CanvasRenderingContext2D, x0: number, y0: 
 export function depthLights(g: Game, hole: (x: number, y: number, r: number, a?: number) => void, glows: { x: number; y: number; r: number; col: string }[], wt: number) {
   const d = g.depth; if (!d || d.profile === 'siege') return;
   const torch = hasTorch(g);
-  hole(g.p.x, g.p.y - 8, (torch ? 96 : d.profile === 'citadel' ? 84 : d.profile === 'storm' ? 58 : d.profile === 'dream' ? 72 : 34) + Math.sin(wt * 9) * 3);
+  hole(g.p.x, g.p.y - 8, (torch ? 96 : d.profile === 'citadel' ? 84 : d.profile === 'storm' ? 58 : d.profile === 'dream' ? 72 : d.profile === 'nemesis' ? 76 : 34) + Math.sin(wt * 9) * 3);
   if (torch) glows.push({ x: g.p.x, y: g.p.y - 10, r: 46, col: 'rgba(255,150,60,0.22)' });
   if (d.profile === 'citadel') glows.push({ x: d.data.stairs.tx * TS + 8, y: d.data.stairs.ty * TS + 8, r: 68, col: 'rgba(255,76,40,0.28)' });
   if (d.profile === 'storm') glows.push({ x: d.data.stairs.tx * TS + 8, y: d.data.stairs.ty * TS + 8, r: 72, col: 'rgba(208,128,255,0.28)' });
   if (d.profile === 'dream') glows.push({ x: d.data.stairs.tx * TS + 8, y: d.data.stairs.ty * TS + 8, r: 58, col: 'rgba(128,216,255,0.22)' });
+  if (d.profile === 'nemesis' && d.data.boss) glows.push({ x: d.data.boss.tx * TS + 8, y: d.data.boss.ty * TS + 7, r: 70, col: `${d.data.boss.color}66` });
   for (const t of d.data.torches) { hole(t.tx * TS + 8, t.ty * TS + 6, 64 + Math.sin(wt * 7 + t.tx) * 3, 0.95); glows.push({ x: t.tx * TS + 8, y: t.ty * TS + 4, r: 34, col: 'rgba(255,140,50,0.32)' }); }
   hole(d.data.start.tx * TS + 8, d.data.start.ty * TS + 8, 30, 0.6);
   propLights(g, hole, glows, wt);
   secretLights(g, hole); sagaLights(g, hole);
 }
-export const depthDarkness = (g: Game) => g.depth?.profile === 'siege' ? 0 : g.depth?.profile === 'citadel' ? 0.42 : g.depth?.profile === 'dream' ? 0.46 : g.depth?.profile === 'storm' ? 0.56 : sagaDarkness(g) ?? (isRealm(g.depth?.temple) ? 0.72 : g.depth?.kind === 'temple' ? 0.95 : 0.9);
+export const depthDarkness = (g: Game) => g.depth?.profile === 'siege' ? 0 : g.depth?.profile === 'citadel' ? 0.42 : g.depth?.profile === 'dream' ? 0.46 : g.depth?.profile === 'nemesis' ? 0.42 : g.depth?.profile === 'storm' ? 0.56 : sagaDarkness(g) ?? (isRealm(g.depth?.temple) ? 0.72 : g.depth?.kind === 'temple' ? 0.95 : 0.9);
 
 setSagaLeave((g) => leaveDepth(g));

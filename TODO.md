@@ -37,4 +37,11 @@
 - [x] **Mercenários aprofundados:** preservar o roster e os IDs; disponibilizar quatro slots de equipamento, três caminhos de talentos por aliado, vínculo/afinidade e sinergias, progressão de combate e expedições persistentes.
 - [x] **Minérios e forja ampliados:** acrescentar oito minérios por bioma/andar, veios e caches nas minas, materiais refinados e 24 projetos de equipamento; integrar custos, receitas e loadouts do herói/mercenários sem alterar receitas existentes.
 - [x] **Biomas mais detalhados e animados:** triplicar a densidade das camadas de microdetalhes e adicionar animações ambientais pixel-art aos 30 biomas, com cache e controle adaptativo de carga.
-- [x] **Continuidade:** conservar português, pixel-art, saves e modo offline; suíte Vitest final: 189/189; TypeScript e `git diff --check` sem erros; revisão independente sem bloqueadores; APK debug offline compilado e manifesto sem INTERNET; commit `4b8c4cd` publicado em `origin/main`.
+- [x] **Continuidade:** conservar português, pixel-art, saves e modo offline; expansão publicada em `origin/main`; APK debug offline compilado e manifesto sem INTERNET.
+
+
+## Continuação — tutorial e Caçador de Ecos
+
+- [x] **Tutorial sem reaparecimento:** guardar os IDs imutáveis dos spawns comuns abatidos por piso; não reativá-los por temporizador ou ao reiniciar o andar; manter o respawn normal fora do tutorial e a regra do chefe final; cobrir também inimigos que mudaram de posição.
+- [x] **Nêmesis adaptativo:** campanha opcional pós-Ato V com 12 arenas procedurais, chefes e recompensas; acompanhar acertos diretos de arma, resistir apenas à categoria aprendida no duelo anterior e expor progresso/início no painel; migrar saves legados com defaults.
+- [x] **Validação da correção:** suíte Vitest completa 194/194, TypeScript limpo, build web e APK debug offline recompilados; manifesto Android sem INTERNET; revisão independente sem bloqueadores e três ressalvas corrigidas antes do push.
