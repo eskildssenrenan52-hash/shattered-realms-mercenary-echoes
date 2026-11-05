@@ -16,10 +16,14 @@ import { carveBiomeMineEntrances } from "./biome-mine-sites";
 export const MAIN_FARLANDS_GATE = { x: 127, y: 139 } as const;
 const resolvedByWorld = new WeakMap<World, ResolvedFarlandsSite[]>();
 
-function carveGate(world: World, x: number, y: number) {
+function carveGate(world: World, x: number, y: number, arrivalCorridor = false) {
   for (let ty = y - 2; ty <= y + 3; ty++) for (let tx = x - 2; tx <= x + 2; tx++) {
     if (tx <= 1 || ty <= 1 || tx >= W - 1 || ty >= H - 1) continue;
     world.tiles[ty * W + tx] = T.PATH;
+  }
+  if (arrivalCorridor) {
+    for (let tx = x + 3; tx <= x + 8; tx++) world.tiles[(y + 2) * W + tx] = T.PATH;
+    world.nodes = world.nodes.filter((node) => node.ty !== y + 2 || node.tx < x + 3 || node.tx > x + 8);
   }
   for (let dy = -2; dy <= 0; dy++) for (const dx of [-2, 2]) world.tiles[(y + dy) * W + x + dx] = T.PILLAR;
   world.tiles[(y - 1) * W + x] = T.CRYSTAL;
@@ -34,7 +38,7 @@ export function ensureFarlandsWorld(g: Game): World {
     const world = generateFarlandsWorld();
     carveEntrances(world);
     carveBiomeMineEntrances(world);
-    for (const portal of FARLANDS_PORTALS) carveGate(world, portal.x, portal.y);
+    for (const portal of FARLANDS_PORTALS) carveGate(world, portal.x, portal.y, true);
     g.farlandsWorld = world;
     resolvedByWorld.set(world, resolveFarlandsSites(world));
   }

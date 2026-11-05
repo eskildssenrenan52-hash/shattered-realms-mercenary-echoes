@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ITEMS } from "./data";
 import { BIOME_LIST } from "./world";
-import { FARLANDS_SEED, FARLANDS_SITES, farlandsInteractionId, generateFarlandsWorld, resolveFarlandsSites } from "./farlands";
+import { FARLANDS_PORTALS, FARLANDS_SEED, FARLANDS_SITES, farlandsInteractionId, generateFarlandsWorld, resolveFarlandsSites } from "./farlands";
 import { generateWorld, SOLID, T, W } from "./world";
 import { carveBiomeMineEntrances } from "./biome-mine-sites";
 import { farlandsNpcs } from "./farlands-npcs";
@@ -39,9 +39,11 @@ describe("Farlands", () => {
   it("distribui moradores exclusivos de Farlands em locais caminháveis e sem cobrir os marcos", () => {
     const world = generateFarlandsWorld();
     const npcs = farlandsNpcs(world);
-    expect(npcs).toHaveLength(8);
-    expect(new Set(npcs.map((npc) => npc.id)).size).toBe(8);
-    expect(new Set(npcs.map((npc) => npc.ty * W + npc.tx)).size).toBe(8);
+    expect(npcs).toHaveLength(9);
+    expect(new Set(npcs.map((npc) => npc.id)).size).toBe(9);
+    const arrivalGuide = npcs.find((npc) => npc.id === "farlands_gate_guide")!;
+    expect(Math.hypot(arrivalGuide.tx - FARLANDS_PORTALS[0].x, arrivalGuide.ty - FARLANDS_PORTALS[0].y) * 16).toBeGreaterThan(60);
+    expect(new Set(npcs.map((npc) => npc.ty * W + npc.tx)).size).toBe(9);
     for (const npc of npcs) {
       expect(SOLID.has(world.tiles[npc.ty * W + npc.tx]!)).toBe(false);
       expect(npc.id).toMatch(/^farlands_/);

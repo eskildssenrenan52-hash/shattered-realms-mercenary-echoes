@@ -1,5 +1,5 @@
 import type { NpcDef } from "./data";
-import { findNearbyWalkableTile, resolveFarlandsSites } from "./farlands";
+import { FARLANDS_PORTALS, findNearbyWalkableTile, resolveFarlandsSites } from "./farlands";
 import { H, W, type World } from "./world";
 
 type FarlandsNpcSeed = Omit<NpcDef, "tx" | "ty"> & { siteId: string };
@@ -69,6 +69,12 @@ export function farlandsNpcs(world: World): NpcDef[] {
     used.add(spot.y * W + spot.x);
     return [{ ...seed, tx: spot.x, ty: spot.y }];
   });
+  const portal = FARLANDS_PORTALS[0];
+  const guideSpot = findNearbyWalkableTile(world, portal.x + 4, portal.y + 2, used, 12);
+  if (guideSpot) {
+    used.add(guideSpot.y * W + guideSpot.x);
+    npcs.push({ id: 'farlands_gate_guide', name: 'Arven', title: 'Guia do Portal do Horizonte', tx: guideSpot.x, ty: guideSpot.y, pal: { skin: '#d7aa86', hair: '#b8d7e6', body: '#41677d', legs: '#2a4358', accent: '#d8f3ff' }, lines: ['As Terras Distantes são um continente próprio. Os marcos luminosos revelam lugares novos, e as minas guardam dez andares de desafios.', 'Para regressar a Potos, volte ao arco por onde chegou e pressione E. Cada lado mantém seus próprios habitantes e progresso.'] });
+  }
 
   cache.set(world, npcs);
   return npcs;

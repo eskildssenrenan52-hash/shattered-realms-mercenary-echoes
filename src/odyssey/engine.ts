@@ -199,6 +199,13 @@ export class Game {
     return npcs;
   }
   get localNpcs(): NpcDef[] {
+    if (this.depth?.kind === 'tutorial') {
+      const start = this.depth.data.start;
+      const spots = [[start.tx + 1, start.ty + 1], [start.tx + 1, start.ty], [start.tx, start.ty + 2], [start.tx - 1, start.ty + 1], [start.tx, start.ty + 1]];
+      const spot = spots.find(([tx, ty]) => tx !== undefined && ty !== undefined && tx >= 0 && ty >= 0 && tx < W && ty < H && !solidAt(this.world, tx * TS + 8, ty * TS + 8));
+      if (!spot) return [];
+      return [{ id: 'tutorial_guide', name: 'Íris', title: 'Guia da Primeira Jornada', tx: spot[0]!, ty: spot[1]!, pal: { skin: '#e8bd9d', hair: '#79cfdb', body: '#397f91', legs: '#29485a', accent: '#e3fcff' }, lines: ['Bem-vindo à primeira jornada. Converse comigo, teste seus comandos e desça apenas quando estiver preparado.', 'Ao sair do treino, os moradores de Potos e das Terras Distantes estarão esperando para orientar sua exploração.'] }];
+    }
     if (this.depth || this.island || this.sea) return [];
     if (this.farlandsActive) return farlandsNpcs(this.world);
     if (!this.interior) return [...NPCS.filter(n => !n.interiorOnly), ...this.restoredNpcs()];
@@ -1026,7 +1033,7 @@ export class Game {
   }
 
   // ---------- interaction ----------
-  nearNpc(r = 22) { return this.localNpcs.find((n) => Math.hypot(n.tx * TS + 8 - this.p.x, n.ty * TS + 8 - this.p.y) < r) ?? null; }
+  nearNpc(r = 22) { return this.localNpcs.find((n) => Math.hypot(n.tx * TS + 8 - this.p.x, n.ty * TS + 14 - this.p.y) < r) ?? null; }
   tryGather(silent = false) {
     const p = this.p;
     for (const n of this.world.nodes) {
@@ -1048,9 +1055,9 @@ export class Game {
   interact() {
     if (!this.farlandsActive && archipelagoInteract(this)) return;
     if (!this.depth && !this.farlandsActive && interactSettlement(this)) return;
-    if (this.interactExploration()) return;
     const npc = this.nearNpc(26);
     if (npc) { this.talk(npc); return; }
+    if (this.interactExploration()) return;
     if (this.tryGather()) return;
   }
 
@@ -1122,7 +1129,7 @@ export class Game {
     if (sx > this.viewWidth - 78 && sy < 58) { this.onMapClick?.(); return; }
     if (this.interior && (right)) return;
     if (right) { this.cast(this.p.spell); return; }
-    const npc = this.localNpcs.find((n) => Math.hypot(n.tx * TS + 8 - wx, n.ty * TS - wy) < 14);
+    const npc = this.localNpcs.find((n) => Math.hypot(n.tx * TS + 8 - wx, n.ty * TS + 14 - wy) < 20);
     if (npc) { this.talkTarget = npc; this.moveTarget = { x: npc.tx * TS + 8, y: npc.ty * TS + 8 }; this.targetEnemy = null; return; }
     const en = !this.interior && this.enemies.find((e) => e.alive && Math.hypot(e.x - wx, e.y - 8 - wy) < (e.boss ? 26 : 12));
     if (en) { this.targetEnemy = en; this.moveTarget = null; this.talkTarget = null; return; }
@@ -1691,6 +1698,7 @@ export class Game {
     c.globalAlpha = 1;
     liveDrawWorld(this, c);
     c.setTransform(1, 0, 0, 1, 0, 0);
+    this.renderNpcIndicators(c, cx, cy);
     if (!this.interior && !this.depth && !this.island) { this.renderWaypoint(c); this.renderMinimap(); }
     liveDrawScreen(this, c);
     drawSiegeHud(this, c);
@@ -1785,6 +1793,34 @@ export class Game {
     }
     c.restore();
   }
+  renderNpcIndicators(c: CanvasRenderingContext2D, cx: number, cy: number) {
+    const visible = this.localNpcs.filter((n) => {
+      const x = n.tx * TS + 8 - cx, y = n.ty * TS + 14 - cy;
+      return x >= -12 && x <= this.viewWidth + 12 && y >= -38 && y <= this.viewHeight + 12;
+    });
+    if (!visible.length) return;
+    const nearby = visible.map((npc) => ({ npc, distance: Math.hypot(npc.tx * TS + 8 - this.p.x, npc.ty * TS + 14 - this.p.y) }))
+      .filter((entry) => entry.distance <= 64).sort((a, b) => a.distance - b.distance)[0]?.npc;
+    c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.textAlign = 'center'; c.textBaseline = 'middle';
+    for (const n of visible) {
+      const x = n.tx * TS + 8 - cx, y = n.ty * TS + 14 - cy;
+      const hasQuest = this.availableQuest(n.id) || QUESTS.some((q) => q.giver === n.id && this.questReady(q));
+      if (!hasQuest) {
+        c.fillStyle = '#132532'; c.fillRect(x - 4, y - 29, 9, 8); c.strokeStyle = '#bcecff'; c.lineWidth = 1; c.strokeRect(x - 4.5, y - 29.5, 9, 8);
+        c.fillStyle = '#f2fbff'; c.fillRect(x - 2, y - 27, 2, 2); c.fillRect(x + 1, y - 27, 2, 2); c.fillRect(x - 1, y - 23, 2, 2);
+      }
+    }
+    if (nearby) {
+      const x = nearby.tx * TS + 8 - cx, y = nearby.ty * TS + 14 - cy;
+      c.font = '7px monospace'; const width = Math.min(this.viewWidth - 12, c.measureText(nearby.name).width + 12);
+      const labelX = Math.max(width / 2 + 6, Math.min(this.viewWidth - width / 2 - 6, x));
+      const labelY = Math.max(18, y - 35);
+      c.fillStyle = 'rgba(13,24,32,0.94)'; c.fillRect(labelX - width / 2, labelY - 7, width, 14);
+      c.strokeStyle = '#ead39b'; c.lineWidth = 1; c.strokeRect(labelX - width / 2 + 0.5, labelY - 6.5, width - 1, 13);
+      c.fillStyle = '#fff1c7'; c.fillText(nearby.name, labelX, labelY);
+    }
+    c.restore();
+  }
   renderInteractionPrompt(c: CanvasRenderingContext2D) {
     const p=this.p, near=(x:number,y:number,r=30)=>Math.hypot(p.x-x*TS-8,p.y-y*TS-8)<r;
     let text=this.farlandsActive?"":archipelagoPrompt(this);
@@ -1803,7 +1839,8 @@ export class Game {
       else if(surfaceEntrance(this,false))text=surfaceEntrance(this,false);
       else if(TREASURES.some(t=>near(t.tx,t.ty,26)))text='E · Abrir baú';
     }
-    if(!text&&this.nearNpc(26))text='E · Conversar';
+    const npc = this.nearNpc(26);
+    if(!text&&npc)text=`E · Conversar: ${npc.name}`;
     if(!text)return;
     c.font='8px monospace';c.textAlign='center';const width=c.measureText(text).width+18;
     c.fillStyle='#152d2f';c.fillRect(this.viewWidth/2-width/2,this.viewHeight-46,width,16);c.strokeStyle='#bfa87b';c.strokeRect(this.viewWidth/2-width/2,this.viewHeight-46,width,16);c.fillStyle='#f1e5c7';c.fillText(text,this.viewWidth/2,this.viewHeight-35);

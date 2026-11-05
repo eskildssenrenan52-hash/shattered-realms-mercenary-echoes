@@ -261,7 +261,8 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
     if (!game) return;
     game.tutorialPauseInput = false; game.tutorialDone = true; game.tutorialFloor = 0;
     game.tutorialModalPending = false; game.tutorialModalDone = true; clearTutorialInput(game); game.save();
-    setTutorialMode("none"); setPanel("quest");
+    setTutorialMode("none"); setPanel(null);
+    game.toast("Treino concluído. Explore a vila e fale com os moradores marcados no mapa.", "#ffd77a");
   };
   const handleDailyClaim = (date: string) => {
     const result = claimDailyLogin(dailyState, date);
@@ -301,11 +302,11 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
     if (!load) {
       petsNewGame(game); game.fireBeats("new"); epicNewGame(game);
       if (!game.tutorialDone) { startTutorial(game); setTutorialMode("dungeon"); setPanel(null); }
-      else { setPanel("quest"); game.toast("Fale com Gorm na vila ou comece seu lar na clareira a leste.", "#ffd040"); }
+      else { setPanel(null); game.toast("Fale com Gorm na vila ou comece seu lar na clareira a leste.", "#ffd040"); }
     } else {
       if (!game.tutorialDone) { startTutorial(game); setTutorialMode("dungeon"); setPanel(null); }
       else if (game.tutorialModalPending) { game.tutorialPauseInput = true; setPanel(null); setTutorialMode("modals"); }
-      else { game.tutorialPauseInput = false; setPanel("quest"); }
+      else { game.tutorialPauseInput = false; setPanel(null); }
     }
   };
   startRef.current = start;

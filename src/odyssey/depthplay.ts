@@ -4,7 +4,7 @@ import { BEASTS, pickBeast } from './bestiary';
 import { ABYSS_DOOR, ABYSS_ENTRY, ABYSS_FLOORS, ABYSS_BOSS_LOOK, FINAL_BOSS, GUARDIANS, checkpoints, generateFloor, isGuardianFloor, type DungeonFloor, type Theme } from './dungeon';
 import { TEMPLES, templeDoor, templeFootprint, generateTempleFloor, drawTemple, drawAbyssGate, drawStairs, drawWallTorch, type Temple, type StairStyle } from './depths';
 import { BIOME_NAMES, QUESTS, type Biome, type BossDef, type NpcDef } from './data';
-import { T, TS, W, H, type World } from './world';
+import { T, TS, W, H, biomeOf, type World } from './world';
 import { cycleBonus } from './story';
 import { drawTreasure } from './scenery';
 import { propAction, propLights } from './depth-props';
@@ -264,8 +264,10 @@ export function leaveDepth(g: Game, silent = false) {
   g.depth = null; g.world = g.farlandsActive && g.farlandsWorld ? g.farlandsWorld : g.overworld; g.enemies = g.surfaceEnemies; g.surfaceEnemies = [];
   g.activeBoss = null; g.audio.boss = false;
   g.p.x = g.depthReturn.x; g.p.y = g.depthReturn.y;
+  g.biome = biomeOf(g.world, g.p.x, g.p.y); g.audio.biome = g.biome;
   g.buildMinimap(); g.onWorldChanged?.();
-  if (!silent) { g.clearTransition(); g.toast('De volta à superfície.', '#bfefff'); g.save(); }
+  if (silent) g.transition = 0;
+  else { g.clearTransition(); g.toast('De volta à superfície.', '#bfefff'); g.save(); }
 }
 
 /** Escolha de andar ao entrar no Portão do Abismo. */
