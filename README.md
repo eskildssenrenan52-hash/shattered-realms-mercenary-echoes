@@ -61,7 +61,7 @@ O APK de depuração aparece em `android/app/build/outputs/apk/debug/app-debug.a
 
 ## APK Android publicado
 
-Build de teste atual: [baixar APK (69,8 MB)](https://github.com/eskildssenrenan52-hash/shattered-realms-mercenary-echoes/releases/download/android-apk-3/app-debug.apk) · [release notes](https://github.com/eskildssenrenan52-hash/shattered-realms-mercenary-echoes/releases/tag/android-apk-3) · [execução do workflow](https://github.com/eskildssenrenan52-hash/shattered-realms-mercenary-echoes/actions/runs/42396056037). É um APK debug independente do Manus para teste direto. A campanha solo é offline; esta build foi compilada sem URL WSS dedicado, portanto o multiplayer usa o P2P/PeerJS legado e ainda não se conecta ao serviço Node dedicado hospedado.
+Build de teste atual: [baixar APK (69,8 MB)](https://github.com/eskildssenrenan52-hash/shattered-realms-mercenary-echoes/releases/download/android-apk-4/app-debug.apk) · [release notes](https://github.com/eskildssenrenan52-hash/shattered-realms-mercenary-echoes/releases/tag/android-apk-4) · [execução do workflow](https://github.com/eskildssenrenan52-hash/shattered-realms-mercenary-echoes/actions/runs/42401332374). É um APK debug independente do Manus para teste direto, gerado a partir da expansão atual. A campanha solo é offline; esta build foi compilada sem URL WSS dedicado, portanto o multiplayer usa o P2P/PeerJS legado.
 
 ## Expansão de novembro de 2026
 
