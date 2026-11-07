@@ -76,12 +76,17 @@ function enterFarlands(g: Game) {
   g.save();
 }
 
-function leaveFarlands(g: Game) {
-  if (!g.farlandsActive) return;
+export function switchToOverworld(g: Game) {
+  if (!g.farlandsActive) return false;
   g.farlandsActive = false;
   g.world = g.overworld;
   g.enemies = g.surfaceEnemies; g.surfaceEnemies = [];
   g.retireDefeatedBosses();
+  return true;
+}
+function leaveFarlands(g: Game) {
+  if (!g.farlandsActive) return;
+  switchToOverworld(g);
   g.p.x = g.farlandsReturnPos.x; g.p.y = g.farlandsReturnPos.y;
   g.p.vx = g.p.vy = 0; g.clearTransition();
   const tx = Math.max(0, Math.min(W - 1, Math.floor(g.p.x / TS)));

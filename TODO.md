@@ -9,7 +9,7 @@
 - [x] Adicionar sinergias de dupla, capítulos manuais, progressão de vínculo, recompensa de chefes e história emergente por contratos, ferimentos e retornos a Potos.
 - [x] Gerar cinco designs de mercenários com IA no mesmo direcionamento pixel-art das skins do jogador; manter PNGs-mestres e versões WebP 512×512 para runtime.
 - [ ] Validar visualmente todos os cinco retratos no navegador.
-- [x] Executar o build offline, compilar o APK debug final e verificar que o manifesto não solicita INTERNET.
+- [x] Executar o build offline, compilar o APK debug final e conferir o launcher pixel-art; INTERNET é declarada para o multiplayer online opcional e o modo solo usa recursos locais.
 
 ## Expansão de regiões ocultas e exploração
 
@@ -37,11 +37,14 @@
 - [x] **Mercenários aprofundados:** preservar o roster e os IDs; disponibilizar quatro slots de equipamento, três caminhos de talentos por aliado, vínculo/afinidade e sinergias, progressão de combate e expedições persistentes.
 - [x] **Minérios e forja ampliados:** acrescentar oito minérios por bioma/andar, veios e caches nas minas, materiais refinados e 24 projetos de equipamento; integrar custos, receitas e loadouts do herói/mercenários sem alterar receitas existentes.
 - [x] **Biomas mais detalhados e animados:** triplicar a densidade das camadas de microdetalhes e adicionar animações ambientais pixel-art aos 30 biomas, com cache e controle adaptativo de carga.
-- [x] **Continuidade:** conservar português, pixel-art, saves e modo offline; expansão publicada em `origin/main`; APK debug offline compilado e manifesto sem INTERNET.
-
+- [x] **Continuidade:** conservar português, pixel-art, saves e modo offline; expansão publicada em `origin/main`; APK debug offline compilado; INTERNET reservado às salas multiplayer opcionais.
 
 ## Continuação — tutorial e Caçador de Ecos
 
 - [x] **Tutorial sem reaparecimento:** guardar os IDs imutáveis dos spawns comuns abatidos por piso; não reativá-los por temporizador ou ao reiniciar o andar; manter o respawn normal fora do tutorial e a regra do chefe final; cobrir também inimigos que mudaram de posição.
 - [x] **Nêmesis adaptativo:** campanha opcional pós-Ato V com 12 arenas procedurais, chefes e recompensas; acompanhar acertos diretos de arma, resistir apenas à categoria aprendida no duelo anterior e expor progresso/início no painel; migrar saves legados com defaults.
-- [x] **Validação da correção:** suíte Vitest completa 194/194, TypeScript limpo, build web e APK debug offline recompilados; manifesto Android sem INTERNET; revisão independente sem bloqueadores e três ressalvas corrigidas antes do push.
+- [x] **Validação da correção:** suíte Vitest completa 205/205 e testes focais finais 11/11; TypeScript e build web aprovados; regras semânticas dos arquivos alterados aprovadas (regra Prettier do legado excluída); APK offline de 68 MB compilado, assinado em debug e verificado.
+
+## Multijogador online sem custo
+
+- [x] **Salas de até cinco jogadores:** criar uma sala online e exibir código de convite; entrar de outro cliente; limitar a cinco pessoas no total; mostrar roster e avatares/estados; sair sem quebrar a campanha solo/offline; usar PeerJS Cloud e fallback STUN/TURN público sem serviço pago; explicar saída do host, limites de NAT/serviço e progresso individual. Criar/entrar/encerrar foram exercitados em dois clientes reais (2/5); limite cinco, protocolo, poses e códigos têm cobertura automatizada; declarar INTERNET apenas para a conexão opcional. Campanha solo usa assets WebView locais e permanece offline.

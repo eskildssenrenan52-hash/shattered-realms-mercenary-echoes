@@ -120,7 +120,7 @@ export function castSkill(g: Game, s: SkillDef) {
     case 'recall': {
       if (g.depth || g.island || g.sea || g.interior) { g.toast('O mapa não dobra aqui dentro.', '#ff8080'); p.mp += s.mp; p.spellCd = 0; return; }
       const t = STATUES.find((x) => x.id === p.respawnStatue) ?? STATUES[0]!;
-      p.x = t.tx * TS + 8; p.y = (t.ty + 2) * TS + 8; p.vx = p.vy = 0; g.audio.sfx('warp'); g.burst(p.x, p.y - 8, s.color, 40, 80);
+      g.travel(t.id);
       break;
     }
     case 'slowAll':

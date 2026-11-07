@@ -5,8 +5,9 @@ import { ITEMS, type NpcDef, type BossDef, type EnemyKind } from './data';
 import { generateFloor, type DungeonFloor } from './dungeon';
 import { drawStairs, type Temple } from './depths';
 import { drawChar } from './gfx';
-import { TS, W, H, solidAt, type World } from './world';
+import { TS, W, H, solidAt, biomeOf, type World } from './world';
 import { enterDepthState } from './depthplay';
+import { switchToOverworld } from './farlands-play';
 import { softGlow } from './perf';
 import {
   SAGA_REALMS, ORACLE_REALMS, SIDE_STORIES, sagaBossId, zoneLevel, bossStats, realmUnlocked, zoneUnlocked, realmDone,
@@ -54,11 +55,15 @@ export function sagaPlaza(world: World) {
 }
 /** Viagem segura ao marco do Atlas: mantém o jogador em Potos e cancela movimento pendente. */
 export function travelToActMap(g: Game) {
-  if (g.depth || g.island || g.sea) return false;
+  if (g.depth || g.interior || g.island || g.sea) return false;
+  if (g.farlandsActive) switchToOverworld(g);
+  g.world = g.overworld;
   const p = sagaPlaza(g.overworld).acts;
   g.p.x = p.tx * TS + 8; g.p.y = p.ty * TS + 8; g.p.vx = 0; g.p.vy = 0;
-  g.moveTarget = null; g.targetEnemy = null;
-  g.toast('Você chega ao Mapa dos Atos, ao lado do Oráculo.', '#c8dcff');
+  g.moveTarget = null; g.targetEnemy = null; g.talkTarget = null;
+  g.biome = biomeOf(g.overworld, g.p.x, g.p.y); g.audio.biome = g.biome;
+  g.clearTransition(); g.buildMinimap(); g.onWorldChanged?.();
+  g.save(); g.toast('Você chega ao Mapa dos Atos, ao lado do Oráculo.', '#c8dcff');
   return true;
 }
 
@@ -355,7 +360,7 @@ export function sagaDepthAction(g: Game, run: boolean): string {
   for (const n of townNpcsHere(g, pos)) if (near(g, n.tx, n.ty, 24)) { if (run) talkTown(g, pos, n); return `E · ${n.n.name} — ${n.n.title}`; }
   for (const n of sideNpcsHere(g, pos)) if (near(g, n.tx, n.ty, 24)) { if (run) talkSide(g, n.s); return `E · ${n.s.npc.name} — ${n.s.name}`; }
   if (near(g, data.start.tx, data.start.ty, 20)) {
-    if (run) { if (zi > 0) enterSagaZone(g, ri, zi - 1); else { g.depth = g.depth; leaveToSurface(g); } }
+    if (run) { if (zi > 0) enterSagaZone(g, ri, zi - 1); else leaveToSurface(g); }
     return zi > 0 ? `E · Voltar para ${r.zones[zi - 1]!.name}` : 'E · Voltar a Potos';
   }
   if (near(g, data.stairs.tx, data.stairs.ty, 22)) {

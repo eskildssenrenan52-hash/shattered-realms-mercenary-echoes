@@ -18,7 +18,7 @@ import { SAGA_BOSS_LOOK, sagaOnBoss, sagaOnKill, sagaModeTick, drawSaga, sagaLig
 import { softHole, softGlow, Quality } from './perf';
 import { FRONTIER, FRONTIER_GATES, LEGACY_W, LEGACY_H, type FrontierBiome } from './frontier';
 import { createHomeInterior, drawHome, drawFurniture, FURNITURE, freshHome, type FurnitureKind } from "./home";
-import { isPlayerHome, freshSettlement, growPlots, useWorldTool, interactSettlement, renderSettlement, applyStructures, CARPENTRY_RECIPES, type Tool, type CropKind, type StructureKind } from "./settlement";
+import { isPlayerHome, freshSettlement, growPlots, applyWorldTool, interactSettlement, renderSettlement, applyStructures, CARPENTRY_RECIPES, type Tool, type CropKind, type StructureKind } from "./settlement";
 import {
   BIOME_ENEMIES, BIOME_NAMES, BOSSES, ENEMIES, ITEMS, NPCS, QUESTS, RECIPES, SPIRITS, STATUES,
   type Biome, type BossDef, type EnemyKind, type NpcDef, type QuestDef, type Recipe, type Slot, type SpiritId, type Stats, type WeaponKind,
@@ -53,17 +53,28 @@ import { arsenalFor, runMove, type BossCtx } from "./boss-arsenal";
 import { fxFor, type FxSig } from "./fx-catalog";
 import { shouldSpawnTwin, twinBossDef, twinEncounterKey } from "./boss-encounters";
 import { freshMercenaryState, sanitizeMercenaryState, tickMercenaries, drawMercenaries, mercGuardMult, mercDamageMult, type MercenaryState } from "./mercenaries";
-import { carveMainFarlandsGate, drawFarlands, ensureFarlandsWorld, farlandsAction } from "./farlands-play";
+import { carveMainFarlandsGate, drawFarlands, ensureFarlandsWorld, farlandsAction, switchToOverworld } from "./farlands-play";
 import { farlandsNpcs } from "./farlands-npcs";
 import { registerForgeExpansion } from "./forge-expansion";
 import { carveBiomeMineEntrances, drawBiomeMineEntrances } from "./biome-mine-sites";
 import { biomeMineBestFloor, BIOME_MINE_FLOORS } from "./biome-mines";
+import type { MultiplayerPlayer, MultiplayerPose } from "./multiplayer-room";
 
 registerForgeExpansion();
 
 export const VW = 480;
 export const VH = 270;
 const TIER: Record<Biome, number> = { ...Object.fromEntries(Object.entries(FRONTIER).map(([id,d])=>[id,d.tier])) as Record<FrontierBiome,number>, autumn: 2, swamp: 3, coast: 2, jungle: 3, volcanic: 5, mushroom: 2, meadow: 1, ruins: 4, plains: 1, forest: 2, desert: 3, mountain: 4, cave: 5 };
+const COOP_PALETTES = [
+  { skin: "#f0c8a0", hair: "#67442f", body: "#3e79b8", legs: "#253d66" },
+  { skin: "#d9a77f", hair: "#271f38", body: "#b84e56", legs: "#542e45" },
+  { skin: "#f2d5a5", hair: "#d99b45", body: "#448b68", legs: "#2c4b3c" },
+  { skin: "#c58f70", hair: "#302c42", body: "#9567bd", legs: "#49355d" },
+  { skin: "#efd1bc", hair: "#7a9cbe", body: "#cf8a48", legs: "#74502f" },
+  { skin: "#d6a68d", hair: "#563b30", body: "#3f9a9c", legs: "#285b61" },
+  { skin: "#edc89c", hair: "#873f68", body: "#d05d91", legs: "#693454" },
+  { skin: "#c99979", hair: "#414141", body: "#9e9b54", legs: "#56572e" },
+];
 const LEGACY_BOSS_LOOK: Record<string, { kind: EnemyKind; tint: string; scale: number }> = {
   king_mush: { kind: "mushroom", tint: "#c02090", scale: 2.6 },
   ent: { kind: "sporeling", tint: "#2a7a2a", scale: 2.8 },
@@ -125,7 +136,7 @@ export class Game {
   cursor = {x:0,y:0};
   actionCooldown = 0;
   lastDelta = 1/60;
-  useTool(wx:number,wy:number) { return useWorldTool(this,wx,wy); }
+  useTool(wx:number,wy:number) { return applyWorldTool(this,wx,wy); }
 
   world: World;
   overworld: World;
@@ -168,6 +179,32 @@ export class Game {
   openedChests = new Set<string>();
   transition = 0;
   doorCooldown = 0;
+  coopZone() {
+    if (this.depth) return `depth:${this.depth.kind}:${this.depth.profile ?? "normal"}:${this.depth.floor}:${this.depth.temple?.id ?? this.depth.biome ?? ""}`;
+    if (this.interior) return `interior:${this.interior.id}`;
+    if (this.island) return `island:${this.island.def.id}`;
+    if (this.sea) return "sea";
+    if (this.siege) return "siege";
+    const saga = sagaPosOf(this);
+    return saga ? `saga:${saga.realm.id}:${saga.zone.name}` : this.farlandsActive ? "farlands" : "overworld";
+  }
+  coopPose(): MultiplayerPose {
+    return { x: this.p.x, y: this.p.y, zone: this.coopZone(), dir: Math.max(0, Math.min(3, Math.trunc(this.p.dir))), frame: Math.max(0, Math.min(3, Math.trunc(this.p.frame))), palette: this.p.level % COOP_PALETTES.length, attacking: this.p.attackT > 0 };
+  }
+  setCoopPlayers(players: MultiplayerPlayer[]) {
+    const next = players.slice(0, 4), ids = new Set(next.map((player) => player.id));
+    this.coopPlayers = next;
+    for (const player of next) {
+      const current = this.coopRender.get(player.id);
+      if (current) { current.targetX = player.x; current.targetY = player.y; }
+      else this.coopRender.set(player.id, { x: player.x, y: player.y, targetX: player.x, targetY: player.y });
+    }
+    for (const id of this.coopRender.keys()) if (!ids.has(id)) this.coopRender.delete(id);
+  }
+  private tickCoop(dt: number) {
+    const blend = Math.min(1, Math.max(0, dt) * 14);
+    for (const point of this.coopRender.values()) { point.x += (point.targetX - point.x) * blend; point.y += (point.targetY - point.y) * blend; }
+  }
   get areaName() { const ar = archipelagoArea(this); if (ar) return ar; const sp = sagaPosOf(this); if (sp) return `${sp.realm.name} · ${sp.zone.name}`; if (this.siege) return `Cidade de Aurélia · Onda ${this.siege.wave}`; if (this.depth?.kind === 'biome-mine' && this.depth.biome) return `Mina de ${BIOME_NAMES[this.depth.biome]} · Andar ${this.depth.floor}/${BIOME_MINE_FLOORS}`; if (this.depth) return this.depth.profile === 'nemesis' ? `Caçada Nêmesis · Marca ${this.depth.data.boss?.id.match(/^echo_nemesis_(\d+)$/)?.[1] ?? Math.min(12, this.echoSystems.nemesis.victories + 1)}/12` : this.depth.kind === 'tutorial' ? `Treino de Aventureiro · Andar ${this.depth.floor}/6` : this.depth.kind === 'dream' ? `Expedição onírica · Andar ${this.depth.floor}/1` : this.depth.kind === 'storm' ? `Tempestade de Fratura · Andar ${this.depth.floor}/1` : this.depth.kind === 'abyss' ? `Abismo do Cântico · Andar ${this.depth.floor}` : isRealm(this.depth.temple) ? `${this.depth.temple?.name} · Reino Oculto` : `${this.depth.temple?.name} · 2º andar`; return this.interior?.name ?? (Math.hypot(this.p.x / TS - 122, this.p.y / TS - 126) < 19 ? 'Vila de Potos' : BIOME_NAMES[this.biome]); }
   private restoredNpcs(): NpcDef[] {
     const freed = this.echoSystems.restoration.freedRealms.slice(0, 3);
@@ -241,6 +278,8 @@ export class Game {
   weather: { x: number; y: number; s: number }[] = [];
   toasts: { text: string; t: number; color: string }[] = [];
   dialog: Dialog | null = null;
+  coopPlayers: MultiplayerPlayer[] = [];
+  private coopRender = new Map<string, { x: number; y: number; targetX: number; targetY: number }>();
   openStation: "smith" | "alchemist" | "carpenter" | "shop" | null = null;
   moveTarget: { x: number; y: number } | null = null;
   targetEnemy: Enemy | null = null;
@@ -431,19 +470,24 @@ export class Game {
   }
   travelFrontier(id:string) {
     const gate=FRONTIER_GATES.find(g=>g.id===id);if(!gate)return;
+    if(this.depth||this.island||this.sea){this.toast("Retorne à superfície antes de viajar.","#ffb060");return;}
     if(this.interior)this.leaveInterior();
-    this.p.x=gate.tx*TS+8;this.p.y=(gate.ty+2)*TS+8;this.clearTransition();
+    if(this.farlandsActive)switchToOverworld(this);
+    this.world=this.overworld;
+    this.p.x=gate.tx*TS+8;this.p.y=(gate.ty+2)*TS+8;this.p.vx=this.p.vy=0;this.moveTarget=null;this.targetEnemy=null;this.talkTarget=null;this.clearTransition();
     this.biome=gate.biome;this.audio.biome=gate.biome;this.biomeBanner={name:`${gate.name} · Nv ${BIOME_LEVEL[gate.biome]}+`,t:3};
-    this.populateFrontier();this.save();
+    this.populateFrontier();this.buildMinimap();this.onWorldChanged?.();this.save();
   }
   travelCitadel() {
     if (!citadelUnlocked(this.bossesDone)) { this.toast("A Cidadela só se abre após a queda de Azrakel em Gehenna.", "#ff7777"); return; }
-    if (this.depth || this.island) { this.toast("Retorne à superfície antes de viajar para a Cidadela.", "#ffb060"); return; }
+    if (this.depth || this.island || this.sea) { this.toast("Retorne à superfície antes de viajar para a Cidadela.", "#ffb060"); return; }
     if (this.interior) this.leaveInterior();
-    this.p.x = CITADEL_DOOR.tx * TS + 8; this.p.y = (CITADEL_DOOR.ty + 2) * TS + 8;
+    if (this.farlandsActive) switchToOverworld(this);
+    this.world = this.overworld;
+    this.p.x = CITADEL_DOOR.tx * TS + 8; this.p.y = (CITADEL_DOOR.ty + 2) * TS + 8; this.p.vx = this.p.vy = 0; this.moveTarget = null; this.targetEnemy = null; this.talkTarget = null;
     this.clearTransition(); this.biome = "obsidian"; this.audio.biome = "obsidian";
     this.biomeBanner = { name: "Cidadela de Gehenna · extremo do mundo", t: 5 };
-    this.populateFrontier(); this.save();
+    this.populateFrontier(); this.buildMinimap(); this.onWorldChanged?.(); this.save();
   }
 
   // ---------- helpers ----------
@@ -859,15 +903,22 @@ export class Game {
     this.p.gold += price;
     this.audio.sfx("coin");
   }
-  travel(id: string) {
+  travel(id: string): boolean {
+    if (this.depth || this.island || this.sea) { this.toast("O mapa não dobra aqui dentro.", "#ff8080"); return false; }
     if (this.interior) this.leaveInterior();
     const s = STATUES.find((x) => x.id === id);
-    if (!s || !this.statues.has(id)) return;
+    if (!s || !this.statues.has(id)) return false;
+    // Estátuas pertencem ao continente de Potos: sair explicitamente de Farlands
+    // evita manter a camada ativa sobre coordenadas incompatíveis e ocultar seus NPCs.
+    if (this.farlandsActive) switchToOverworld(this);
+    this.world = this.overworld;
     this.p.x = s.tx * TS + 8; this.p.y = (s.ty + 2) * TS + 8; this.p.vx = this.p.vy = 0;
-    this.moveTarget = null; this.targetEnemy = null;
-    this.audio.sfx("warp");
+    this.moveTarget = null; this.targetEnemy = null; this.talkTarget = null;
+    this.biome = biomeOf(this.overworld, this.p.x, this.p.y); this.audio.biome = this.biome;
+    this.clearTransition(); this.buildMinimap(); this.onWorldChanged?.();
     this.burst(this.p.x, this.p.y - 10, "#80f0ff", 40, 90, 2, -30);
-    this.toast(`Viajou para ${s.name}`, "#80f0ff");
+    this.toast(`Viajou para ${s.name}`, "#80f0ff"); this.save();
+    return true;
   }
 
   // ---------- quests / dialog ----------
@@ -1055,14 +1106,15 @@ export class Game {
   interact() {
     if (!this.farlandsActive && archipelagoInteract(this)) return;
     if (!this.depth && !this.farlandsActive && interactSettlement(this)) return;
+    // Portas, escadas e portais têm prioridade idêntica à do prompt contextual.
+    if (this.interactExploration()) return;
     const npc = this.nearNpc(26);
     if (npc) { this.talk(npc); return; }
-    if (this.interactExploration()) return;
     if (this.tryGather()) return;
   }
 
-  enterInterior(b: Building) {
-    if (this.interior || this.doorCooldown > 0) return;
+  enterInterior(b: Building): boolean {
+    if (this.interior || this.doorCooldown > 0 || this.depth || this.island || this.sea || this.farlandsActive) return false;
     this.returnPosition = { x: this.p.x, y: (doorOf(b).ty + 1.7) * TS };
     this.interior = b; this.world = isPlayerHome(b) ? createHomeInterior(this.settlement.home) : createInterior(b);
     this.p.x = ROOM.spawnX; this.p.y = ROOM.spawnY;
@@ -1070,6 +1122,7 @@ export class Game {
     this.biomeBanner = { name: b.name, t: 3 };
     this.toast(b.secret ? 'Uma passagem esquecida... novo segredo descoberto!' : b.name, '#dfca91');
     this.save();
+    return true;
   }
   leaveInterior() {
     if (!this.interior) return;
@@ -1113,7 +1166,7 @@ export class Game {
       return false;
     }
     const b=this.farlandsActive?undefined:BUILDINGS.find(b=>{const d=doorOf(b);return near(d.tx,d.ty,30);});
-    if(b){this.enterInterior(b);return true;}
+    if(b) return this.enterInterior(b);
     const t=TREASURES.find(t=>near(t.tx,t.ty,26));
     if(t){this.claimChest(t.id,t.gold,t.item,t.qty,t.name);return true;}
     return false;
@@ -1124,7 +1177,7 @@ export class Game {
     this.audio.init();
     const wx = sx + this.cam.x, wy = sy + this.cam.y;
     if (!right && this.tool !== "explore") { this.useTool(wx,wy); return; }
-    if (!right && useWorldTool(this,wx,wy)) return;
+    if (!right && applyWorldTool(this,wx,wy)) return;
     // minimap
     if (sx > this.viewWidth - 78 && sy < 58) { this.onMapClick?.(); return; }
     if (this.interior && (right)) return;
@@ -1158,6 +1211,7 @@ export class Game {
   }
 
   update(dt: number) {
+    this.tickCoop(dt);
     if (this.levelBeats.length) { for (const lv of this.levelBeats.splice(0)) this.fireBeats(`level:${lv}`); }
     if (this.started && !this.paused && liveTick(this, dt)) { this.transition = Math.max(0, this.transition - dt); this.updateFx(dt); return; }
     if (!this.started || this.paused || this.dialog || this.openStation || this.cutscene) { this.updateFx(dt * 0.0); return; }
@@ -1189,9 +1243,14 @@ export class Game {
         if (this.depth?.kind === 'tutorial' && this.tutorialActive) { p.dead = 0; restartTutorialFloor(this); this.updateFx(dt); return; }
         if (this.depth) { leaveDepth(this, true); this.p.respawnStatue = "village"; }
         leaveArchipelago(this);
+        // O retorno por estátua é sempre para Potos; restaure mundo, inimigos e NPCs
+        // antes de aplicar coordenadas pertencentes ao mapa legado.
+        if (this.farlandsActive) switchToOverworld(this);
         const s = STATUES.find((x) => x.id === p.respawnStatue) ?? STATUES[0]; if (!s) return;
         p.x = s.tx * TS + 8; p.y = (s.ty + 2) * TS + 8; p.hp = Math.ceil(this.maxHp() / 2); p.mp = this.maxMp();
         p.gold = Math.floor(p.gold * 0.9);
+        this.world = this.overworld; this.biome = biomeOf(this.world, p.x, p.y); this.audio.biome = this.biome;
+        this.clearTransition(); this.buildMinimap(); this.onWorldChanged?.(); this.save();
         if (this.activeBoss?.boss) this.resetBossEncounter(this.activeBoss);
       }
       this.updateFx(dt); return;
@@ -1586,6 +1645,18 @@ export class Game {
         if (hasQ) { const b = Math.round(Math.sin(wt * 5) * 2); c.fillStyle = "#ffd040"; c.fillRect(x - 1, y - 30 + b, 3, 6); c.fillRect(x - 1, y - 22 + b, 3, 2); }
       } });
     }
+    for (const remote of this.coopPlayers) {
+      if (remote.zone !== this.coopZone()) continue;
+      const point = this.coopRender.get(remote.id); if (!point) continue;
+      const x = point.x, y = point.y;
+      if (x < cx - 20 || x > cx + this.viewWidth + 20 || y < cy - 28 || y > cy + this.viewHeight + 24) continue;
+      draws.push({ y, f: () => {
+        this.shadow(c, x, y, 6, 0.34);
+        drawChar(c, x, y, COOP_PALETTES[remote.palette % COOP_PALETTES.length]!, remote.dir, remote.frame, null, remote.attacking ? 0.35 : 0);
+        c.save(); c.font = "6px monospace"; c.textAlign = "center"; c.lineWidth = 2; c.strokeStyle = "#111923"; c.fillStyle = "#fff0bf";
+        c.strokeText(remote.name, x, y - 22); c.fillText(remote.name, x, y - 22); c.restore();
+      } });
+    }
     for (const e of this.enemies) {
       if (this.interior || !e.alive || e.x < cx - 40 || e.x > cx + this.viewWidth + 40 || e.y < cy - 40 || e.y > cy + this.viewHeight + 50) continue;
       draws.push({ y: e.y, f: () => {
@@ -1824,7 +1895,7 @@ export class Game {
   renderInteractionPrompt(c: CanvasRenderingContext2D) {
     const p=this.p, near=(x:number,y:number,r=30)=>Math.hypot(p.x-x*TS-8,p.y-y*TS-8)<r;
     let text=this.farlandsActive?"":archipelagoPrompt(this);
-    if(text){}
+    if(text){ /* A dica específica do arquipélago tem prioridade sobre as dicas genéricas. */ }
     else if(this.depth){text=depthAction(this,false);}
     else if(this.interior){
       if(near(ROOM.exitX,ROOM.exitY,35))text='E · Sair';
@@ -1833,7 +1904,7 @@ export class Game {
       else if(near(127,105,35)&&this.interior.kind==='inn')text='E · Descansar';
       else if(near(109,97,38)&&this.interior.id==='archive')text='E · Examinar estante';
     }else{
-      const b=this.farlandsActive?undefined:BUILDINGS.find(b=>{const d=doorOf(b);return near(d.tx,d.ty);});
+      const b=this.farlandsActive||this.doorCooldown>0?undefined:BUILDINGS.find(b=>{const d=doorOf(b);return near(d.tx,d.ty);});
       if(b)text='E · '+b.name;
       else if(farlandsAction(this,false))text=farlandsAction(this,false);
       else if(surfaceEntrance(this,false))text=surfaceEntrance(this,false);

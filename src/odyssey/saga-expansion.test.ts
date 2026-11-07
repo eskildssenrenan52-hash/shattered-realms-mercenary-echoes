@@ -4,6 +4,7 @@ import { ECHOES_BEYOND_CHRONICLES, ECHOES_BEYOND_REALMS } from './echoes-beyond'
 import { Game } from './engine';
 import { enterSagaZone, sagaModeTick, sagaPlaza, sagaSurfaceAction, sagaVictoryLines, travelToActMap } from './saga-play';
 import { TS } from './world';
+import { farlandsAction, MAIN_FARLANDS_GATE } from './farlands-play';
 
 function gameForPath() {
   const canvas = document.createElement('canvas');
@@ -15,7 +16,7 @@ function gameForPath() {
   });
   const old = HTMLCanvasElement.prototype.getContext;
   HTMLCanvasElement.prototype.getContext = (() => context) as unknown as typeof HTMLCanvasElement.prototype.getContext;
-  try { const g = new Game(canvas); g.started = true; return g; } finally { HTMLCanvasElement.prototype.getContext = old; }
+  try { const g = new Game(canvas); g.buildMinimap = () => {}; g.started = true; return g; } finally { HTMLCanvasElement.prototype.getContext = old; }
 }
 
 describe('expansão Echoes Beyond', () => {
@@ -38,6 +39,17 @@ describe('expansão Echoes Beyond', () => {
     expect([g.p.x, g.p.y, g.p.vx, g.p.vy, g.moveTarget]).toEqual([acts.tx * TS + 8, acts.ty * TS + 8, 0, 0, null]);
   });
 
+  it('não deixa a viagem ao Mapa dos Atos com a camada Farlands ativa', () => {
+    const g = gameForPath();
+    g.p.x = MAIN_FARLANDS_GATE.x * TS + 8; g.p.y = MAIN_FARLANDS_GATE.y * TS + 8;
+    farlandsAction(g, true);
+    expect(g.farlandsActive).toBe(true);
+    expect(travelToActMap(g)).toBe(true);
+    expect(g.farlandsActive).toBe(false);
+    expect(g.world).toBe(g.overworld);
+    expect(g.localNpcs.some((npc) => npc.id === 'elder')).toBe(true);
+    expect(g.audio.biome).toBe(g.biome);
+  });
   it('registra os cinco reinos pós-Ato V como Saga jogável', () => {
     expect(ECHOES_BEYOND_REALMS).toHaveLength(5);
     for (const realm of ECHOES_BEYOND_REALMS) {

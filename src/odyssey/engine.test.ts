@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { Game } from './engine';
-import { QUESTS, BOSSES } from './data';
+import { QUESTS, BOSSES, NPCS } from './data';
 import { actChainQuests, ALL_ECO_BOSSES } from './story';
 import { FRONTIER_GATES, FRONTIER } from './frontier';
 import { solidAt, TS } from './world';
@@ -13,6 +13,7 @@ import { FARLANDS_PORTALS } from './farlands';
 import { CITADEL_FINAL_BEAT_ID, CITADEL_FINAL_BOSS_ID, CITADEL_UNLOCK_BOSS_ID } from './demon-citadel';
 import { startNemesisHunt } from './echoes-play';
 import { nemesisBossId } from './nemesis';
+import { BUILDINGS, doorOf, ROOM } from './exploration';
 
 // Canvas 2D falso: qualquer método é um no-op, gradientes aceitam addColorStop.
 function fakeCtx(canvas: unknown) {
@@ -62,6 +63,55 @@ describe('Engine — campanha integrada', { timeout: 90000 }, () => {
     farlandsAction(resumed, true);
     expect(resumed.farlandsActive).toBe(false);
     expect(resumed.localNpcs.map((resident) => resident.id)).toEqual(expect.arrayContaining(originalNpcIds));
+  });
+  it('restaura Potos e seus NPCs ao viajar para uma estátua desde Farlands', () => {
+    const k = make();
+    k.p.x = MAIN_FARLANDS_GATE.x * TS + 8; k.p.y = MAIN_FARLANDS_GATE.y * TS + 8;
+    farlandsAction(k, true);
+    expect(k.farlandsActive).toBe(true);
+    k.statues.add('village');
+    expect(k.travel('village')).toBe(true);
+    expect(k.farlandsActive).toBe(false);
+    expect(k.world).toBe(k.overworld);
+    expect(k.localNpcs.map((npc) => npc.id)).toEqual(expect.arrayContaining(['elder', 'smith', 'merchant']));
+    expect(k.audio.biome).toBe(k.biome);
+  });
+  it('restaura o continente original e seus moradores após viagem rápida de Farlands a uma cidade', () => {
+    const k = make();
+    k.p.x = MAIN_FARLANDS_GATE.x * TS + 8; k.p.y = MAIN_FARLANDS_GATE.y * TS + 8;
+    farlandsAction(k, true);
+    expect(k.farlandsActive).toBe(true);
+    k.travelFrontier(FRONTIER_GATES[0]!.id);
+    expect(k.farlandsActive).toBe(false);
+    expect(k.world).toBe(k.overworld);
+    expect(k.localNpcs.map((npc) => npc.id)).toEqual(expect.arrayContaining(['elder', 'smith', 'merchant']));
+    expect(k.audio.biome).toBe(k.biome);
+  });
+  it('restaura Potos e os NPCs após morte e respawn por estátua em Farlands', () => {
+    const k = make();
+    k.p.x = MAIN_FARLANDS_GATE.x * TS + 8; k.p.y = MAIN_FARLANDS_GATE.y * TS + 8;
+    farlandsAction(k, true);
+    k.statues.add('village'); k.p.respawnStatue = 'village'; k.p.dead = 0.1;
+    k.update(0.2);
+    expect(k.farlandsActive).toBe(false);
+    expect(k.world).toBe(k.overworld);
+    expect(k.localNpcs.some((npc) => npc.id === 'elder')).toBe(true);
+  });
+  it('prioriza a porta sobre conversa e permite entrar/sair de uma casa', () => {
+    const k = make();
+    const building = BUILDINGS[0]!;
+    const door = doorOf(building);
+    k.p.x = door.tx * TS + 8; k.p.y = door.ty * TS + 8;
+    vi.spyOn(k, 'nearNpc').mockReturnValue(NPCS[0]!);
+    k.interact();
+    expect(k.interior?.id).toBe(building.id);
+    expect(k.world).not.toBe(k.overworld);
+    k.doorCooldown = 0;
+    k.p.x = ROOM.exitX * TS + 8; k.p.y = ROOM.exitY * TS + 8;
+    k.interact();
+    expect(k.interior).toBeNull();
+    expect(k.world).toBe(k.overworld);
+    expect(k.localNpcs.some((npc) => npc.id === 'elder')).toBe(true);
   });
   it('mantém um guia funcional na cripta e restaura Potos sem escurecimento após pular o treino', () => {
     const k = make();

@@ -55,7 +55,7 @@ export function applyStructures(g: Game) {
     if (s.kind === 'home') { const d = doorOf(homeBuilding(s)); g.overworld.tiles[d.ty * W + d.tx] = T.DOOR; }
   }
 }
-export function useWorldTool(g: Game, wx: number, wy: number) {
+export function applyWorldTool(g: Game, wx: number, wy: number) {
   if (isPlayerHome(g.interior) && (g.tool === 'furnish' || g.tool === 'unfurnish')) return furnishAt(g, Math.floor(wx / TS), Math.floor(wy / TS));
   if (g.interior || g.p.dead > 0) return false;
   const x = Math.floor(wx / TS), y = Math.floor(wy / TS);
@@ -131,11 +131,11 @@ export function interactSettlement(g: Game): boolean {
   const near = (x: number, y: number) => Math.hypot(g.p.x - x * TS - 8, g.p.y - y * TS - 8) < 32;
   if (g.interior) return false;
   for (const s of g.settlement.structures) {
-    if (s.kind === 'home') { const b = homeBuilding(s), d = doorOf(b); if (near(d.tx, d.ty)) { g.enterInterior(b); return true; } }
+    if (s.kind === 'home') { const b = homeBuilding(s), d = doorOf(b); if (near(d.tx, d.ty)) return g.enterInterior(b); }
     else if (near(s.x, s.y) && (s.kind === 'bench' || s.kind === 'forge')) { g.openStation = s.kind === 'bench' ? 'carpenter' : 'smith'; return true; }
   }
   const plot = g.settlement.plots.find(p => p.crop && p.growth >= 1 && near(p.x, p.y));
-  if (plot) { const old = g.tool; g.tool = 'explore'; const result = useWorldTool(g, plot.x * TS + 8, plot.y * TS + 8); g.tool = old; return result; }
+  if (plot) { const old = g.tool; g.tool = 'explore'; const result = applyWorldTool(g, plot.x * TS + 8, plot.y * TS + 8); g.tool = old; return result; }
   return false;
 }
 export function renderSettlement(g: Game, c: CanvasRenderingContext2D) {

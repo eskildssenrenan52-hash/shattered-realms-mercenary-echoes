@@ -4,7 +4,7 @@ import worldArt from "@/assets/mana-world.jpg";
 import gehennaRelicArt from "@/assets/depths/game/gehenna-relic.png";
 import { CROPS, STRUCTURES, isPlayerHome, upgradeHome, type Tool, type CropKind, type StructureKind } from "@/odyssey/settlement";
 import { FURNITURE, HOME_LEVELS, type FurnitureKind } from "@/odyssey/home";
-import { Pickaxe, Axe, Shovel, Sprout, Droplets, Hammer, House, Anvil, ChevronRight, Leaf, Sun, Swords, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Crown, CalendarDays } from "lucide-react";
+import { Pickaxe, Axe, Shovel, Sprout, Droplets, Hammer, House, Anvil, ChevronRight, Leaf, Sun, Swords, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Crown, CalendarDays, Users, Copy, Wifi, WifiOff, LogOut } from "lucide-react";
 import { BIOME_LIST } from "@/odyssey/world";
 import { BIOME_NAMES } from "@/odyssey/data";
 import { createFileRoute } from "@tanstack/react-router";
@@ -44,6 +44,7 @@ import { sagaModeStatus, sagaPlaza, travelToActMap } from "@/odyssey/saga-play";
 import { ECHOES_BEYOND_CHRONICLES } from "@/odyssey/echoes-beyond";
 import { DailyLoginPanel } from "@/components/DailyLoginPanel";
 import { claimDailyLogin, createDailyLoginState, DAILY_REWARDS, dailyLoginSnapshot, type DailyLoginState, type DailyReward } from "@/odyssey/daily-login";
+import { displayRoomCode, normalizeRoomCode, MultiplayerRoom, MULTIPLAYER_MAX_PLAYERS, type MultiplayerRoomState } from "@/odyssey/multiplayer-room";
 
 export const Route = createFileRoute("/odyssey")({
   head: () => ({
@@ -147,6 +148,12 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
   const [menuOpen,setMenuOpen]=useState(false);
   const [heroTab,setHeroTab]=useState<"stats"|"look">("stats");
   const [tutorialMode,setTutorialMode]=useState<"none"|"dungeon"|"modals">("none");
+  const [multiplayerOpen,setMultiplayerOpen]=useState(false);
+  const [multiplayerName,setMultiplayerName]=useState("Aventureiro");
+  const [multiplayerCode,setMultiplayerCode]=useState("");
+  const [multiplayerMessage,setMultiplayerMessage]=useState("");
+  const [multiplayerState,setMultiplayerState]=useState<MultiplayerRoomState>({status:"idle",role:null,roomCode:"",selfId:"",players:[],error:""});
+  const roomRef=useRef<MultiplayerRoom|null>(null);
   const panelRef = useRef<Panel>(null);
   panelRef.current = panel;
 
@@ -184,6 +191,8 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
       if (document.hidden) return;
       const dt = Math.min(0.05, Math.max(0, raw) / 1000);
       try {
+        const room=roomRef.current;
+        if(room){const pose=g.coopPose();room.tick(pose);g.setCoopPlayers(room.remotePlayers(pose.zone));}
         g.paused = panelRef.current !== null || g.tutorialPauseInput;
         g.update(dt);
         if (firstFrame || g.quality.shouldRender()) { firstFrame = false; g.render(); }
@@ -245,7 +254,7 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
     const vis = () => { if (document.hidden) { g.keys.clear(); g.save(); } }; document.addEventListener("visibilitychange", vis); window.addEventListener("pointerup", () => { for (const k of ["KeyW","KeyA","KeyS","KeyD"]) g.keys.delete(k); });
     const blur = () => g.keys.clear(); window.addEventListener("blur",blur);
     window.addEventListener("keydown", down); window.addEventListener("keyup", up);
-    return () => { observer.disconnect();document.removeEventListener('fullscreenchange',fullChange);cancelAnimationFrame(raf); clearTimeout(mapT); document.removeEventListener("visibilitychange", onVis); clearInterval(iv); window.removeEventListener("keydown", down); window.removeEventListener("keyup", up); g.audio.destroy(); window.removeEventListener("blur",blur); };
+    return () => { roomRef.current?.leave(); roomRef.current=null; g.setCoopPlayers([]); observer.disconnect();document.removeEventListener('fullscreenchange',fullChange);cancelAnimationFrame(raf); clearTimeout(mapT); document.removeEventListener("visibilitychange", onVis); clearInterval(iv); window.removeEventListener("keydown", down); window.removeEventListener("keyup", up); g.audio.destroy(); window.removeEventListener("blur",blur); };
   }, []);
 
   const g = gameRef.current;
@@ -310,6 +319,33 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
     }
   };
   startRef.current = start;
+  const publishRoomState = (state: MultiplayerRoomState) => {
+    setMultiplayerState(state);
+    const game=gameRef.current;
+    if(game)game.setCoopPlayers(state.players.filter((player)=>player.id!==state.selfId&&player.zone===game.coopZone()));
+  };
+  const beginMultiplayer = (role: "host"|"guest") => {
+    if(role==="guest"&&!normalizeRoomCode(multiplayerCode)){setMultiplayerMessage("Digite o código de oito caracteres mostrado pelo anfitrião.");return;}
+    if(!window.navigator.onLine){setMultiplayerMessage("A sala online precisa de internet. A campanha solo continua funcionando offline.");return;}
+    const game=gameRef.current;if(!game){setMultiplayerMessage("O jogo ainda está carregando. Tente novamente em instantes.");return;}
+    roomRef.current?.leave();roomRef.current=null;game.setCoopPlayers([]);
+    if(title)start(hasSave);
+    setPanel(null);setMenuOpen(false);setMultiplayerMessage("");
+    const room=new MultiplayerRoom(publishRoomState);roomRef.current=room;
+    if(role==="host")room.create(multiplayerName);else room.join(multiplayerName,multiplayerCode);
+  };
+  const leaveMultiplayer = () => {
+    roomRef.current?.leave();roomRef.current=null;gameRef.current?.setCoopPlayers([]);
+    setMultiplayerState({status:"idle",role:null,roomCode:"",selfId:"",players:[],error:""});setMultiplayerMessage("Você saiu da sala. Sua jornada individual foi preservada.");
+  };
+  const copyMultiplayerCode = async () => {
+    const code=displayRoomCode(multiplayerState.roomCode);if(!code)return;
+    try{
+      if(navigator.clipboard?.writeText)await navigator.clipboard.writeText(code);
+      else{const field=document.createElement("textarea");field.value=code;field.style.position="fixed";field.style.opacity="0";document.body.appendChild(field);field.select();const copied=document.execCommand("copy");field.remove();if(!copied)throw new Error("copy unavailable");}
+      setMultiplayerMessage("Código copiado. Envie-o para quem vai entrar na sala.");
+    }catch{setMultiplayerMessage(`Compartilhe este código: ${code}`);}
+  };
   useEffect(() => {
     if (!startImmediately) return;
     const timer = window.setTimeout(() => startRef.current(Game.hasSave()), 0);
@@ -495,14 +531,14 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
                   <img src={mapUrl} alt="Mapa do mundo" className="w-full h-full" style={{ imageRendering: "pixelated" }} />
                   <div className="absolute w-2 h-2 bg-destructive animate-pulse" style={{ left: `${(p.x / 16 / W) * 100}%`, top: `${(p.y / 16 / H) * 100}%` }} />
                   <Button variant="game" disabled={!citadelUnlocked(g.bossesDone) || !!g.depth || !!g.island} onClick={() => { g.travelCitadel(); setPanel(null); }} title={`Cidadela de Gehenna · ${citadelBest(g.discoveries)}/${CITADEL_FLOORS}`} aria-label="Viajar para a Cidadela de Gehenna" className="atlas-marker absolute -translate-x-1/2 -translate-y-1/2 disabled:opacity-40" style={{ left: `${(CITADEL_DOOR.tx / W) * 100}%`, top: `${(CITADEL_DOOR.ty / H) * 100}%` }}><Crown size={13} className="text-orange-300" /></Button>
-                  {(() => { const m = sagaPlaza(g.overworld).acts, blocked = !!g.depth || !!g.island || !!g.sea; return <Button variant="game" disabled={blocked} title="Mapa dos Atos, ao lado do Oráculo em Potos" aria-label="Mapa dos Atos" className="atlas-marker absolute -translate-x-1/2 -translate-y-1/2 disabled:opacity-40" onClick={() => { if (travelToActMap(g)) setPanel(null); }} style={{ left: `${(m.tx / W) * 100}%`, top: `${(m.ty / H) * 100}%` }}>✦</Button>; })()}
+                  {(() => { const m = sagaPlaza(g.overworld).acts, blocked = !!g.depth || !!g.interior || !!g.island || !!g.sea; return <Button variant="game" disabled={blocked} title="Mapa dos Atos, ao lado do Oráculo em Potos" aria-label="Mapa dos Atos" className="atlas-marker absolute -translate-x-1/2 -translate-y-1/2 disabled:opacity-40" onClick={() => { if (travelToActMap(g)) setPanel(null); }} style={{ left: `${(m.tx / W) * 100}%`, top: `${(m.ty / H) * 100}%` }}>✦</Button>; })()}
                   {STATUES.map((s) => {
                     const on = g.statues.has(s.id);
-                    return <Button variant="game" key={s.id} disabled={!on} onClick={() => { g.travel(s.id); setPanel(null); }} title={s.name} aria-label={s.name} className="atlas-marker absolute -translate-x-1/2 -translate-y-1/2 disabled:opacity-40" style={{ left: `${(s.tx / W) * 100}%`, top: `${(s.ty / H) * 100}%` }}>{on ? "◆" : "◇"}</Button>;
+                    return <Button variant="game" key={s.id} disabled={!on} onClick={() => { if (g.travel(s.id)) setPanel(null); }} title={s.name} aria-label={s.name} className="atlas-marker absolute -translate-x-1/2 -translate-y-1/2 disabled:opacity-40" style={{ left: `${(s.tx / W) * 100}%`, top: `${(s.ty / H) * 100}%` }}>{on ? "◆" : "◇"}</Button>;
                   })}
                 </div>
                 <div className="atlas-destinations">
-                  <Button variant="outline" onClick={()=>{g.travel('village');setPanel(null);}}>Vila de Potos</Button>
+                  <Button variant="outline" onClick={()=>{if(g.travel('village'))setPanel(null);}}>Vila de Potos</Button>
                   {FRONTIER_GATES.map(gate=>{const city=FRONTIER_CITIES.find((entry)=>entry.gateId===gate.id);return <Button variant="outline" key={gate.id} onClick={()=>{g.travelFrontier(gate.id);setPanel(null);}}><Compass size={14}/>{city?.name??gate.name}</Button>;})}
                   <Button variant="outline" disabled={!citadelUnlocked(g.bossesDone) || !!g.depth || !!g.island} onClick={()=>{g.travelCitadel();setPanel(null);}}><Crown size={14}/>{citadelUnlocked(g.bossesDone) ? `Cidadela de Gehenna · ${citadelBest(g.discoveries)}/${CITADEL_FLOORS}` : "Cidadela selada · conclua Gehenna"}</Button>
                 </div>
@@ -558,7 +594,7 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
               <h1 className="game-title">Golden Arrow <em>Odyssey</em></h1>
               <div className="title-subtitle">CRÔNICAS DE UM MUNDO VIVO</div>
               <p className="title-story">Dezessete notas sustentavam o mundo. O Silêncio as apagou, uma a uma.<br/>Ouça a Canção. Reacenda os Ecos.</p>
-              <div className="title-actions"><Button onClick={() => start(false)} className="start-button"><Play size={16} fill="currentColor"/>Nova jornada<ChevronRight size={16}/></Button>{hasSave && <Button variant="outline" onClick={()=>start(true)} className="continue-button">Continuar</Button>}</div>
+              <div className="title-actions"><Button onClick={() => start(false)} className="start-button"><Play size={16} fill="currentColor"/>Nova jornada<ChevronRight size={16}/></Button>{hasSave && <Button variant="outline" onClick={()=>start(true)} className="continue-button">Continuar</Button>}<Button variant="outline" onClick={()=>{setMultiplayerMessage("");setMultiplayerOpen(true);}} className="continue-button"><Users size={16}/>Jogar em grupo</Button></div>
               <button type="button" className="title-daily-card mx-auto mt-3 flex w-full max-w-[30rem] items-center gap-3 rounded-xl border border-amber-200/20 bg-slate-950/75 px-4 py-3 text-left text-amber-100 shadow-lg backdrop-blur transition hover:border-amber-100/50 hover:bg-slate-900/85" onClick={() => { setDailyMessage(""); setDailyOpen(true); }} aria-label="Abrir calendário de presentes diários"><CalendarDays size={18}/><span className="min-w-0 flex-1"><b className="block">Presente diário</b><small className="block truncate text-amber-100/70">{dailySnapshot.claimedToday ? `Resgatado · sequência ${dailySnapshot.streak}` : `Dia ${dailySnapshot.nextReward.day} · ${dailySnapshot.nextReward.gold} ouro + ${dailySnapshot.nextReward.xp} XP`}</small></span><ChevronRight size={16}/></button>
               <span className="title-chapter"><Sparkles size={12}/> O mundo floresce com cada escolha.</span>
             </div>
@@ -566,6 +602,25 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
           </div>
         )}
         {title && dailyOpen && <Modal title="Calendário de Presentes · 7 dias" onClose={() => setDailyOpen(false)} wide><DailyLoginPanel state={dailyState} onClaim={handleDailyClaim}/>{dailyMessage && <p role="status" className="mt-3 rounded-md border border-amber-300/20 bg-amber-300/5 p-3 text-sm text-amber-100">{dailyMessage}</p>}</Modal>}
+        {multiplayerOpen && <Modal title="Companhia · multijogador online" onClose={()=>setMultiplayerOpen(false)} wide>
+          <div className="space-y-4">
+            <p className="text-sm leading-relaxed text-muted-foreground">Crie uma sala e compartilhe o código para explorar lado a lado com até {MULTIPLAYER_MAX_PLAYERS} pessoas. A sala usa sinalização gratuita do PeerJS e conexão WebRTC, tentando ligação direta e recorrendo ao STUN/TURN público da configuração PeerJS quando necessário; requer internet. A versão atual sincroniza posição e animação dos participantes. Inimigos, combate, itens, missões e saves continuam independentes para cada jogador.</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="space-y-1 text-xs text-muted-foreground">Seu nome no grupo<input value={multiplayerName} maxLength={18} onChange={(e)=>setMultiplayerName(e.target.value)} className="mt-1 w-full rounded border border-primary/30 bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Aventureiro"/></label>
+              <div className="space-y-1 text-xs text-muted-foreground">Código da sala<input value={multiplayerCode} maxLength={9} onChange={(e)=>setMultiplayerCode(e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g,"").slice(0,9))} onKeyDown={(e)=>{if(e.key==="Enter")beginMultiplayer("guest");}} className="mt-1 w-full rounded border border-primary/30 bg-background px-3 py-2 text-sm uppercase tracking-[0.2em] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" placeholder="ABCD-2345" aria-label="Código da sala"/></div>
+            </div>
+            {(multiplayerState.status==="idle"||multiplayerState.status==="error")&&<div className="grid gap-2 sm:grid-cols-2"><Button variant="secondary" onClick={()=>beginMultiplayer("host")}><Users size={16}/>Criar sala e mostrar código</Button><Button variant="outline" onClick={()=>beginMultiplayer("guest")}><Wifi size={16}/>Entrar na sala</Button></div>}
+            {multiplayerState.status!=="idle"&&<section className="game-panel space-y-3 p-3" aria-label="Estado da sala">
+              <div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2 text-sm">{multiplayerState.status==="error"?<WifiOff size={18} className="text-destructive"/>:<Wifi size={18} className="text-primary"/>}<span>{multiplayerState.status==="connecting"?"Conectando…":multiplayerState.status==="waiting"?"Sala aberta · aguardando jogadores":multiplayerState.status==="connected"?"Grupo conectado": "Conexão encerrada"}</span></div><span className="text-xs text-muted-foreground">{multiplayerState.players.length}/{MULTIPLAYER_MAX_PLAYERS}</span></div>
+              {multiplayerState.roomCode&&<div className="rounded border border-primary/30 bg-background/80 p-3 text-center"><div className="mb-1 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Código de convite</div><button type="button" onClick={copyMultiplayerCode} className="inline-flex items-center gap-2 text-2xl font-black tracking-[0.2em] text-primary" style={{userSelect:"text"}} aria-label="Copiar código de convite">{displayRoomCode(multiplayerState.roomCode)}<Copy size={16}/></button><div className="mt-1 text-[10px] text-muted-foreground">Toque para copiar</div></div>}
+              {!!multiplayerState.players.length&&<div className="space-y-1">{multiplayerState.players.map((player)=><div key={player.id} className="flex items-center gap-2 rounded bg-background/60 px-2 py-1.5 text-sm"><Users size={14} className="text-accent"/><span className="flex-1">{player.name}{player.id===multiplayerState.selfId?" · você":""}</span>{multiplayerState.role==="host"&&player.id===multiplayerState.selfId&&<span className="text-[10px] text-primary">ANFITRIÃO</span>}</div>)}</div>}
+              {multiplayerState.error&&<p role="alert" className="text-sm text-destructive">{multiplayerState.error}</p>}
+              {(multiplayerState.status==="waiting"||multiplayerState.status==="connected"||multiplayerState.status==="connecting")&&<Button variant="outline" size="sm" onClick={leaveMultiplayer}><LogOut size={14}/>Sair da sala</Button>}
+            </section>}
+            {(multiplayerMessage||multiplayerState.error)&&<p role="status" className="rounded border border-primary/20 bg-primary/5 p-2 text-xs text-primary">{multiplayerMessage||multiplayerState.error}</p>}
+            <p className="text-[11px] leading-relaxed text-muted-foreground">A sala termina quando o anfitrião sai. O PeerJS inclui fallback STUN/TURN público gratuito; em alguns casos ele retransmite dados WebRTC criptografados. A disponibilidade e a capacidade não têm garantia, e políticas de rede ainda podem impedir a conexão. O modo solo segue disponível offline.</p>
+          </div>
+        </Modal>}
         {g && !title && !liveOn && (panel === 'farm' || panel === 'build' || panel === 'workshop') && <Modal title={panel === 'farm' ? 'Jardim & colheita' : panel === 'build' ? 'Construir um lar' : 'Oficinas de Potos'} onClose={()=>setPanel(null)}>
           {panel === 'farm' ? <><div className="choice-grid">{(Object.entries(CROPS) as [CropKind,typeof CROPS.carrot][]).map(([id,crop])=><Button variant="outline" key={id} className="choice-item" onClick={()=>{g.crop=id;g.tool='seed';setPanel(null);}}><Sprout/><span>{crop.name}<small>{g.count(crop.seed)} sementes · {crop.seconds}s</small></span></Button>)}</div><div className="flex gap-2 mt-4"><Button variant="secondary" onClick={()=>{g.tool='till';setPanel(null);}}><Shovel/>Preparar terra</Button><Button variant="secondary" onClick={()=>{g.tool='water';setPanel(null);}}><Droplets/>Regar</Button></div><div className="progress-line mt-5">{g.settlement.plots.length} canteiros · {g.settlement.harvests} colheitas</div></> : panel === 'build' ? <div className="choice-grid">{(Object.entries(STRUCTURES) as [StructureKind,typeof STRUCTURES.home][]).map(([id,def])=><Button variant="outline" className="choice-item" key={id} onClick={()=>{g.structure=id;g.tool='build';setPanel(null);}}><House/><span>{def.name}<small>{Object.entries(def.cost).map(([key,n])=>`${ITEMS[key].name} ${g.count(key)}/${n}`).join(' · ')}</small></span></Button>)}</div> : <div className="choice-grid"><Button variant="outline" className="choice-item" onClick={()=>{g.openStation='carpenter';setPanel(null);}}><Hammer/><span>Carpintaria<small>Tábuas e materiais</small></span></Button><Button variant="outline" className="choice-item" onClick={()=>{g.openStation='smith';setPanel(null);}}><Anvil/><span>Forja<small>Lingotes, armas e armaduras</small></span></Button><Button variant="outline" className="choice-item" onClick={()=>{g.openStation='alchemist';setPanel(null);}}><Sparkles/><span>Alquimia<small>Poções e amuletos</small></span></Button><Button variant="outline" className="choice-item" onClick={()=>{g.openStation='shop';setPanel(null);}}><Backpack/><span>Mercado<small>Sementes e suprimentos</small></span></Button></div>}
         </Modal>}
@@ -607,6 +662,7 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
         <Button variant="ghost" size="icon" disabled={title} aria-label="Pets" title="Pets (P)" onClick={()=>setPanel(panel==='pets'?null:'pets')}><PawPrint size={20}/></Button>
         <Button variant="ghost" size="icon" disabled={title} aria-label="Mercenários" title="Mercenários · contratos e companhia" onClick={()=>setPanel(panel==='mercenaries'?null:'mercenaries')}><Swords size={20}/></Button>
         <Button variant="ghost" size="icon" disabled={title} aria-label="Ecos Além" title="Ecos Além · sistemas da expansão" onClick={()=>setPanel(panel==='echoes'?null:'echoes')}><Sparkles size={20}/></Button>
+        <Button variant="ghost" size="icon" disabled={title} aria-label="Multijogador" title="Sala multijogador · até cinco pessoas" onClick={()=>{setPanel(null);setMultiplayerMessage("");setMultiplayerOpen(true);}} className={multiplayerState.status==="connected"?"text-primary":"text-muted-foreground"}><Users size={20}/></Button>
         <div className="toolbar-actions">{([{p:'inv',icon:Backpack,label:'Inventário'},{p:'char',icon:UserRound,label:'Herói'},{p:'quest',icon:ScrollText,label:'Missões'},{p:'chronicle',icon:BookOpen,label:'Crônica (J)'},{p:'map',icon:Map,label:'Mapa'},{p:'secrets',icon:Compass,label:'Descobertas'},{p:'bestiary',icon:Skull,label:'Bestiário (B)'},{p:'grimoire',icon:Sparkles,label:'Grimório (V)'},{p:'epic',icon:ScrollText,label:'Grande Crônica (O)'}] as const).map(({p:tab,icon:ToolIcon,label})=><Button key={tab} variant="ghost" size="icon" disabled={title} title={label} aria-label={label} onClick={()=>setPanel(panel===tab?null:tab)} className={panel===tab?'text-primary':'text-muted-foreground'}><GameIcon name={tab}/><ToolIcon size={18}/></Button>)}<span className="toolbar-divider"/>{([{id:'explore',icon:Swords,label:'Explorar'},{id:'mine',icon:Pickaxe,label:'Minerar'},{id:'axe',icon:Axe,label:'Cortar madeira'},{id:'till',icon:Shovel,label:'Preparar terra'},{id:'water',icon:Droplets,label:'Regar'}] as const).map(({id,icon:ToolIcon,label})=><Button key={id} variant="ghost" size="icon" aria-label={label} title={label} disabled={title} onClick={()=>{if(g)g.tool=id;}} className={g?.tool===id&&!title?'tool-active':'text-muted-foreground'}><GameIcon name={id}/><ToolIcon size={18}/></Button>)}</div>
         {g && !title && panel === 'home' && <Modal title={`Minha casa · ${HOME_LEVELS[g.settlement.home.level - 1].name}`} onClose={()=>setPanel(null)}>
           {g.settlement.home.level < HOME_LEVELS.length ? <Button variant="secondary" className="mb-4" onClick={()=>{upgradeHome(g);setPanel(null);}}><Hammer/>Reformar para {HOME_LEVELS[g.settlement.home.level].name}<small className="ml-2 opacity-80">{Object.entries(HOME_LEVELS[g.settlement.home.level].cost).map(([key,n])=>`${ITEMS[key].name} ${g.count(key)}/${n}`).join(' · ')}</small></Button> : <div className="progress-line mb-4">Sua mansão está completa.</div>}
