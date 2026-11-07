@@ -42,7 +42,7 @@ Para habilitar o servidor dedicado, informe `multiplayer_ws_url` com a URL compl
 
 ## APK de teste publicado
 
-A build atual está no [GitHub Release android-apk-4](https://github.com/eskildssenrenan52-hash/shattered-realms-mercenary-echoes/releases/tag/android-apk-4): [baixar `app-debug.apk`](https://github.com/eskildssenrenan52-hash/shattered-realms-mercenary-echoes/releases/download/android-apk-4/app-debug.apk) (69.830.594 bytes). SHA-256: `c1df4b41b410bd3441cb6936dc0ab4fd74bede6942e4fcd291c7bd316aca9c18`. GitHub Actions passou testes, typecheck, bundle offline e `assembleDebug`; o APK foi baixado e validado como pacote Android/ZIP. A assinatura é debug, não distribuição de loja.
+A build atual está no [GitHub Release android-apk-5](https://github.com/eskildssenrenan52-hash/shattered-realms-mercenary-echoes/releases/tag/android-apk-5): [baixar `app-debug.apk`](https://github.com/eskildssenrenan52-hash/shattered-realms-mercenary-echoes/releases/download/android-apk-5/app-debug.apk) (69.830.678 bytes). SHA-256: `13f64a9d469b9e8bbb9d76b885873a135c081426de7288d3381658419f6db2a6`. GitHub Actions passou testes, typecheck, bundle offline e `assembleDebug`; o APK foi baixado e validado como pacote Android/ZIP. A assinatura é debug, não distribuição de loja.
 
 ## Worker Cloudflare gratuito opcional
 
