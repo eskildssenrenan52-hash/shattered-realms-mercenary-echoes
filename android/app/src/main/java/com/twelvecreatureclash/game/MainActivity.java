@@ -14,6 +14,7 @@ import android.widget.FrameLayout;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
@@ -33,7 +34,7 @@ public class MainActivity extends AppCompatActivity {
 
         web = new WebView(this);
         web.setLayoutParams(new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        web.setBackgroundColor(getColor(R.color.game_bg));
+        web.setBackgroundColor(ContextCompat.getColor(this, R.color.game_bg));
         setContentView(web);
 
         assetLoader = new WebViewAssetLoader.Builder()

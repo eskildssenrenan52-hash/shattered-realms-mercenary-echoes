@@ -9,6 +9,7 @@ Ao abrir o app, aparece a tela de título do jogo, com as opções Nova jornada 
 - Bun e dependências fixadas em `bun.lock` (`bun install --frozen-lockfile`).
 - JDK completo 17 ou superior, com `javac` e `jlink` (um JRE sozinho não basta).
 - Android SDK Platform 35 e Build Tools 35.
+- Compatibilidade do APK: Android 5.0/API 21 ou superior; a versão 0.2.0 usa `ContextCompat` para não chamar APIs de cor indisponíveis em Android antigo.
 - Gradle compatível com o Android Gradle Plugin do projeto (o build deste repositório usa Gradle 8.9).
 - Configure `JAVA_HOME` e `ANDROID_HOME`/`ANDROID_SDK_ROOT`.
 
