@@ -2,7 +2,9 @@ import type { Game, Enemy } from "./engine";
 import { K_SHEETS, K_DIR, drawK } from "./kaetram";
 import { ITEMS, type Slot } from "./data";
 import { EXPANDED_MERCENARIES } from "./mercenary-expansion";
+import { AI_EXPANDED_MERCENARY_SHEET_IDS, LEGACY_AI_MERCENARY_SHEET_IDS } from "./mercenary-skins";
 import { drawUniqueCharacter, type UniqueCharacterDesign } from "./unique-character";
+import { resetFollowerNavigation, safeFollowerPosition, walkFollowerToward } from "./follower-navigation";
 
 export type MercRarity = "comum" | "incomum" | "raro" | "epico" | "lendario";
 export type MercRole = "guardiao" | "duelista" | "mago" | "curandeira" | "lenda";
@@ -1147,17 +1149,26 @@ export const MERCENARIES: MercenaryDef[] = [
     progressKey: "catalog:vivi-constelacao",
   }),
 ];
-// Append-only: saves refer to these records by string ID, so the legacy prefix stays byte-for-byte ordered.
-MERCENARIES.push(...EXPANDED_MERCENARIES);
+// IDs legados ficam intactos; novos contratos só entram no jogo quando a folha AI existe.
+const AI_LEGACY_MERCENARIES = new Set<string>(LEGACY_AI_MERCENARY_SHEET_IDS);
+const AI_EXPANDED_MERCENARIES = new Set<string>(AI_EXPANDED_MERCENARY_SHEET_IDS);
+const AI_MERCENARIES = new Set([...AI_LEGACY_MERCENARIES, ...AI_EXPANDED_MERCENARIES]);
+MERCENARIES.push(...EXPANDED_MERCENARIES.filter((mercenary) => AI_EXPANDED_MERCENARIES.has(mercenary.id)));
 export const MERC_BY_ID = Object.fromEntries(MERCENARIES.map((m) => [m.id, m]));
-/** Cada contrato reutiliza a folha real do herói; a cor determinística evita 44 URLs inventadas. */
+/** Chave por mercenário para animações/armas Kaetram sem compartilhar o sprite de outro personagem. */
 export const mercSheetKey = (id: string) => `merc/${id}`;
-for (const m of MERCENARIES)
+for (const m of MERCENARIES) {
+  const hasAiSheet = AI_MERCENARIES.has(m.id);
+  m.sheet = hasAiSheet ? `/mercenaries/sheets/${m.id}.png` : "/kaetram/img/sprites/player/base.png";
+  if (hasAiSheet) m.portrait = `/mercenaries/runtime/${m.id}.webp`;
   K_SHEETS[mercSheetKey(m.id)] = {
     ...K_SHEETS["player/base"]!,
-    url: "/kaetram/img/sprites/player/base.png",
+    url: m.sheet,
   };
+}
+export const mercenaryHasAiSheet = (id: string) => AI_MERCENARIES.has(id);
 export const mercenaryFilter = (id: string) => {
+  if (mercenaryHasAiSheet(id)) return "none";
   const index = Math.max(
     0,
     MERCENARIES.findIndex((m) => m.id === id),
@@ -1556,8 +1567,7 @@ function damageMerc(g: Game, m: MercenaryRecord, amount: number) {
     startRetreat(g, m);
   }
 }
-/** Distância a partir da qual o mercenário reaparece ao lado do herói (portas, viagem rápida, mar). */
-export const MERC_SNAP_DISTANCE = 160;
+export const MERCENARY_DAMAGE_FACTOR = 1 / 3;
 export function formationAnchor(g: Game, slot: number): { x: number; y: number } {
   const side = slot === 0 ? -1 : 1;
   const formation = g.mercenaries.formation;
@@ -1588,19 +1598,7 @@ export function followHero(
       ay = target.y - (ty / targetDist) * desired;
     }
   }
-  const dx = ax - m.x,
-    dy = ay - m.y,
-    dist = Math.hypot(dx, dy);
-  if (!Number.isFinite(dist) || dist > MERC_SNAP_DISTANCE) {
-    m.x = anchor.x;
-    m.y = anchor.y;
-    return;
-  }
-  if (dist < 0.5) return;
-  const safeDt = Math.max(0, Math.min(0.25, dt));
-  const step = Math.min(dist, Math.max(dist * Math.min(1, safeDt * 7), (def.speed + 90) * safeDt));
-  m.x += (dx / dist) * step;
-  m.y += (dy / dist) * step;
+  walkFollowerToward(g, `merc:${m.id}`, m, { x: ax, y: ay }, def.speed + 90, dt, 4, 3);
 }
 export function tickMercenaries(g: Game, dt: number) {
   for (const e of g.mercenaries.expeditions || [])
@@ -1655,7 +1653,7 @@ export function tickMercenaries(g: Game, dt: number) {
           talent[0] * 2) *
         (1 + talent[0] * 0.03) *
         mercDamageMult(g);
-      g.damageEnemy(target, power, 0, 0, def.color, 0.72);
+      g.damageEnemy(target, power, 0, 0, def.color, 0.72 * MERCENARY_DAMAGE_FACTOR);
       if (def.role === "mago")
         for (const splash of enemies)
           if (
@@ -1663,7 +1661,7 @@ export function tickMercenaries(g: Game, dt: number) {
             splash.alive &&
             Math.hypot(splash.x - target.x, splash.y - target.y) < 38
           )
-            g.damageEnemy(splash, power * 0.45, 0, 0, def.color, 0.45);
+            g.damageEnemy(splash, power * 0.45, 0, 0, def.color, 0.45 * MERCENARY_DAMAGE_FACTOR);
       if (def.role === "duelista" && m.attacks % 3 === 0) target.slow = Math.max(target.slow, 2.5);
       if (!target.alive || target.hp <= 0) m.victories += 1;
       m.xp += 2;
@@ -1701,6 +1699,20 @@ const anim = new Map<
     attacks: number;
   }
 >();
+export function repositionMercenariesForTransition(g: Game) {
+  resetFollowerNavigation(g);
+  activeMercenaries(g).forEach((m, slot) => {
+    const safe = safeFollowerPosition(g, formationAnchor(g, slot), 4, 3);
+    m.x = safe.x;
+    m.y = safe.y;
+    const state = anim.get(m.id);
+    if (state) {
+      state.lx = m.x;
+      state.ly = m.y;
+      state.walk = 0;
+    }
+  });
+}
 function drawMercFallback(
   g: Game,
   c: CanvasRenderingContext2D,
@@ -1771,7 +1783,7 @@ export function drawMercenaries(
         const frame =
           st.atk > 0 ? Math.min(3, Math.floor((1 - st.atk) * 4)) : moving ? st.walk : g.clock * 2.2;
         const wkey = `player/weapon/${d.weapon}`;
-        if (d.design) {
+        if (d.design && !mercenaryHasAiSheet(m.id)) {
           drawUniqueCharacter(c, d.design, { x: m.x, y: m.y, dir: st.dir, frame, moving, attacking: st.atk > 0, time: g.clock });
         } else {
           c.save();

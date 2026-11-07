@@ -255,3 +255,33 @@ export function biomeOf(w: World, px: number, py: number): Biome {
 export function solidAt(w: World, px: number, py: number) {
   return SOLID.has(tileAt(w, Math.floor(px / TS), Math.floor(py / TS)));
 }
+
+export function bodyBlockedAt(w: World, px: number, py: number, hw = 4, hh = 3) {
+  return (
+    solidAt(w, px - hw, py - hh) ||
+    solidAt(w, px + hw, py - hh) ||
+    solidAt(w, px - hw, py + hh) ||
+    solidAt(w, px + hw, py + hh)
+  );
+}
+
+export function findClearBodyPosition(w: World, px: number, py: number, hw = 4, hh = 3) {
+  if (!bodyBlockedAt(w, px, py, hw, hh)) return { x: px, y: py };
+  const tx = Math.floor(px / TS);
+  const ty = Math.floor(py / TS);
+  for (let radius = 1; radius <= 8; radius++) {
+    const candidates: { x: number; y: number; distance: number }[] = [];
+    for (let dy = -radius; dy <= radius; dy++) {
+      for (let dx = -radius; dx <= radius; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== radius) continue;
+        const x = (tx + dx) * TS + TS / 2;
+        const y = (ty + dy) * TS + TS / 2;
+        if (!bodyBlockedAt(w, x, y, hw, hh))
+          candidates.push({ x, y, distance: Math.hypot(x - px, y - py) });
+      }
+    }
+    candidates.sort((a, b) => a.distance - b.distance);
+    if (candidates.length) return { x: candidates[0]!.x, y: candidates[0]!.y };
+  }
+  return { x: px, y: py };
+}

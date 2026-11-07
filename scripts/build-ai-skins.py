@@ -2,9 +2,12 @@
 # mantendo a silhueta exata da base para as animações não "pularem".
 # Uso: python3 scripts/build-ai-skins.py nome1 nome2 ...  (lê assets/look-gen/skin_<nome>.png)
 import sys
+import os
+from pathlib import Path
 import numpy as np
 from PIL import Image
 base = np.asarray(Image.open("public/kaetram/img/sprites/player/base.png").convert("RGBA"))
+os.makedirs("public/hero-skins", exist_ok=True)
 for name in sys.argv[1:]:
     ai = np.asarray(Image.open(f"assets/look-gen/skin_{name}.png").convert("RGB").resize((512, 1536), Image.LANCZOS)).astype(int)
     out = np.zeros_like(base)
@@ -19,3 +22,21 @@ for name in sys.argv[1:]:
             out[y, x] = (r, g, b, 255)
     Image.fromarray(out.astype(np.uint8)).save(f"public/hero-skins/{name}.png")
     print(name)
+
+# Numeric Look.kskin is save data: publish only the contiguous, finalized prefix.
+skin_files = sorted(
+    Path("public/hero-skins").glob("design-fronteira-*.png"),
+    key=lambda path: int(path.stem.split("-")[2]),
+)
+available_ids = []
+for path in skin_files:
+    number = int(path.stem.split("-")[2])
+    if number != len(available_ids) + 1:
+        break
+    available_ids.append(path.stem)
+body = "".join(f'  "{skin_id}",\n' for skin_id in available_ids)
+Path("src/odyssey/hero-skin-art.ts").write_text(
+    "// Gerado por scripts/build-ai-skins.py; IDs AI contíguos e prontos para uso.\n"
+    f"export const AI_EXPANDED_HERO_SKIN_IDS = [\n{body}] as const;\n",
+    encoding="utf-8",
+)

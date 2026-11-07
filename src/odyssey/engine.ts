@@ -29,7 +29,7 @@ import { buildTiles, drawAttackFx, drawChar, drawEnemy, drawStatue, drawNode } f
 import { getLook, resolveLook } from "./appearance";
 import { drawHero, skinFx } from "./hero-sprite";
 import { drawFx, makeFx, preloadFx, tickFx, type FxInst, type FxName } from "./vfx";
-import { petTick, petOnKill, drawPets, petsSave, petsLoad, petGuardMult, petDamageMult } from "./pet-play";
+import { petTick, petOnKill, drawPets, petsSave, petsLoad, petGuardMult, petDamageMult, repositionPetForTransition } from "./pet-play";
 import { foeTick } from "./foe-play";
 import { BUILDINGS, TREASURES, ROOM, doorOf, createInterior, prepareExploration, canClaimTreasure, buildingFloors, interiorPlanOf, buildingEnteredKey, buildingObjectiveKey, recordBuildingFloor, type Building } from './exploration';
 import { frontierTownNpcs } from './frontier-town-npcs';
@@ -53,7 +53,7 @@ import { STORY_BOSS_LOOK, STORY_QUESTS, ALL_ECO_BOSSES, beatsFor, depthBonus, cy
 import { arsenalFor, runMove, type BossCtx } from "./boss-arsenal";
 import { fxFor, type FxSig } from "./fx-catalog";
 import { shouldSpawnTwin, twinBossDef, twinEncounterKey } from "./boss-encounters";
-import { freshMercenaryState, sanitizeMercenaryState, tickMercenaries, drawMercenaries, mercGuardMult, mercDamageMult, type MercenaryState } from "./mercenaries";
+import { freshMercenaryState, sanitizeMercenaryState, tickMercenaries, drawMercenaries, mercGuardMult, mercDamageMult, repositionMercenariesForTransition, type MercenaryState } from "./mercenaries";
 import { carveMainFarlandsGate, drawFarlands, ensureFarlandsWorld, farlandsAction, switchToOverworld } from "./farlands-play";
 import { farlandsNpcs } from "./farlands-npcs";
 import { registerForgeExpansion } from "./forge-expansion";
@@ -1170,6 +1170,7 @@ export class Game {
   clearTransition() {
     this.p.vx = this.p.vy = 0; this.moveTarget = null; this.targetEnemy = null; this.talkTarget = null;
     this.projs = []; this.teles = []; this.parts = []; this.texts = [];
+    repositionPetForTransition(this); repositionMercenariesForTransition(this);
     this.doorCooldown = 0.8; this.transition = 0.65; this.audio.sfx('warp');
   }
   claimChest(id: string, gold: number, item: string, qty: number, name: string) {
@@ -1238,8 +1239,12 @@ export class Game {
   moveBody(o: { x: number; y: number }, dx: number, dy: number, hw = 4, hh = 3) {
     const w = this.world;
     const blocked = (x: number, y: number) => solidAt(w, x - hw, y - hh) || solidAt(w, x + hw, y - hh) || solidAt(w, x - hw, y + hh) || solidAt(w, x + hw, y + hh);
-    if (!blocked(o.x + dx, o.y)) o.x += dx;
-    if (!blocked(o.x, o.y + dy)) o.y += dy;
+    const steps = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)) / (TS / 4)));
+    const sx = dx / steps, sy = dy / steps;
+    for (let i = 0; i < steps; i++) {
+      if (!blocked(o.x + sx, o.y)) o.x += sx;
+      if (!blocked(o.x, o.y + sy)) o.y += sy;
+    }
   }
 
   private tickBossCallbacks() {
@@ -1299,7 +1304,7 @@ export class Game {
 
     // biome
     const b = biomeOf(w, p.x, p.y);
-    if (b !== this.biome) { this.biome = b; this.biomeBanner = { name: `${BIOME_NAMES[b]} · Nv ${BIOME_LEVEL[b]}+`, t: 3 }; this.audio.biome = b; epicOnBiome(this, b); this.fireBeats(`biome:${b}`); }
+    if (!this.interior && b !== this.biome) { this.biome = b; this.biomeBanner = { name: `${BIOME_NAMES[b]} · Nv ${BIOME_LEVEL[b]}+`, t: 3 }; this.audio.biome = b; epicOnBiome(this, b); this.fireBeats(`biome:${b}`); }
     if (this.biomeBanner.t > 0) this.biomeBanner.t -= dt;
 
     this.populateFrontier();

@@ -1,8 +1,8 @@
 import type { HeroSkin } from "./hero-sprite";
-import { uniqueDesign } from "./unique-character";
+import { AI_EXPANDED_HERO_SKIN_IDS } from "./hero-skin-art";
 
-/** Designs procedurais: cada skin muda silhueta, rosto, cabelo, roupa, acessório e arma. */
-export const HERO_SKIN_EXPANSION_COUNT = 200;
+/** Total de skins expandidas com arte AI finalizada e folha Kaetram disponível. */
+export const HERO_SKIN_EXPANSION_COUNT = AI_EXPANDED_HERO_SKIN_IDS.length;
 const FAMILIES = [
   "Sentinela",
   "Andarilha",
@@ -38,34 +38,31 @@ const MATERIALS = [
   "de Ônix",
 ] as const;
 const DESCRIPTIONS = [
-  "Silhueta de viajante com cabelo, roupa e acessório desenhados para esta identidade.",
-  "Armadura de fronteira com rosto e equipamento próprios, sem compartilhar o corpo-base.",
-  "Traje ritual com uma construção visual diferente em cada detalhe.",
+  "Silhueta de viajante com traje pixel-art próprio, animado em todas as direções.",
+  "Armadura de fronteira repintada em folha Kaetram completa.",
+  "Traje ritual com identidade visual própria e animações preservadas.",
   "Equipamento artesanal criado para atravessar biomas e ruínas.",
-  "Design de personagem completo, com animação pixel-art e arma exclusiva.",
+  "Design de personagem em pixel art com folha de animação AI dedicada.",
 ] as const;
-const WEAPONS = ["sword", "staff", "bow", "axe", "spear", "orb"] as const;
 
-export const EXPANDED_HERO_SKINS: HeroSkin[] = Array.from(
-  { length: HERO_SKIN_EXPANSION_COUNT },
-  (_, index) => {
-    const family = FAMILIES[index % FAMILIES.length]!;
-    const material = MATERIALS[Math.floor(index / FAMILIES.length)]!;
-    const name = `${family} ${material}`;
-    const slug = name
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-");
-    const design = uniqueDesign(10_000 + index, WEAPONS[index % WEAPONS.length]);
+const finalized = new Set<string>(AI_EXPANDED_HERO_SKIN_IDS);
 
-    return {
-      id: `design-fronteira-${String(index + 1).padStart(3, "0")}-${slug}`,
-      name,
-      desc: `${DESCRIPTIONS[index % DESCRIPTIONS.length]!} Design ${String(index + 1).padStart(3, "0")}.`,
-      sheet: "player/base",
-      minLevel: 1 + ((index * 37 + 5) % 80),
-      design,
-    };
-  },
-);
+export const EXPANDED_HERO_SKINS: HeroSkin[] = Array.from({ length: 200 }, (_, index) => {
+  const family = FAMILIES[index % FAMILIES.length]!;
+  const material = MATERIALS[Math.floor(index / FAMILIES.length)]!;
+  const name = `${family} ${material}`;
+  const slug = name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-");
+  const id = `design-fronteira-${String(index + 1).padStart(3, "0")}-${slug}`;
+
+  return {
+    id,
+    name,
+    desc: `${DESCRIPTIONS[index % DESCRIPTIONS.length]!} Design ${String(index + 1).padStart(3, "0")}.`,
+    sheet: `hero/${id}`,
+    minLevel: 1 + ((index * 37 + 5) % 80),
+  };
+}).filter((skin) => finalized.has(skin.id));

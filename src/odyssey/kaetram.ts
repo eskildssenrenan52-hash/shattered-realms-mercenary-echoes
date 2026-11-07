@@ -2,6 +2,7 @@
 // O catálogo (url, tamanho do quadro, deslocamento e animações) fica em kaetram-sprites.json.
 // As imagens carregam sob demanda; enquanto não chegam, quem chama desenha o visual antigo.
 import SHEETS from "./kaetram-sprites.json";
+import { AI_EXPANDED_HERO_SKIN_IDS } from "./hero-skin-art";
 
 export interface KSheet { url: string; w?: number; h?: number; ox?: number; oy?: number; anims?: Record<string, [number, number]>; idle?: number }
 /** Cópia do catálogo: outras folhas (ex.: skins de IA em /hero) entram aqui sem alterar o JSON importado. */
@@ -9,6 +10,7 @@ export const K_SHEETS: Record<string, KSheet> = { ...(SHEETS as unknown as Recor
 /** Skins repintadas por IA sobre a folha base (mesmos quadros/animações), em public/hero-skins. */
 export const AI_SKIN_IDS = ["knight", "ninja", "wizard", "orc", "pirate", "astronaut"] as const;
 for (const id of AI_SKIN_IDS) K_SHEETS[`hero/${id}`] = { ...K_SHEETS["player/base"]!, url: `/hero-skins/${id}.png` };
+for (const id of AI_EXPANDED_HERO_SKIN_IDS) K_SHEETS[`hero/${id}`] = { ...K_SHEETS["player/base"]!, url: `/hero-skins/${id}.png` };
 
 const byCategory = new Map<string, string[]>();
 for (const key of Object.keys(K_SHEETS).sort()) {

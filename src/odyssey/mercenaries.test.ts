@@ -1,14 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 import { HERO_SKINS } from "./hero-sprite";
 import { K_SHEETS } from "./kaetram";
+import { AI_EXPANDED_MERCENARY_SHEET_IDS, LEGACY_AI_MERCENARY_SHEET_IDS } from "./mercenary-skins";
 import type { Enemy, Game } from "./engine";
 import {
   MERCENARIES,
   MERC_BY_ID,
   MERCENARY_GOLD_COST,
+  MERCENARY_DAMAGE_FACTOR,
   MERCENARY_PITY_LIMIT,
   MERCENARY_SEAL_COST,
-  MERC_SNAP_DISTANCE,
   assignMercenary,
   dismissMercenary,
   formationAnchor,
@@ -46,6 +47,10 @@ const fake = () => {
       enemy.hp -= amount;
       if (enemy.hp <= 0) enemy.alive = false;
     }),
+    moveBody: (o: { x: number; y: number }, dx: number, dy: number) => {
+      o.x += dx;
+      o.y += dy;
+    },
   };
   return g as unknown as Game;
 };
@@ -90,16 +95,22 @@ describe("mercenários", () => {
     expect(new Set(added.map((m) => m.color)).size).toBe(24);
   });
 
-  it("preserva folhas legadas e usa designs completos nos contratos novos", () => {
+  it("preserva folhas legadas, usa sheets AI e só expõe novos contratos com arte pronta", () => {
+    const legacyAi = new Set<string>(LEGACY_AI_MERCENARY_SHEET_IDS);
     for (const m of MERCENARIES.slice(0, 44)) {
-      expect(m.sheet).toBe("/kaetram/img/sprites/player/base.png");
-      expect(m.portrait).toBe("/kaetram/img/sprites/player/base.png");
-      expect(K_SHEETS[mercSheetKey(m.id)]?.url).toBe("/kaetram/img/sprites/player/base.png");
+      const hasAi = legacyAi.has(m.id);
+      const expectedSheet = hasAi ? `/mercenaries/sheets/${m.id}.png` : "/kaetram/img/sprites/player/base.png";
+      const expectedPortrait = hasAi ? `/mercenaries/runtime/${m.id}.webp` : expectedSheet;
+      expect(m.sheet).toBe(expectedSheet);
+      expect(m.portrait).toBe(expectedPortrait);
+      expect(K_SHEETS[mercSheetKey(m.id)]?.url).toBe(expectedSheet);
       expect(K_SHEETS[`player/weapon/${m.weapon}`]).toBeTruthy();
-      expect(mercenaryFilter(m.id)).toContain("hue-rotate");
+      expect(hasAi ? mercenaryFilter(m.id) : mercenaryFilter(m.id).includes("hue-rotate")).toBe(hasAi ? "none" : true);
     }
-    expect(MERCENARIES.slice(44).every((m) => m.design && K_SHEETS[`player/weapon/${m.weapon}`])).toBe(true);
-    expect(new Set(MERCENARIES.slice(44).map((m) => JSON.stringify(m.design))).size).toBe(200);
+    const added = MERCENARIES.slice(44);
+    expect(added.map((m) => m.id)).toEqual([...AI_EXPANDED_MERCENARY_SHEET_IDS]);
+    expect(added.every((m) => m.design && m.sheet === `/mercenaries/sheets/${m.id}.png` && m.portrait === `/mercenaries/runtime/${m.id}.webp` && K_SHEETS[`player/weapon/${m.weapon}`])).toBe(true);
+    expect(new Set(added.map((m) => JSON.stringify(m.design))).size).toBe(added.length);
   });
 
   it("oferece 24 skins de paleta no fim sem alterar índices legados", () => {
@@ -179,7 +190,7 @@ describe("mercenários", () => {
     );
   });
 
-  it("segue dentro de casa, reaparece após teleporte e usa formation anchor", () => {
+  it("segue dentro de casa caminhando e não teleporta quando fica distante", () => {
     const g = fake();
     g.interior = {} as NonNullable<Game["interior"]>;
     recruitMercenary(g, "ferrovia");
@@ -189,10 +200,28 @@ describe("mercenários", () => {
     for (let i = 0; i < 60; i++) tickMercenaries(g, 1 / 60);
     const anchor = formationAnchor(g, 0);
     expect(Math.hypot(m.x - anchor.x, m.y - anchor.y)).toBeLessThan(8);
-    g.p.x += MERC_SNAP_DISTANCE + 500;
+    m.x = anchor.x + 260;
+    m.y = anchor.y;
+    const before = m.x;
     tickMercenaries(g, 1 / 60);
-    expect(m.x).toBe(formationAnchor(g, 0).x);
-    expect(m.y).toBe(formationAnchor(g, 0).y);
+    expect(before - m.x).toBeGreaterThan(0);
+    expect(before - m.x).toBeLessThan(4);
+    expect(Math.hypot(m.x - anchor.x, m.y - anchor.y)).toBeGreaterThan(100);
+  });
+
+  it("reduz em três vezes o golpe direto e o splash dos magos", () => {
+    const g = fake();
+    recruitMercenary(g, "irmao-cinzas");
+    assignMercenary(g, "irmao-cinzas", 0);
+    const m = g.mercenaries.roster[0]!;
+    const primary: StubEnemy = { id: 1, x: m.x + 80, y: m.y, hp: 100_000, maxhp: 100_000, atk: 0, alive: true };
+    const splash: StubEnemy = { id: 2, x: primary.x + 10, y: primary.y, hp: 100_000, maxhp: 100_000, atk: 0, alive: true };
+    g.enemies = [primary, splash] as unknown as Enemy[];
+    tickMercenaries(g, 0.1);
+
+    const calls = (g.damageEnemy as unknown as ReturnType<typeof vi.fn>).mock.calls as unknown[][];
+    expect(calls.some((call) => call[0] === primary && call[5] === 0.72 * MERCENARY_DAMAGE_FACTOR)).toBe(true);
+    expect(calls.some((call) => call[0] === splash && call[5] === 0.45 * MERCENARY_DAMAGE_FACTOR)).toBe(true);
   });
 
   it("aproxima-se em combate em postura agressiva/balanceada e volta à formação", () => {

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { adopt, makePet, freshPets, feed, breed, hatch, walkEggs, wildEgg, evolve, toggleTeam, setActive, sanitizePets } from "./pets";
 import { HERO_SKINS, skinUnlocked } from "./hero-sprite";
+import { AI_EXPANDED_HERO_SKIN_IDS } from "./hero-skin-art";
+import { K_SHEETS } from "./kaetram";
 const rng = () => 0.5;
 describe("Pet progression and imported skins", () => {
   it("keeps starter adoption active and compatible with save reload", () => {
@@ -34,11 +36,12 @@ describe("Pet progression and imported skins", () => {
     const st = freshPets(); const a = makePet(st,"rato",rng); const b = makePet(st,"gato",rng); adopt(st,a); adopt(st,b);
     setActive(st,b.uid); toggleTeam(st,b.uid); expect(st.active).toBe(a.uid);
   });
-  it("keeps legacy skins first and appends complete unique designs", () => {
+  it("preserves legacy skin ordering and appends only finalized AI sheets", () => {
     expect(HERO_SKINS.slice(0,9).every(s => s.sheet.startsWith("player/"))).toBe(true); expect(HERO_SKINS.slice(9,15).every(s => s.sheet.startsWith("hero/") && s.ai)).toBe(true);
     expect(HERO_SKINS.slice(15,39).every(s => s.sheet.startsWith("hero/palette/") && s.paletteFilter)).toBe(true);
-    expect(HERO_SKINS.slice(39).every(s => s.design)).toBe(true);
-    expect(new Set(HERO_SKINS.slice(39).map(s => JSON.stringify(s.design))).size).toBe(200);
+    const expanded = HERO_SKINS.slice(39);
+    expect(expanded.map(s => s.id)).toEqual([...AI_EXPANDED_HERO_SKIN_IDS]);
+    expect(expanded.every(s => s.sheet === `hero/${s.id}` && K_SHEETS[s.sheet]?.url === `/hero-skins/${s.id}.png` && !s.design)).toBe(true);
     expect(skinUnlocked(8,14)).toBe(false); expect(skinUnlocked(8,15)).toBe(true);
   });
 });

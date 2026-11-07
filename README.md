@@ -12,7 +12,8 @@ RPG de ação 2D em Canvas com campanha, Saga, arquipélago, combate procedural,
 - Ecos Além inclui dez sistemas jogáveis: Cartografia viva, Reconstrução de Potos, Laços de Eco, Conselho dos Reinos, Expedições Oníricas, Rituais de constelação, Caravanas, Museu das Canções Perdidas, Tempestades de Fratura opt-in e Novo Ciclo.
 - Saves antigos recebem defaults compatíveis; escolhas, rotas, memórias, museu, votações e desfechos pós-campanha são salvos sem substituir os IDs antigos da campanha.
 - O Guia completo dentro do jogo foi ampliado para 43 passos e explica controles, combate, progressão, Cidadela e os dez sistemas novos.
-- A Companhia preserva os 20 mercenários legados e acrescenta 24 (44 no total), com 24 novas skins de jogador, filtros, requisitos, indicação de dupla, formação e posturas; aliados seguem o herói, aproximam-se de alvos e voltam à formação.
+- A Companhia preserva os 44 mercenários do catálogo legado e acrescenta até 105 mercenários com folhas AI Kaetram concluídas; entradas da expansão sem arte finalizada não aparecem no catálogo. Mercenários e pets caminham com colisão e contornam obstáculos no seguimento.
+- O dano de mercenários foi reduzido a um terço, incluindo o splash dos magos. Entrar ou sair de uma casa não dispara mais cutscenes de biomas artificiais dos interiores.
 - Contratos agora custam 850 ouro ou 3 Selos ganhos em chefes, têm pity a cada 18 tentativas e parte do roster exige nível/progresso; não há monetização real. Até dois aliados podem lutar ao mesmo tempo.
 - A nova camada narrativa evita exposição forçada: as histórias entram por contratos, retornos a Potos, decisões de companhia, consequências de recuo e diálogos curtos que recontextualizam reinos já visitados.
 - O Cântico Oculto conserva as 450 cadeias e acrescenta 200: agora há 650 cadeias determinísticas, 26 Reinos Ocultos mais o Coração e 44.350 caches de exploração; total combinado: 45.000 segredos. Os 450 IDs antigos permanecem estáveis.
@@ -63,12 +64,12 @@ O APK de depuração aparece em `android/app/build/outputs/apk/debug/app-debug.a
 
 ## APK Android publicado
 
-Build de teste atual: [baixar APK compatível (66,8 MB)](https://github.com/eskildssenrenan52-hash/shattered-realms-mercenary-echoes/releases/download/android-apk-8/app-debug.apk) · [release notes](https://github.com/eskildssenrenan52-hash/shattered-realms-mercenary-echoes/releases/tag/android-apk-8) · [execução do workflow](https://github.com/eskildssenrenan52-hash/shattered-realms-mercenary-echoes/actions/runs/42414030886). É um APK debug independente do Manus para teste direto, gerado com SDK mínimo API 21 e correção de compatibilidade para Android antigo. A campanha solo é offline; esta build inclui 200 skins e 200 mercenários com designs geométricos completos, não apenas recolor.
+O APK de depuração desta revisão é a versão 0.3.1 (versionCode 4) e ficará diretamente no repositório em `android/apk/shattered-realms-mercenary-echoes-0.3.1-debug.apk`. Ele inclui as artes Kaetram offline e as correções de dano, navegação, colisão e cenas; é assinado com chave debug e não é uma build de loja.
 
 ## Expansão de novembro de 2026
 
 A expansão atual dobra a área continental para 6.400×2.400 tiles sem deslocar a região legada, acrescenta transições de bioma determinísticas e mantém a renderização ambiental limitada à viewport. O mundo distribui mais de 1.000 construções procedurais, com 20 famílias arquitetônicas, 20 plantas interiores, fachadas/paletas, 1–12 andares e objetivos/recompensas próprios; os IDs antigos permanecem estáveis.
 
-O catálogo agora contém 244 mercenários (44 antigos + 200 novos) e 239 skins (39 antigas + 200 novas). Os dados são append-only: os mercenários usam a folha local do herói com filtros cromáticos e as skins usam `player/base` com filtros CSS, sem URLs ou imagens inexistentes. A tela de aparência inclui busca, filtro e paginação para celular.
+O catálogo atualizado contém 149 mercenários (44 legados + 105 com arte AI concluída) e 49 skins de herói (39 legadas + 10 folhas AI Kaetram). Expansões sem arte pronta são omitidas; a ordem dos IDs legados continua preservada para compatibilidade dos saves. A tela de aparência inclui busca, filtro e paginação para celular.
 
 `server/cloudflare/` contém uma implementação preparada para Cloudflare Workers + Durable Object SQLite, com WebSocket Hibernation, `/healthz`, `/ws`, salas de cinco jogadores, tokens, TTL, allowlist, soft guard de quota e protocolo compatível. Ela passou 4 testes focados, mas ainda não está online: esta sessão não tem uma conta Cloudflare/namespace acessível para fazer deploy. Para publicar, siga [`server/cloudflare/README.md`](server/cloudflare/README.md), obtenha uma URL `wss://.../ws` e gere o APK/web com `VITE_MULTIPLAYER_WS_URL`; sem isso, o jogo continua usando o modo P2P legado.

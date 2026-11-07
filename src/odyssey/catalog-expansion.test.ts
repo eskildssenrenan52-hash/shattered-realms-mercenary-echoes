@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 import { HERO_SKINS } from "./hero-sprite";
 import { K_SHEETS } from "./kaetram";
 import { MERCENARIES, MERC_BY_ID, sanitizeMercenaryState } from "./mercenaries";
+import { AI_EXPANDED_MERCENARY_SHEET_IDS } from "./mercenary-skins";
+import { AI_EXPANDED_HERO_SKIN_IDS } from "./hero-skin-art";
 import { DEFAULT_LOOK, sanitizeLook } from "./appearance";
 
 describe("catálogos append-only de contratos e aparência", () => {
-  it("preserva os 44 IDs de mercenários legados e anexa exatamente 200", () => {
+  it("preserva os 44 IDs legados e inclui somente mercenários com sheet AI finalizado", () => {
     const legacy = [
       "ferrovia",
       "mae-das-brumas",
@@ -52,18 +54,16 @@ describe("catálogos append-only de contratos e aparência", () => {
       "bento-fumaca",
       "vivi-constelacao",
     ];
-    expect(MERCENARIES).toHaveLength(244);
+    const added = MERCENARIES.slice(44);
+    expect(MERCENARIES).toHaveLength(44 + AI_EXPANDED_MERCENARY_SHEET_IDS.length);
     expect(MERCENARIES.slice(0, 44).map((m) => m.id)).toEqual(legacy);
-    expect(new Set(MERCENARIES.map((m) => m.id)).size).toBe(244);
-    expect(
-      MERCENARIES.slice(44).every(
-        (m) => m.sheet === "/kaetram/img/sprites/player/base.png" && m.portrait === m.sheet && m.design,
-      ),
-    ).toBe(true);
-    expect(new Set(MERCENARIES.slice(44).map((m) => JSON.stringify(m.design))).size).toBe(200);
+    expect(new Set(MERCENARIES.map((m) => m.id)).size).toBe(MERCENARIES.length);
+    expect(added.map((m) => m.id)).toEqual([...AI_EXPANDED_MERCENARY_SHEET_IDS]);
+    expect(added.every((m) => m.sheet === `/mercenaries/sheets/${m.id}.png` && m.portrait === `/mercenaries/runtime/${m.id}.webp` && m.design)).toBe(true);
+    expect(new Set(added.map((m) => JSON.stringify(m.design))).size).toBe(added.length);
   });
 
-  it("mantém os 39 índices de skin legados e anexa 200 designs reais", () => {
+  it("mantém os 39 índices legados e anexa apenas skins com folha AI finalizada", () => {
     const legacy = [
       "base",
       "danbo",
@@ -105,20 +105,20 @@ describe("catálogos append-only de contratos e aparência", () => {
       "palette-aurora",
       "palette-constellation",
     ];
-    expect(HERO_SKINS).toHaveLength(239);
+    expect(HERO_SKINS).toHaveLength(39 + AI_EXPANDED_HERO_SKIN_IDS.length);
     expect(HERO_SKINS.slice(0, 39).map((s) => s.id)).toEqual(legacy);
-    expect(new Set(HERO_SKINS.map((s) => s.id)).size).toBe(239);
+    expect(new Set(HERO_SKINS.map((s) => s.id)).size).toBe(HERO_SKINS.length);
     const added = HERO_SKINS.slice(39);
-    expect(added).toHaveLength(200);
-    expect(new Set(added.map((s) => s.name)).size).toBe(200);
-    expect(new Set(added.map((s) => s.id)).size).toBe(200);
-    expect(new Set(added.map((s) => s.desc)).size).toBe(200);
-    expect(new Set(added.map((s) => JSON.stringify(s.design))).size).toBe(200);
+    expect(added.map((s) => s.id)).toEqual([...AI_EXPANDED_HERO_SKIN_IDS]);
+    expect(new Set(added.map((s) => s.name)).size).toBe(added.length);
+    expect(new Set(added.map((s) => s.id)).size).toBe(added.length);
+    expect(new Set(added.map((s) => s.desc)).size).toBe(added.length);
     expect(
       added.every(
         (s) =>
-          s.sheet === "player/base" &&
-          s.design &&
+          s.sheet === `hero/${s.id}` &&
+          K_SHEETS[s.sheet]?.url === `/hero-skins/${s.id}.png` &&
+          !s.design &&
           s.minLevel >= 1 &&
           s.minLevel <= 80,
       ),
@@ -147,7 +147,7 @@ describe("catálogos append-only de contratos e aparência", () => {
   });
 
   it("migra saves com IDs antigos e novos, e mantém Look.kskin indexado", () => {
-    const newMerc = MERCENARIES[243]!;
+    const newMerc = MERCENARIES[MERCENARIES.length - 1]!;
     const migrated = sanitizeMercenaryState({
       roster: [
         { id: "ferrovia", level: 2, hp: 40, state: "reserva" },
@@ -158,7 +158,8 @@ describe("catálogos append-only de contratos e aparência", () => {
     expect(migrated.roster.map((m) => m.id)).toEqual(["ferrovia", newMerc.id]);
     expect(migrated.active).toEqual(["ferrovia", newMerc.id]);
     expect(sanitizeLook({ kskin: 38 }).kskin).toBe(38);
-    expect(sanitizeLook({ kskin: 238 }).kskin).toBe(238);
+    expect(sanitizeLook({ kskin: 48 }).kskin).toBe(48);
+    expect(sanitizeLook({ kskin: 238 })).toEqual(DEFAULT_LOOK);
     expect(sanitizeLook({ kskin: 999 })).toEqual(DEFAULT_LOOK);
   });
 });

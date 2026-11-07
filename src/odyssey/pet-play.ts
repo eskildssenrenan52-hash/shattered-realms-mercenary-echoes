@@ -8,6 +8,7 @@ import {
   sanitizePets, skillsFor, walkEggs, wildEgg, EGG_CHANCE, type Pet, type PetState, type EvoCtx,
 } from "./pets";
 import { fxFor } from "./fx-catalog";
+import { resetFollowerNavigation, safeFollowerPosition, walkFollowerToward } from "./follower-navigation";
 
 const KEY = "golden-arrow-pets";
 interface Body { x: number; y: number; dir: number; moving: boolean; frameT: number; atk: number; cd: number; target: number | null; skillCd: Record<string, number>; healT: number; shieldT: number; lastPX: number; lastPY: number; stepAcc: number; hungerT: number; notified: Set<string> }
@@ -30,6 +31,17 @@ export function petsLoad(g: Game) {
   if (!st.pets.length && !st.eggs.length) giveStarter(g); // saves antigos ganham o primeiro pet
 }
 export function petsNewGame(g: Game) { states.set(g, freshPets()); giveStarter(g); petsSave(g); }
+export function repositionPetForTransition(g: Game) {
+  const b = body(g);
+  const safe = safeFollowerPosition(g, { x: g.p.x - 14, y: g.p.y + 4 }, 4, 3);
+  b.x = safe.x;
+  b.y = safe.y;
+  b.moving = false;
+  b.frameT = 0;
+  b.lastPX = g.p.x;
+  b.lastPY = g.p.y;
+  resetFollowerNavigation(g, `pet:${activePet(g)?.uid ?? "active"}`);
+}
 function giveStarter(g: Game) {
   const st = petsOf(g);
   adopt(st, makePet(st, "rato", Math.random));
@@ -85,8 +97,6 @@ export function petTick(g: Game, dt: number) {
   const pet = activePet(g); if (!pet || p.dead > 0) return;
   const sp = SPECIES_BY_ID[pet.species]; if (!sp) return;
   const s = petStats(pet), f = fightMult(pet);
-  // Teleporta junto em portas/viagens.
-  if (Math.hypot(b.x - p.x, b.y - p.y) > 220) { b.x = p.x - 14; b.y = p.y + 4; }
   b.cd -= dt; b.atk = Math.max(0, b.atk - dt * 3); b.healT -= dt;
   for (const k in b.skillCd) b.skillCd[k] -= dt;
 
@@ -121,10 +131,13 @@ export function petTick(g: Game, dt: number) {
   }
   const dx = tx - b.x, dy = ty - b.y, dist = Math.hypot(dx, dy);
   const speed = 60 + s.spd * 2.2 + (dist > 60 ? 50 : 0);
-  b.moving = dist > 6;
+  const oldX = b.x, oldY = b.y;
+  b.moving = walkFollowerToward(g, `pet:${pet.uid}`, b, { x: tx, y: ty }, speed, dt, 4, 3);
   if (b.moving) {
-    const st2 = Math.min(dist, speed * dt); b.x += (dx / dist) * st2; b.y += (dy / dist) * st2; b.frameT += dt * 8;
+    b.frameT += dt * 8;
     if (b.atk <= 0) b.dir = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 1 : 2) : dy < 0 ? 3 : 0;
+  } else if (b.x !== oldX || b.y !== oldY) {
+    b.moving = true;
   }
 }
 

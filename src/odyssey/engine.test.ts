@@ -3,7 +3,7 @@ import { Game } from './engine';
 import { QUESTS, BOSSES, NPCS } from './data';
 import { actChainQuests, ALL_ECO_BOSSES } from './story';
 import { FRONTIER_GATES, FRONTIER } from './frontier';
-import { solidAt, TS, W, T } from './world';
+import { biomeOf, solidAt, TS, W, T } from './world';
 import { bossHp, bossMeleeDamage } from './boss-tuning';
 import { depthAction, enterBiomeMine, enterCitadel, enterTutorialFloor, restartTutorialFloor, startTutorial, skipTutorial, surfaceEntrance, TUTORIAL_BOSS_ID, TUTORIAL_FLOORS } from './depthplay';
 import { biomeMineBossId } from './biome-mines';
@@ -13,7 +13,7 @@ import { FARLANDS_PORTALS } from './farlands';
 import { CITADEL_FINAL_BEAT_ID, CITADEL_FINAL_BOSS_ID, CITADEL_UNLOCK_BOSS_ID } from './demon-citadel';
 import { startNemesisHunt } from './echoes-play';
 import { nemesisBossId } from './nemesis';
-import { BUILDINGS, FRONTIER_CITIES, doorOf, ROOM } from './exploration';
+import { BUILDINGS, FRONTIER_CITIES, createInterior, doorOf, ROOM } from './exploration';
 
 // Canvas 2D falso: qualquer método é um no-op, gradientes aceitam addColorStop.
 function fakeCtx(canvas: unknown) {
@@ -128,6 +128,43 @@ describe('Engine — campanha integrada', { timeout: 90000 }, () => {
       k.leaveInterior();
       k.doorCooldown = 0;
     }
+  });
+  it('não dispara cutscene de bioma ao entrar ou sair de um interior', () => {
+    const k = make();
+    k.cutscene = null;
+    k.beatQueue = [];
+    const building = BUILDINGS.find((candidate) => {
+      const interior = createInterior(candidate);
+      return biomeOf(interior, ROOM.spawnX, ROOM.spawnY) !== k.biome;
+    });
+    expect(building).toBeDefined();
+    const outsideBiome = k.biome;
+    const indoorBiome = biomeOf(createInterior(building!), ROOM.spawnX, ROOM.spawnY);
+    k.seenBeats.delete(`terra_${indoorBiome}`);
+
+    expect(k.enterInterior(building!)).toBe(true);
+    k.update(1 / 60);
+    expect(k.biome).toBe(outsideBiome);
+    expect(k.cutscene).toBeNull();
+    expect(k.beatQueue.some((beat) => beat.id === `terra_${indoorBiome}`)).toBe(false);
+
+    k.leaveInterior();
+    k.update(1 / 60);
+    expect(k.biome).toBe(outsideBiome);
+    expect(k.cutscene).toBeNull();
+  });
+  it('bloqueia deslocamentos longos antes de atravessarem uma parede', () => {
+    const k = make();
+    k.world.tiles.fill(T.FLOOR);
+    const wallX = 14;
+    const wallY = 12;
+    k.world.tiles[wallY * W + wallX] = T.WALL;
+    const body = { x: wallX * TS - 20, y: wallY * TS + 8 };
+
+    k.moveBody(body, 60, 0, 4, 3);
+
+    expect(body.x + 4).toBeLessThan(wallX * TS);
+    expect(solidAt(k.world, body.x + 4, body.y)).toBe(false);
   });
   it('povoa todas as cidades de fronteira com moradores visíveis e conversáveis', () => {
     const k = make();
