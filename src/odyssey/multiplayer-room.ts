@@ -10,6 +10,7 @@ const ROOM_ID_PREFIX = "sr";
 
 type RoomRole = "host" | "guest";
 export type MultiplayerStatus = "idle" | "connecting" | "waiting" | "connected" | "error";
+export type MultiplayerTransport = "public-p2p" | "dedicated-ws";
 
 export interface MultiplayerPose {
   x: number;
@@ -28,6 +29,7 @@ export interface MultiplayerPlayer extends MultiplayerPose {
 
 export interface MultiplayerRoomState {
   status: MultiplayerStatus;
+  transport: MultiplayerTransport;
   role: RoomRole | null;
   roomCode: string;
   selfId: string;
@@ -166,6 +168,7 @@ export class MultiplayerRoom implements MultiplayerRoomClient {
   state(): MultiplayerRoomState {
     return {
       status: this.status,
+      transport: "public-p2p",
       role: this.role,
       roomCode: this.roomCode,
       selfId: this.selfId,

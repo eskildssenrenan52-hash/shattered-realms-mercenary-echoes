@@ -23,7 +23,7 @@ RPG de ação 2D em Canvas com campanha, Saga, arquipélago, combate procedural,
 
 ## Multiplayer online
 
-`server/` contém um serviço Node/WebSocket independente (`pnpm run server`) com health check, convites com token, salas para até cinco jogadores, validação de poses, TTL, heartbeat e transição de anfitrião. A suíte `pnpm run test:server` abre clientes WebSocket reais em localhost. O jogo ainda sincroniza presença/poses: campanha, combate, economia e saves continuam locais. O serviço **não está hospedado** neste repositório; para usar o transporte dedicado, configure `VITE_MULTIPLAYER_WS_URL=wss://seu-host/ws` num build e hospede o serviço com TLS/WSS. Sem URL, o cliente mantém o transporte P2P PeerJS legado.
+`server/` contém um serviço Node/WebSocket independente (`pnpm run server`) com health check, convites com token, salas para até cinco jogadores, validação de poses, TTL, heartbeat e transição de anfitrião. A suíte `pnpm run test:server` abre clientes WebSocket reais em localhost. O jogo ainda sincroniza presença/poses: campanha, combate, economia e saves continuam locais. O modo padrão, sem nenhuma configuração ou conta, é o **servidor público automático**: PeerJS fornece sinalização e WebRTC conecta os jogadores diretamente; basta um jogador criar a sala e permanecer conectado. Ele é gratuito, mas depende de NAT, STUN/TURN e do serviço público, sem SLA. Para usar o transporte dedicado, configure `VITE_MULTIPLAYER_WS_URL=wss://seu-host/ws` num build e hospede o serviço com TLS/WSS. Sem URL, o cliente usa o servidor público automático.
 
 ## Desenvolvimento e validação
 

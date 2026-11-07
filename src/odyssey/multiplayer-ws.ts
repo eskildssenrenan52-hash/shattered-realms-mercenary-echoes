@@ -119,6 +119,7 @@ export class DedicatedMultiplayerRoom {
   state(): MultiplayerRoomState {
     return {
       status: this.status,
+      transport: "dedicated-ws",
       role: this.role,
       roomCode: this.roomCode,
       selfId: this.selfId,

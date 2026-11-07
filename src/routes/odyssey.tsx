@@ -155,7 +155,7 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
   const [multiplayerName,setMultiplayerName]=useState("Aventureiro");
   const [multiplayerCode,setMultiplayerCode]=useState("");
   const [multiplayerMessage,setMultiplayerMessage]=useState("");
-  const [multiplayerState,setMultiplayerState]=useState<MultiplayerRoomState>({status:"idle",role:null,roomCode:"",selfId:"",players:[],error:""});
+  const [multiplayerState,setMultiplayerState]=useState<MultiplayerRoomState>({status:"idle",transport:MULTIPLAYER_WSS_URL?"dedicated-ws":"public-p2p",role:null,roomCode:"",selfId:"",players:[],error:""});
   const roomRef=useRef<MultiplayerRoomClient|null>(null);
   const panelRef = useRef<Panel>(null);
   panelRef.current = panel;
@@ -342,7 +342,7 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
   };
   const leaveMultiplayer = () => {
     roomRef.current?.leave();roomRef.current=null;gameRef.current?.setCoopPlayers([]);
-    setMultiplayerState({status:"idle",role:null,roomCode:"",selfId:"",players:[],error:""});setMultiplayerMessage("Você saiu da sala. Sua jornada individual foi preservada.");
+    setMultiplayerState({status:"idle",transport:MULTIPLAYER_WSS_URL?"dedicated-ws":"public-p2p",role:null,roomCode:"",selfId:"",players:[],error:""});setMultiplayerMessage("Você saiu da sala. Sua jornada individual foi preservada.");
   };
   const copyMultiplayerCode = async () => {
     const code=displayRoomCode(multiplayerState.roomCode);if(!code)return;
@@ -611,7 +611,7 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
         {title && dailyOpen && <Modal title="Calendário de Presentes · 7 dias" onClose={() => setDailyOpen(false)} wide><DailyLoginPanel state={dailyState} onClaim={handleDailyClaim}/>{dailyMessage && <p role="status" className="mt-3 rounded-md border border-amber-300/20 bg-amber-300/5 p-3 text-sm text-amber-100">{dailyMessage}</p>}</Modal>}
         {multiplayerOpen && <Modal title="Companhia · multijogador online" onClose={()=>setMultiplayerOpen(false)} wide>
           <div className="space-y-4">
-            <p className="text-sm leading-relaxed text-muted-foreground">Crie uma sala e convide até {MULTIPLAYER_MAX_PLAYERS} pessoas. {MULTIPLAYER_WSS_URL?"Este build está configurado para o servidor WebSocket dedicado; o anfitrião pode compartilhar um convite completo com chave segura.":"Este build ainda não tem endpoint WSS configurado e usa salas PeerJS/WebRTC P2P; para sala dedicada, o build precisa receber VITE_MULTIPLAYER_WS_URL."} Ambos os modos sincronizam apenas presença e posição/animação; mundo, inimigos, combate, itens, missões e saves continuam independentes para cada jogador.</p>
+            <p className="text-sm leading-relaxed text-muted-foreground">Crie uma sala e convide até {MULTIPLAYER_MAX_PLAYERS} pessoas. {MULTIPLAYER_WSS_URL?"Este build está configurado para o servidor WebSocket dedicado; o anfitrião pode compartilhar um convite completo com chave segura.":"Servidor público automático gratuito: o jogo usa PeerJS para sinalização e WebRTC direto entre os jogadores, sem conta, instalação ou configuração sua. O anfitrião precisa permanecer conectado."} Ambos os modos sincronizam apenas presença e posição/animação; mundo, inimigos, combate, itens, missões e saves continuam independentes para cada jogador.</p>
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="space-y-1 text-xs text-muted-foreground">Seu nome no grupo<input value={multiplayerName} maxLength={18} onChange={(e)=>setMultiplayerName(e.target.value)} className="mt-1 w-full rounded border border-primary/30 bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Aventureiro"/></label>
               <div className="space-y-1 text-xs text-muted-foreground">{MULTIPLAYER_WSS_URL?"Convite completo":"Código da sala"}<input value={multiplayerCode} maxLength={MULTIPLAYER_WSS_URL?54:9} onChange={(e)=>{const raw=e.target.value;setMultiplayerCode(MULTIPLAYER_WSS_URL?raw.replace(/[^A-Za-z0-9._-]/g,"").slice(0,54):raw.toUpperCase().replace(/[^A-Z0-9-]/g,"").slice(0,9));}} onKeyDown={(e)=>{if(e.key==="Enter")beginMultiplayer("guest");}} autoCapitalize="none" autoComplete="off" spellCheck={false} className={`mt-1 w-full rounded border border-primary/30 bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary ${MULTIPLAYER_WSS_URL?"":"uppercase tracking-[0.2em]"}`} placeholder={MULTIPLAYER_WSS_URL?"ABCD-2345.chave-do-convite":"ABCD-2345"} aria-label={MULTIPLAYER_WSS_URL?"Convite completo da sala":"Código da sala"}/></div>
@@ -625,7 +625,7 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
               {(multiplayerState.status==="waiting"||multiplayerState.status==="connected"||multiplayerState.status==="connecting")&&<Button variant="outline" size="sm" onClick={leaveMultiplayer}><LogOut size={14}/>Sair da sala</Button>}
             </section>}
             {(multiplayerMessage||multiplayerState.error)&&<p role="status" className="rounded border border-primary/20 bg-primary/5 p-2 text-xs text-primary">{multiplayerMessage||multiplayerState.error}</p>}
-            <p className="text-[11px] leading-relaxed text-muted-foreground">{MULTIPLAYER_WSS_URL?"A sala dedicada preserva presenças sem depender do navegador anfitrião e permite transferência da função de anfitrião; disponibilidade e reconexão ainda dependem do host WSS. O convite copiado inclui a chave necessária para entrar.":"Sem WSS configurado, a sala P2P depende do PeerJS/STUN/TURN público e do anfitrião conectado; não é servidor dedicado."} O modo solo permanece local e funciona offline.</p>
+            <p className="text-[11px] leading-relaxed text-muted-foreground">{MULTIPLAYER_WSS_URL?"A sala dedicada preserva presenças sem depender do navegador anfitrião e permite transferência da função de anfitrião; disponibilidade e reconexão ainda dependem do host WSS. O convite copiado inclui a chave necessária para entrar.":"O servidor público automático usa PeerJS/STUN/TURN para descobrir os jogadores; depois, os dados passam por canais WebRTC diretos. É gratuito e não exige intervenção, mas depende da conexão do anfitrião, NAT e disponibilidade do serviço público."} O modo solo permanece local e funciona offline.</p>
           </div>
         </Modal>}
         {g && !title && !liveOn && (panel === 'farm' || panel === 'build' || panel === 'workshop') && <Modal title={panel === 'farm' ? 'Jardim & colheita' : panel === 'build' ? 'Construir um lar' : 'Oficinas de Potos'} onClose={()=>setPanel(null)}>

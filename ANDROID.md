@@ -36,9 +36,9 @@ Execute `bun run test` e `bun x tsc --noEmit` para validar lógica e tipos. `bas
 
 O workflow manual `.github/workflows/android-apk.yml` configura Node, JDK, Android SDK 35 e Gradle 8.9, executa Vitest, testes do servidor, TypeScript, empacota os assets offline e compila o APK. Depois que o workflow estiver no GitHub, abra **Actions → Android APK (offline) → Run workflow**. Com `publish_release` desativado, o APK fica como artefato do run por 30 dias; ativando-o, a execução publica um prerelease público com o APK anexado.
 
-Este APK usa a chave debug e serve para teste/instalação direta; não use essa chave na Play Store. O modo solo inclui os assets no pacote e não exige Manus, site, login nem app companion. O Android usa o WebView do sistema. Multiplayer dedicado é opcional e requer internet, host WSS público e origem permitida; o build abaixo não recebeu URL dedicada e mantém PeerJS/WebRTC legado.
+Este APK usa a chave debug e serve para teste/instalação direta; não use essa chave na Play Store. O modo solo inclui os assets no pacote e não exige Manus, site, login nem app companion. O Android usa o WebView do sistema. Sem uma URL dedicada, o multiplayer usa o servidor público automático PeerJS/WebRTC: não requer conta, instalação, servidor próprio ou intervenção, mas o anfitrião precisa permanecer conectado e a qualidade depende de NAT/STUN/TURN.
 
-Para habilitar o servidor dedicado, informe `multiplayer_ws_url` com a URL completa `wss://servidor.example/ws` ao executar o workflow. Se deixar o campo vazio, o APK ainda permite o modo online legado PeerJS/WebRTC, mas não se conecta ao serviço Node/WebSocket deste repositório.
+Para habilitar o servidor dedicado, informe `multiplayer_ws_url` com a URL completa `wss://servidor.example/ws` ao executar o workflow. Se deixar o campo vazio, o APK usa automaticamente o servidor público PeerJS/WebRTC e não se conecta ao serviço Node/WebSocket deste repositório.
 
 ## APK de teste publicado
 

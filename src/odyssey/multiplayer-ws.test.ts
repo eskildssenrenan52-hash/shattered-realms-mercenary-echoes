@@ -117,6 +117,7 @@ describe("cliente do servidor multiplayer WSS", () => {
     });
     expect(room.state()).toMatchObject({
       status: "waiting",
+      transport: "dedicated-ws",
       role: "host",
       roomCode: ROOM_CODE,
       selfId: HOST_ID,

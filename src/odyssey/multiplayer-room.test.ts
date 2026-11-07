@@ -142,6 +142,7 @@ describe("protocolo de salas multiplayer", () => {
     expect(hostRoom.create("Anfitriã")).toBe(true);
     hostPeer.emit("open", hostPeer.id);
     expect(hostRoom.state().status).toBe("waiting");
+    expect(hostRoom.state().transport).toBe("public-p2p");
     expect(hostRoom.state().roomCode).toMatch(/^[A-HJ-NP-Z2-9]{8}$/);
     hostRoom.tick(pose({ x: 80, y: 100 }), 1_000);
 
