@@ -4,7 +4,7 @@ import worldArt from "@/assets/mana-world.jpg";
 import gehennaRelicArt from "@/assets/depths/game/gehenna-relic.png";
 import { CROPS, STRUCTURES, isPlayerHome, upgradeHome, type Tool, type CropKind, type StructureKind } from "@/odyssey/settlement";
 import { FURNITURE, HOME_LEVELS, type FurnitureKind } from "@/odyssey/home";
-import { Pickaxe, Axe, Shovel, Sprout, Droplets, Hammer, House, Anvil, ChevronRight, Leaf, Sun, Swords, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Crown, CalendarDays, Users, Copy, Wifi, WifiOff, LogOut } from "lucide-react";
+import { Pickaxe, Axe, Shovel, Sprout, Droplets, Hammer, House, Anvil, ChevronRight, Leaf, Sun, Swords, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Crown, CalendarDays, Users, Copy, Wifi, WifiOff, LogOut, RefreshCw, Eye, EyeOff } from "lucide-react";
 import { BIOME_LIST } from "@/odyssey/world";
 import { BIOME_NAMES } from "@/odyssey/data";
 import { createFileRoute } from "@tanstack/react-router";
@@ -68,6 +68,16 @@ type Panel = null | "inv" | "char" | "quest" | "map" | "secrets" | "workshop" | 
 
 const DAILY_STATE_KEY = "shattered-realms:daily-login:v1";
 const DAILY_RECEIPTS_KEY = "shattered-realms:daily-receipts:v1";
+const MULTIPLAYER_PREFS_KEY = "shattered-realms:multiplayer-preferences:v1";
+function readMultiplayerPreferences() {
+  try {
+    const value = JSON.parse(window.localStorage.getItem(MULTIPLAYER_PREFS_KEY) ?? "null") as { showOthers?: unknown } | null;
+    return { showOthers: value?.showOthers !== false };
+  } catch { return { showOthers: true }; }
+}
+function saveMultiplayerPreferences(showOthers: boolean) {
+  try { window.localStorage.setItem(MULTIPLAYER_PREFS_KEY, JSON.stringify({ showOthers })); } catch { /* Preferências ficam apenas nesta sessão. */ }
+}
 interface DailyReceipt { date: string; reward: DailyReward; applied: boolean }
 function readDailyState(): DailyLoginState {
   try {
@@ -155,6 +165,9 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
   const [multiplayerName,setMultiplayerName]=useState("Aventureiro");
   const [multiplayerCode,setMultiplayerCode]=useState("");
   const [multiplayerMessage,setMultiplayerMessage]=useState("");
+  const [multiplayerShowOthers,setMultiplayerShowOthers]=useState(() => typeof window === "undefined" ? true : readMultiplayerPreferences().showOthers);
+  const multiplayerShowOthersRef=useRef(multiplayerShowOthers);
+  multiplayerShowOthersRef.current=multiplayerShowOthers;
   const [multiplayerState,setMultiplayerState]=useState<MultiplayerRoomState>({status:"idle",transport:MULTIPLAYER_WSS_URL?"dedicated-ws":"public-p2p",role:null,roomCode:"",selfId:"",players:[],error:""});
   const roomRef=useRef<MultiplayerRoomClient|null>(null);
   const panelRef = useRef<Panel>(null);
@@ -195,7 +208,7 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
       const dt = Math.min(0.05, Math.max(0, raw) / 1000);
       try {
         const room=roomRef.current;
-        if(room){const pose=g.coopPose();room.tick(pose);g.setCoopPlayers(room.remotePlayers(pose.zone));}
+        if(room){const pose=g.coopPose();room.tick(pose);g.setCoopPlayers(multiplayerShowOthersRef.current?room.remotePlayers(pose.zone):[]);}
         g.paused = panelRef.current !== null || g.tutorialPauseInput;
         g.update(dt);
         if (firstFrame || g.quality.shouldRender()) { firstFrame = false; g.render(); }
@@ -343,6 +356,21 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
   const leaveMultiplayer = () => {
     roomRef.current?.leave();roomRef.current=null;gameRef.current?.setCoopPlayers([]);
     setMultiplayerState({status:"idle",transport:MULTIPLAYER_WSS_URL?"dedicated-ws":"public-p2p",role:null,roomCode:"",selfId:"",players:[],error:""});setMultiplayerMessage("Você saiu da sala. Sua jornada individual foi preservada.");
+  };
+  const retryMultiplayer = () => {
+    const role = multiplayerState.role;
+    if (!role) return;
+    setMultiplayerMessage("Tentando reconectar à sala…");
+    beginMultiplayer(role);
+  };
+  const toggleMultiplayerVisibility = () => {
+    setMultiplayerShowOthers((current) => {
+      const next = !current;
+      multiplayerShowOthersRef.current = next;
+      saveMultiplayerPreferences(next);
+      if (!next) gameRef.current?.setCoopPlayers([]);
+      return next;
+    });
   };
   const copyMultiplayerCode = async () => {
     const code=displayRoomCode(multiplayerState.roomCode);if(!code)return;
@@ -619,12 +647,14 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
             {(multiplayerState.status==="idle"||multiplayerState.status==="error")&&<div className="grid gap-2 sm:grid-cols-2"><Button variant="secondary" onClick={()=>beginMultiplayer("host")}><Users size={16}/>Criar sala e mostrar código</Button><Button variant="outline" onClick={()=>beginMultiplayer("guest")}><Wifi size={16}/>Entrar na sala</Button></div>}
             {multiplayerState.status!=="idle"&&<section className="game-panel space-y-3 p-3" aria-label="Estado da sala">
               <div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2 text-sm">{multiplayerState.status==="error"?<WifiOff size={18} className="text-destructive"/>:<Wifi size={18} className="text-primary"/>}<span>{multiplayerState.status==="connecting"?"Conectando…":multiplayerState.status==="waiting"?"Sala aberta · aguardando jogadores":multiplayerState.status==="connected"?"Grupo conectado": "Conexão encerrada"}</span></div><span className="text-xs text-muted-foreground">{multiplayerState.players.length}/{MULTIPLAYER_MAX_PLAYERS}</span></div>
+              <div className="flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.12em] text-muted-foreground"><span className="rounded border border-primary/20 px-2 py-1">{multiplayerState.transport==="dedicated-ws"?"WSS dedicado":"P2P público automático"}</span><span className="rounded border border-primary/20 px-2 py-1">{multiplayerState.role==="host"?"Anfitrião":"Convidado"}</span></div>
               {multiplayerState.roomCode&&<div className="rounded border border-primary/30 bg-background/80 p-3 text-center"><div className="mb-1 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">{multiplayerState.inviteToken?"Convite seguro":"Código de convite"}</div><button type="button" onClick={copyMultiplayerCode} className="inline-flex items-center gap-2 text-2xl font-black tracking-[0.2em] text-primary" style={{userSelect:"text"}} aria-label={multiplayerState.inviteToken?"Copiar convite completo":"Copiar código de convite"}>{displayRoomCode(multiplayerState.roomCode)}<Copy size={16}/></button><div className="mt-1 text-[10px] text-muted-foreground">Toque para copiar {multiplayerState.inviteToken?"o convite completo com a chave":"o código"}</div></div>}
               {!!multiplayerState.players.length&&<div className="space-y-1">{multiplayerState.players.map((player)=><div key={player.id} className="flex items-center gap-2 rounded bg-background/60 px-2 py-1.5 text-sm"><Users size={14} className="text-accent"/><span className="flex-1">{player.name}{player.id===multiplayerState.selfId?" · você":""}</span>{multiplayerState.role==="host"&&player.id===multiplayerState.selfId&&<span className="text-[10px] text-primary">ANFITRIÃO</span>}</div>)}</div>}
               {multiplayerState.error&&<p role="alert" className="text-sm text-destructive">{multiplayerState.error}</p>}
-              {(multiplayerState.status==="waiting"||multiplayerState.status==="connected"||multiplayerState.status==="connecting")&&<Button variant="outline" size="sm" onClick={leaveMultiplayer}><LogOut size={14}/>Sair da sala</Button>}
+              <div className="flex flex-wrap gap-2">{multiplayerState.status==="error"&&<Button variant="secondary" size="sm" onClick={retryMultiplayer}><RefreshCw size={14}/>Tentar novamente</Button>}{(multiplayerState.status==="waiting"||multiplayerState.status==="connected"||multiplayerState.status==="connecting")&&<Button variant="outline" size="sm" onClick={leaveMultiplayer}><LogOut size={14}/>Sair da sala</Button>}</div>
             </section>}
             {(multiplayerMessage||multiplayerState.error)&&<p role="status" className="rounded border border-primary/20 bg-primary/5 p-2 text-xs text-primary">{multiplayerMessage||multiplayerState.error}</p>}
+            <div className="grid gap-2 sm:grid-cols-2"><button type="button" onClick={toggleMultiplayerVisibility} className="flex items-center gap-2 rounded border border-primary/20 bg-background/50 px-3 py-2 text-left text-xs text-muted-foreground hover:border-primary/50"><span className="text-primary">{multiplayerShowOthers?<Eye size={16}/>:<EyeOff size={16}/>}</span><span><b className="block text-foreground">{multiplayerShowOthers?"Mostrar companheiros":"Ocultar companheiros"}</b><small>{multiplayerShowOthers?"Exibe jogadores na mesma área":"Continua conectado, mas limpa o canvas"}</small></span></button><div className="rounded border border-primary/20 bg-background/50 px-3 py-2 text-xs text-muted-foreground"><b className="block text-foreground">Atalhos rápidos</b><small>Clique no código para copiar · Enter para entrar · tente novamente sem redigitar</small></div></div>
             <p className="text-[11px] leading-relaxed text-muted-foreground">{MULTIPLAYER_WSS_URL?"A sala dedicada preserva presenças sem depender do navegador anfitrião e permite transferência da função de anfitrião; disponibilidade e reconexão ainda dependem do host WSS. O convite copiado inclui a chave necessária para entrar.":"O servidor público automático usa PeerJS/STUN/TURN para descobrir os jogadores; depois, os dados passam por canais WebRTC diretos. É gratuito e não exige intervenção, mas depende da conexão do anfitrião, NAT e disponibilidade do serviço público."} O modo solo permanece local e funciona offline.</p>
           </div>
         </Modal>}
