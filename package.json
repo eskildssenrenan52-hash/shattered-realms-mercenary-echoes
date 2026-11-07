@@ -13,6 +13,8 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "server": "node server/index.mjs",
+    "test:server": "node --test server/*.test.mjs",
     "apk:package": "bash scripts/package-android-offline.sh",
     "apk": "bash scripts/package-android-offline.sh && gradle -p android assembleDebug",
     "apk:release": "bash scripts/package-android-offline.sh && gradle -p android assembleRelease"
@@ -73,6 +75,7 @@
     "tw-animate-css": "^1.3.4",
     "vaul": "^1.1.2",
     "vite-tsconfig-paths": "^6.0.2",
+    "ws": "^8.22.1",
     "zod": "^3.25.76"
   },
   "devDependencies": {

@@ -84,3 +84,42 @@ Continuar o RPG 2D Canvas/React trazido do GitHub, sem trocar seu motor nem romp
 Usar PeerJS com o PeerServer Cloud público gratuito para sinalização e canais WebRTC; a configuração padrão inclui servidores públicos STUN/TURN de fallback com credenciais demo da biblioteca, sem servidor pago, conta ou armazenamento remoto do jogo. O TURN pode retransmitir tráfego criptografado e não oferece SLA/capacidade garantida. Sala efêmera identificada por código curto aleatório; o host mantém no máximo quatro conexões (cinco jogadores ao todo). O host valida versão de protocolo, mensagens, capacidade e frequência de poses; cada jogador move seu avatar localmente e envia pose compacta, que os outros interpolam no presente. A interface oferece criar/copiar código, entrar, roster e saída limpa. O runtime mantém campanha, inventário, missões, inimigos e recompensas individuais; somente presença/pose/área e animação básica de ataque são compartilhadas. PeerJS oferece configuração padrão pública STUN/TURN; conectividade continua dependente de NAT, políticas de rede e disponibilidade dos serviços públicos. A sala exibe falhas e nunca simula presença; não há SLA nem plano pago ativado. O host deve permanecer aberto e a sala não sobrevive à saída dele. O bundle Android inclui PeerJS e telas localmente; `INTERNET` só habilita a função online aprovada, e o modo solo/recursos continuam utilizáveis offline. Referências: [PeerJS Cloud e fluxo P2P](https://peerjs.com/), [FAQ do PeerJS: conectividade e limite prático](https://peerjs.com/client/faq), [MDN: ICE, STUN e TURN](https://developer.mozilla.org/en-US/docs/Web/API/WebRTC_API/Protocols).
 
 Arquivos: `src/odyssey/multiplayer-room.ts` controla códigos, sessão PeerJS, protocolo, validação e snapshots; `src/odyssey/engine.ts` expõe pose, filtra áreas e desenha/interpola avatares remotos no mesmo Canvas; `src/routes/odyssey.tsx` integra criar/entrar, código, roster, HUD e saída; `android/app/src/main/AndroidManifest.xml` declara INTERNET para a opção online aprovada. Testes de protocolo e regressões de camada/casas ficam em módulos `.test.ts` ao lado do código.
+
+
+## Plano da expansão solicitada — 7 de novembro de 2026
+
+### Direção e compatibilidade
+
+Continuar o RPG existente em React/TypeScript e Canvas 2D, mantendo a campanha, a arte pixel-art, os IDs antigos, os saves locais, a versão offline e os controles móveis. Não trocar o motor, não migrar o save e não substituir o modo individual por uma dependência de conta ou serviço externo.
+
+### Mundo de construções
+
+Adicionar pelo menos 1.000 estruturas exploráveis distribuídas pelos setores e biomas do mundo, e não apenas em Potos: casas, pousadas, fortalezas, laboratórios, arquivos, minas, santuários e dungeons. Um gerador determinístico dará a cada instância ID e assinatura estáveis, paleta/fachada, planta interior, quantidade variável de andares, finalidade e objetivo próprios; nomes, objetivos, recompensas e layouts serão compostos a partir de dados e sementes, não apresentados como 1.000 artes manuais. Reutilizar entradas, interações, Canvas pixel-art e chaves aditivas de descobertas/baús; gerar só o interior visitado e desenhar apenas fachadas próximas da câmera para não degradar celular nem saves antigos.
+
+### Companhia e acessibilidade
+
+Expandir o catálogo atual de 20 para pelo menos 44 mercenários e acrescentar dezenas de aparências do jogador, preservando os 20 IDs e índices antigos. Melhorar o acompanhamento e a aproximação a alvos, reorganização depois de portas/teletransportes e comandos fáceis de encontrar para formação e postura. Tornar contratos muito mais raros/caros e condicionar parte do catálogo ao progresso, sem compras com dinheiro real. Dar à interface de companhia opções mais claras para filtrar, equipar, formar dupla e visualizar requisitos.
+
+### Multiplayer
+
+Criar um serviço separado e executável em Node/WebSocket, com health check, convites com token, códigos de sala, até cinco assentos, protocolo versionado, validação de formato/taxa/ordem, heartbeat, TTL, limpeza de desconexão e testes de dois clientes. O servidor possui salas, assentos e presença/poses; a campanha, combate, economia e saves permanecem individuais e locais nesta etapa, portanto isto não é uma simulação autoritativa completa. `VITE_MULTIPLAYER_WS_URL=wss://host/ws` seleciona o cliente dedicado; sem URL, a UI identifica que está usando o transporte P2P legado. O convite copiável inclui código e token. A implementação e cinco testes com sockets locais estão concluídos; ela só será declarada realmente online após existir host persistente com TLS/WSS público, allowlist correta e conexão real verificada. O Sandbox desta tarefa é efêmero e não substitui esse host.
+
+### Android e publicação
+
+Manter o APK como pacote independente do Manus: HTML, JavaScript, CSS, fontes, imagens e áudio embarcados, sem marca d'água e sem app companion. O modo solo continua utilizável sem internet; o multiplayer opcional usa apenas um endpoint WSS configurado. O bundle Android offline de 70 MB foi gerado e verificado, e `.github/workflows/android-apk.yml` prepara a compilação e a publicação manual no GitHub Actions. O APK binário e seu release ainda dependem de push/execução do workflow e escolha do endpoint WSS; a assinatura debug serve para teste, não substitui uma keystore de release/Play Store.
+
+### Estrutura prevista
+
+- `src/odyssey/exploration.ts`: catálogo determinístico de 1.000 estruturas além dos prédios authorados; `src/odyssey/scenery.ts` faz culling por viewport e renderiza fachadas/interiores; `src/odyssey/engine.ts` integra portas, andares, objetivos e recompensas aditivas.
+- `src/odyssey/mercenaries.ts`, `src/components/MercenariesPanel.tsx`, `src/odyssey/hero-sprite.ts` e testes: 24 novos mercenários, 24 skins, gates/custos, formação/postura, filtros, recomendações e movimento de escolta.
+- `server/`: serviço Node/WebSocket independente, protocolo v1, health endpoint, limites e testes reais em localhost; sem credenciais de provedor.
+- `src/odyssey/multiplayer-room.ts` mantém PeerJS; `src/odyssey/multiplayer-ws.ts` adiciona o cliente WebSocket; `src/routes/odyssey.tsx` seleciona o transporte pelo env e compartilha convites; saves/campanha continuam locais.
+- `.github/workflows/android-apk.yml`, `README.md`, `ANDROID.md`, `GUIA_DO_JOGADOR.md` e `TODO.md`: build/artefato Android reproduzível e instruções/limites dos recursos, com a hospedagem pública e o release ainda destacados como pendentes.
+
+### Validação e bloqueios remanescentes
+
+Os 44 arquivos de teste Vitest/225 testes, os cinco testes de sockets do servidor, TypeScript, lint funcional dos arquivos WSS/rota e build web foram aprovados; o empacotador produziu 70 MB de assets locais para Android. O lint da rota foi executado com a regra Prettier desligada porque o arquivo legado contém formatação preexistente não corrigida em toda sua extensão. Ainda faltam: push sem reescrever histórico, host persistente e URL pública TLS/WSS, teste com dois clientes externos, execução do workflow e publicação do APK em GitHub Releases. Sem essas etapas, não afirmar que multiplayer público ou o APK online já estejam disponíveis.
+
+### Design
+
+Manter o direcionamento existente de aventura pixel-art 16-bit e fantasia melancólica com luzes de mana. O projeto já definiu hierarquia visual, assinatura cromática por reino e interface tátil; a expansão reutilizará esses princípios. Os novos prédios terão ornamentos, paletas, telhados e plantas gerados de modo determinístico, com fachadas legíveis e objetivos explicados por prompts curtos. Preferir opções contextuais simples a acrescentar mais painéis sem orientação; controles essenciais devem caber em telas móveis e salvar preferências sem tocar nos dados antigos da campanha.

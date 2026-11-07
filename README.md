@@ -12,13 +12,18 @@ RPG de ação 2D em Canvas com campanha, Saga, arquipélago, combate procedural,
 - Ecos Além inclui dez sistemas jogáveis: Cartografia viva, Reconstrução de Potos, Laços de Eco, Conselho dos Reinos, Expedições Oníricas, Rituais de constelação, Caravanas, Museu das Canções Perdidas, Tempestades de Fratura opt-in e Novo Ciclo.
 - Saves antigos recebem defaults compatíveis; escolhas, rotas, memórias, museu, votações e desfechos pós-campanha são salvos sem substituir os IDs antigos da campanha.
 - O Guia completo dentro do jogo foi ampliado para 43 passos e explica controles, combate, progressão, Cidadela e os dez sistemas novos.
-- A Companhia de Mercenários permite contratar até dois aliados simultâneos. Cada um tem vida, defesa, nível, vínculo, habilidade, capítulos pessoais e comportamento próprio; ao chegar a 15% de HP, recua e só retorna após uma recuperação demorada.
-- O Contrato Gacha usa somente ouro e Selos de Contrato ganhos em chefes. Há vinte personagens, cinco raridades, pity na décima tentativa, roster persistente, sinergias de dupla e capítulos que avançam pelo convívio; não existe compra com dinheiro real, energia limitada ou pressão de monetização.
+- A Companhia preserva os 20 mercenários legados e acrescenta 24 (44 no total), com 24 novas skins de jogador, filtros, requisitos, indicação de dupla, formação e posturas; aliados seguem o herói, aproximam-se de alvos e voltam à formação.
+- Contratos agora custam 850 ouro ou 3 Selos ganhos em chefes, têm pity a cada 18 tentativas e parte do roster exige nível/progresso; não há monetização real. Até dois aliados podem lutar ao mesmo tempo.
 - A nova camada narrativa evita exposição forçada: as histórias entram por contratos, retornos a Potos, decisões de companhia, consequências de recuo e diálogos curtos que recontextualizam reinos já visitados.
 - O Cântico Oculto conserva as 450 cadeias e acrescenta 200: agora há 650 cadeias determinísticas, 26 Reinos Ocultos mais o Coração e 44.350 caches de exploração; total combinado: 45.000 segredos. Os 450 IDs antigos permanecem estáveis.
 - Oito Reinos Ocultos inéditos trazem paletas, terrenos, fauna, relíquias, histórias e dungeons desenhados para cada identidade. As masmorras variam entre labirintos estreitos, arenas de combate, cofres de tesouro e salas espelhadas.
 - Oito cidades de fronteira acrescentam 24 construções acessíveis, distritos com paletas próprias, moradores inéditos e 24 missões secundárias em cadeias de três etapas. O Atlas permite viajar diretamente aos novos destinos.
 - Potos conserva suas quatro construções antigas e todos os IDs de progresso/save existentes; as novas cidades e descobertas usam chaves separadas.
+- A expansão de arquitetura acrescenta 1.000 construções exploráveis determinísticas nos setores Frontier: casas, pousadas, laboratórios, observatórios, forjas, arquivos, minas, ruínas e dungeons. Cada instância recebe ID/assinatura, paleta, planta, objetivo/recompensa e 1–12 andares; interiores são gerados ao entrar e as fachadas são culladas pela câmera.
+
+## Multiplayer online
+
+`server/` contém um serviço Node/WebSocket independente (`pnpm run server`) com health check, convites com token, salas para até cinco jogadores, validação de poses, TTL, heartbeat e transição de anfitrião. A suíte `pnpm run test:server` abre clientes WebSocket reais em localhost. O jogo ainda sincroniza presença/poses: campanha, combate, economia e saves continuam locais. O serviço **não está hospedado** neste repositório; para usar o transporte dedicado, configure `VITE_MULTIPLAYER_WS_URL=wss://seu-host/ws` num build e hospede o serviço com TLS/WSS. Sem URL, o cliente mantém o transporte P2P PeerJS legado.
 
 ## Desenvolvimento e validação
 
@@ -48,5 +53,7 @@ pnpm run apk:package
 # Para também compilar o APK de depuração com o SDK e Gradle configurados:
 pnpm run apk
 ```
+
+O workflow manual `.github/workflows/android-apk.yml` compila o APK em GitHub Actions e pode publicá-lo como prerelease público. O modo solo é embarcado e não depende de Manus, site ou app companion; o APK usa o WebView do Android. O transporte dedicado só será incluído se a execução receber um endpoint público `wss://.../ws`.
 
 O APK de depuração aparece em `android/app/build/outputs/apk/debug/app-debug.apk`. O artefato debug é assinado com a chave de desenvolvimento do Android; para distribuição pública, configure a assinatura de release conforme o guia Android.

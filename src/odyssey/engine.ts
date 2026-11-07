@@ -31,7 +31,7 @@ import { drawHero, skinFx } from "./hero-sprite";
 import { drawFx, makeFx, preloadFx, tickFx, type FxInst, type FxName } from "./vfx";
 import { petTick, petOnKill, drawPets, petsSave, petsLoad, petGuardMult, petDamageMult } from "./pet-play";
 import { foeTick } from "./foe-play";
-import { BUILDINGS, TREASURES, ROOM, doorOf, createInterior, prepareExploration, canClaimTreasure, type Building } from './exploration';
+import { BUILDINGS, TREASURES, ROOM, doorOf, createInterior, prepareExploration, canClaimTreasure, buildingFloors, interiorPlanOf, buildingEnteredKey, buildingObjectiveKey, recordBuildingFloor, type Building } from './exploration';
 import { frontierTownNpcs } from './frontier-town-npcs';
 import { drawBuildings, drawGroundDetails, drawInterior, drawTreasure } from './scenery';
 import { Audio } from "./audio";
@@ -146,6 +146,9 @@ export class Game {
   farlandsActive = false;
   farlandsReturnPos = { x: 122 * TS + 8, y: 128 * TS + 8 };
   interior: Building | null = null;
+  interiorFloor = 1;
+  /** Um único buffer é reutilizado para todos os prédios e andares visitados. */
+  private interiorWorld: World | null = null;
   /** Abismo do Cântico ou andar escuro de um templo (null = superfície). */
   depth: DepthState | null = null;
   depthReturn = { x: 0, y: 0 };
@@ -1130,17 +1133,37 @@ export class Game {
     if (this.interior || this.doorCooldown > 0 || this.depth || this.island || this.sea || this.farlandsActive) return false;
     const door = doorOf(b);
     this.returnPosition = { x: door.tx * TS + 8, y: (door.ty + 1.7) * TS };
-    this.interior = b; this.world = isPlayerHome(b) ? createHomeInterior(this.settlement.home) : createInterior(b);
+    this.interior = b; this.interiorFloor = 1;
+    if (isPlayerHome(b)) this.world = createHomeInterior(this.settlement.home);
+    else { this.world = createInterior(b, this.interiorFloor, this.interiorWorld ?? undefined); this.interiorWorld = this.world; }
     this.p.x = ROOM.spawnX; this.p.y = ROOM.spawnY;
-    this.clearTransition(); this.discoveries.add(b.id);
-    this.biomeBanner = { name: b.name, t: 3 };
+    this.clearTransition(); this.discoveries.add(b.id); this.discoveries.add(buildingEnteredKey(b.id)); recordBuildingFloor(this.discoveries, b.id, this.interiorFloor);
+    this.biomeBanner = { name: buildingFloors(b) > 1 ? `${b.name} · Andar 1/${buildingFloors(b)}` : b.name, t: 3 };
     this.toast(b.secret ? 'Uma passagem esquecida... novo segredo descoberto!' : b.name, '#dfca91');
     this.save();
     return true;
   }
+  changeInteriorFloor(floor: number): boolean {
+    const b = this.interior; if (!b || isPlayerHome(b)) return false;
+    const next = Math.max(1, Math.min(buildingFloors(b), Math.floor(floor)));
+    if (next === this.interiorFloor) return false;
+    this.interiorFloor = next; this.world = createInterior(b, next, this.interiorWorld ?? undefined); this.interiorWorld = this.world;
+    this.p.x = ROOM.spawnX; this.p.y = ROOM.spawnY; recordBuildingFloor(this.discoveries, b.id, next);
+    this.clearTransition(); this.biomeBanner = { name: `${b.name} · Andar ${next}/${buildingFloors(b)}`, t: 2.5 };
+    this.toast(next > 1 ? `Você subiu ao andar ${next}.` : 'Você desceu ao térreo.', '#bfe8ff'); this.save();
+    return true;
+  }
+  completeBuildingObjective(): boolean {
+    const b = this.interior, objective = b?.objective;
+    if (!b || !objective || objective.floor !== this.interiorFloor || this.discoveries.has(buildingObjectiveKey(b.id))) return false;
+    this.discoveries.add(buildingObjectiveKey(b.id)); this.p.gold += objective.reward.gold; this.gainXp(objective.reward.xp);
+    if (!this.addItem(objective.reward.item, objective.reward.qty)) this.p.gold += Math.max(1, objective.reward.qty * 5);
+    this.audio.sfx('pickup'); this.toast(`${objective.name}: +${objective.reward.gold} ouro · ${objective.reward.item} ×${objective.reward.qty}`, '#a0ffa0'); this.save();
+    return true;
+  }
   leaveInterior() {
     if (!this.interior) return;
-    this.interior = null; this.world = this.farlandsActive && this.farlandsWorld ? this.farlandsWorld : this.overworld;
+    this.interior = null; this.interiorFloor = 1; this.world = this.farlandsActive && this.farlandsWorld ? this.farlandsWorld : this.overworld;
     this.p.x = this.returnPosition.x; this.p.y = this.returnPosition.y;
     this.clearTransition(); this.save();
   }
@@ -1172,6 +1195,10 @@ export class Game {
         if(bed){p.hp=this.maxHp();p.mp=this.maxMp();this.audio.sfx('heal');this.toast('Você dormiu em casa. HP e MP restaurados.');return true;}
         return false;
       }
+      const plan = interiorPlanOf(this.interior, this.interiorFloor);
+      if (plan.stairUp && near(plan.stairUp.tx, plan.stairUp.ty, 32)) { this.changeInteriorFloor(this.interiorFloor + 1); return true; }
+      if (plan.stairDown && near(plan.stairDown.tx, plan.stairDown.ty, 32)) { this.changeInteriorFloor(this.interiorFloor - 1); return true; }
+      if (this.interior.objective?.id.startsWith('building:') && plan.objective && near(plan.objective.tx, plan.objective.ty, 32) && this.completeBuildingObjective()) return true;
       if(near(110,106,30)){this.claimChest(`house-${this.interior.id}`,75,this.interior.secret?'elixir':'ether',2,'Tesouro de '+this.interior.name);return true;}
       if(near(114,100,42)){ this.toast(this.interior.note); return true; }
       if(near(127,105,35) && this.interior.kind === 'inn') {p.hp=this.maxHp();p.mp=this.maxMp();this.audio.sfx('heal');this.toast('Você descansou. HP e MP restaurados.');return true;}
@@ -1592,14 +1619,14 @@ export class Game {
       if(this.tool==='furnish'){const d=FURNITURE[this.furniture];c.globalAlpha=.55;drawFurniture(c,{kind:this.furniture,x:this.cursor.x,y:this.cursor.y},wt);c.globalAlpha=1;c.strokeStyle='#f6d18b';c.strokeRect(this.cursor.x*TS+.5,this.cursor.y*TS+.5,d.w*TS-1,d.h*TS-1);}
       if(this.tool==='unfurnish'){c.strokeStyle='#ed9691';c.strokeRect(this.cursor.x*TS+.5,this.cursor.y*TS+.5,TS-1,TS-1);}
     } else if(this.interior) {
-      drawInterior(c,this.interior,wt);
+      drawInterior(c,this.interior,wt,this.interiorFloor);
       drawTreasure(c,110*TS+8,106*TS+12,this.openedChests.has(`house-${this.interior.id}`),wt);
     } else if(this.depth) {
       drawDepth(this,c,x0,y0,x1,y1,wt);
     } else if(this.island) {
       drawIslandProps(this,c,x0,y0,x1,y1,wt);
     } else {
-      if(!this.farlandsActive)drawBuildings(c,wt);
+      if(!this.farlandsActive)drawBuildings(c,wt,x0,y0,x1,y1);
       renderSettlement(this,c);
       for(const t of TREASURES) if(t.tx>=x0-1&&t.tx<=x1&&t.ty>=y0-1&&t.ty<=y1)drawTreasure(c,t.tx*TS+8,t.ty*TS+12,this.openedChests.has(t.id),wt);
     }
@@ -1916,7 +1943,11 @@ export class Game {
     if (!text) {
       if (this.depth) text = depthAction(this, false);
       else if (this.interior) {
+        const plan = interiorPlanOf(this.interior, this.interiorFloor);
         if (near(ROOM.exitX, ROOM.exitY, 35)) text = 'E · Sair';
+        else if (plan.stairUp && near(plan.stairUp.tx, plan.stairUp.ty, 35)) text = `E · Subir (${this.interiorFloor + 1}/${buildingFloors(this.interior)})`;
+        else if (plan.stairDown && near(plan.stairDown.tx, plan.stairDown.ty, 35)) text = `E · Descer (${this.interiorFloor - 1}/${buildingFloors(this.interior)})`;
+        else if (this.interior.objective?.id.startsWith('building:') && plan.objective && near(plan.objective.tx, plan.objective.ty, 35) && !this.discoveries.has(buildingObjectiveKey(this.interior.id))) text = `E · ${this.interior.objective?.name ?? 'Concluir objetivo'}`;
         else if (near(110, 106, 30)) text = 'E · Abrir baú';
         else if (near(114, 100, 42)) text = 'E · Ler anotações';
         else if (near(127, 105, 35) && this.interior.kind === 'inn') text = 'E · Descansar';

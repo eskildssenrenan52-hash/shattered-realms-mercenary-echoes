@@ -44,7 +44,10 @@ import { sagaModeStatus, sagaPlaza, travelToActMap } from "@/odyssey/saga-play";
 import { ECHOES_BEYOND_CHRONICLES } from "@/odyssey/echoes-beyond";
 import { DailyLoginPanel } from "@/components/DailyLoginPanel";
 import { claimDailyLogin, createDailyLoginState, DAILY_REWARDS, dailyLoginSnapshot, type DailyLoginState, type DailyReward } from "@/odyssey/daily-login";
-import { displayRoomCode, normalizeRoomCode, MultiplayerRoom, MULTIPLAYER_MAX_PLAYERS, type MultiplayerRoomState } from "@/odyssey/multiplayer-room";
+import { displayRoomCode, normalizeRoomCode, MultiplayerRoom, MULTIPLAYER_MAX_PLAYERS, type MultiplayerRoomClient, type MultiplayerRoomState } from "@/odyssey/multiplayer-room";
+import { DedicatedMultiplayerRoom, formatRoomInvite, parseRoomInvite } from "@/odyssey/multiplayer-ws";
+
+const MULTIPLAYER_WSS_URL = (import.meta.env["VITE_MULTIPLAYER_WS_URL"] ?? "").trim();
 
 export const Route = createFileRoute("/odyssey")({
   head: () => ({
@@ -153,7 +156,7 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
   const [multiplayerCode,setMultiplayerCode]=useState("");
   const [multiplayerMessage,setMultiplayerMessage]=useState("");
   const [multiplayerState,setMultiplayerState]=useState<MultiplayerRoomState>({status:"idle",role:null,roomCode:"",selfId:"",players:[],error:""});
-  const roomRef=useRef<MultiplayerRoom|null>(null);
+  const roomRef=useRef<MultiplayerRoomClient|null>(null);
   const panelRef = useRef<Panel>(null);
   panelRef.current = panel;
 
@@ -325,13 +328,16 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
     if(game)game.setCoopPlayers(state.players.filter((player)=>player.id!==state.selfId&&player.zone===game.coopZone()));
   };
   const beginMultiplayer = (role: "host"|"guest") => {
-    if(role==="guest"&&!normalizeRoomCode(multiplayerCode)){setMultiplayerMessage("Digite o código de oito caracteres mostrado pelo anfitrião.");return;}
+    if(role==="guest"&&(MULTIPLAYER_WSS_URL?!parseRoomInvite(multiplayerCode):!normalizeRoomCode(multiplayerCode))){setMultiplayerMessage(MULTIPLAYER_WSS_URL?"Cole o convite completo recebido do anfitrião, com o código e a chave.":"Digite o código de oito caracteres mostrado pelo anfitrião.");return;}
     if(!window.navigator.onLine){setMultiplayerMessage("A sala online precisa de internet. A campanha solo continua funcionando offline.");return;}
     const game=gameRef.current;if(!game){setMultiplayerMessage("O jogo ainda está carregando. Tente novamente em instantes.");return;}
+    let room:MultiplayerRoomClient;
+    try{room=MULTIPLAYER_WSS_URL?new DedicatedMultiplayerRoom(MULTIPLAYER_WSS_URL,publishRoomState):new MultiplayerRoom(publishRoomState);}
+    catch(error){setMultiplayerMessage(error instanceof Error?error.message:"O endereço do servidor WSS não é válido.");return;}
     roomRef.current?.leave();roomRef.current=null;game.setCoopPlayers([]);
     if(title)start(hasSave);
     setPanel(null);setMenuOpen(false);setMultiplayerMessage("");
-    const room=new MultiplayerRoom(publishRoomState);roomRef.current=room;
+    roomRef.current=room;
     if(role==="host")room.create(multiplayerName);else room.join(multiplayerName,multiplayerCode);
   };
   const leaveMultiplayer = () => {
@@ -340,11 +346,12 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
   };
   const copyMultiplayerCode = async () => {
     const code=displayRoomCode(multiplayerState.roomCode);if(!code)return;
+    const invite=multiplayerState.inviteToken?formatRoomInvite(multiplayerState.roomCode,multiplayerState.inviteToken):code;
     try{
-      if(navigator.clipboard?.writeText)await navigator.clipboard.writeText(code);
-      else{const field=document.createElement("textarea");field.value=code;field.style.position="fixed";field.style.opacity="0";document.body.appendChild(field);field.select();const copied=document.execCommand("copy");field.remove();if(!copied)throw new Error("copy unavailable");}
-      setMultiplayerMessage("Código copiado. Envie-o para quem vai entrar na sala.");
-    }catch{setMultiplayerMessage(`Compartilhe este código: ${code}`);}
+      if(navigator.clipboard?.writeText)await navigator.clipboard.writeText(invite);
+      else{const field=document.createElement("textarea");field.value=invite;field.style.position="fixed";field.style.opacity="0";document.body.appendChild(field);field.select();const copied=document.execCommand("copy");field.remove();if(!copied)throw new Error("copy unavailable");}
+      setMultiplayerMessage(multiplayerState.inviteToken?"Convite completo copiado. Compartilhe-o somente com quem deve entrar.":"Código copiado. Envie-o para quem vai entrar na sala.");
+    }catch{setMultiplayerMessage(`Compartilhe este convite: ${invite}`);}
   };
   useEffect(() => {
     if (!startImmediately) return;
@@ -604,21 +611,21 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
         {title && dailyOpen && <Modal title="Calendário de Presentes · 7 dias" onClose={() => setDailyOpen(false)} wide><DailyLoginPanel state={dailyState} onClaim={handleDailyClaim}/>{dailyMessage && <p role="status" className="mt-3 rounded-md border border-amber-300/20 bg-amber-300/5 p-3 text-sm text-amber-100">{dailyMessage}</p>}</Modal>}
         {multiplayerOpen && <Modal title="Companhia · multijogador online" onClose={()=>setMultiplayerOpen(false)} wide>
           <div className="space-y-4">
-            <p className="text-sm leading-relaxed text-muted-foreground">Crie uma sala e compartilhe o código para explorar lado a lado com até {MULTIPLAYER_MAX_PLAYERS} pessoas. A sala usa sinalização gratuita do PeerJS e conexão WebRTC, tentando ligação direta e recorrendo ao STUN/TURN público da configuração PeerJS quando necessário; requer internet. A versão atual sincroniza posição e animação dos participantes. Inimigos, combate, itens, missões e saves continuam independentes para cada jogador.</p>
+            <p className="text-sm leading-relaxed text-muted-foreground">Crie uma sala e convide até {MULTIPLAYER_MAX_PLAYERS} pessoas. {MULTIPLAYER_WSS_URL?"Este build está configurado para o servidor WebSocket dedicado; o anfitrião pode compartilhar um convite completo com chave segura.":"Este build ainda não tem endpoint WSS configurado e usa salas PeerJS/WebRTC P2P; para sala dedicada, o build precisa receber VITE_MULTIPLAYER_WS_URL."} Ambos os modos sincronizam apenas presença e posição/animação; mundo, inimigos, combate, itens, missões e saves continuam independentes para cada jogador.</p>
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="space-y-1 text-xs text-muted-foreground">Seu nome no grupo<input value={multiplayerName} maxLength={18} onChange={(e)=>setMultiplayerName(e.target.value)} className="mt-1 w-full rounded border border-primary/30 bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Aventureiro"/></label>
-              <div className="space-y-1 text-xs text-muted-foreground">Código da sala<input value={multiplayerCode} maxLength={9} onChange={(e)=>setMultiplayerCode(e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g,"").slice(0,9))} onKeyDown={(e)=>{if(e.key==="Enter")beginMultiplayer("guest");}} className="mt-1 w-full rounded border border-primary/30 bg-background px-3 py-2 text-sm uppercase tracking-[0.2em] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" placeholder="ABCD-2345" aria-label="Código da sala"/></div>
+              <div className="space-y-1 text-xs text-muted-foreground">{MULTIPLAYER_WSS_URL?"Convite completo":"Código da sala"}<input value={multiplayerCode} maxLength={MULTIPLAYER_WSS_URL?54:9} onChange={(e)=>{const raw=e.target.value;setMultiplayerCode(MULTIPLAYER_WSS_URL?raw.replace(/[^A-Za-z0-9._-]/g,"").slice(0,54):raw.toUpperCase().replace(/[^A-Z0-9-]/g,"").slice(0,9));}} onKeyDown={(e)=>{if(e.key==="Enter")beginMultiplayer("guest");}} autoCapitalize="none" autoComplete="off" spellCheck={false} className={`mt-1 w-full rounded border border-primary/30 bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary ${MULTIPLAYER_WSS_URL?"":"uppercase tracking-[0.2em]"}`} placeholder={MULTIPLAYER_WSS_URL?"ABCD-2345.chave-do-convite":"ABCD-2345"} aria-label={MULTIPLAYER_WSS_URL?"Convite completo da sala":"Código da sala"}/></div>
             </div>
             {(multiplayerState.status==="idle"||multiplayerState.status==="error")&&<div className="grid gap-2 sm:grid-cols-2"><Button variant="secondary" onClick={()=>beginMultiplayer("host")}><Users size={16}/>Criar sala e mostrar código</Button><Button variant="outline" onClick={()=>beginMultiplayer("guest")}><Wifi size={16}/>Entrar na sala</Button></div>}
             {multiplayerState.status!=="idle"&&<section className="game-panel space-y-3 p-3" aria-label="Estado da sala">
               <div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2 text-sm">{multiplayerState.status==="error"?<WifiOff size={18} className="text-destructive"/>:<Wifi size={18} className="text-primary"/>}<span>{multiplayerState.status==="connecting"?"Conectando…":multiplayerState.status==="waiting"?"Sala aberta · aguardando jogadores":multiplayerState.status==="connected"?"Grupo conectado": "Conexão encerrada"}</span></div><span className="text-xs text-muted-foreground">{multiplayerState.players.length}/{MULTIPLAYER_MAX_PLAYERS}</span></div>
-              {multiplayerState.roomCode&&<div className="rounded border border-primary/30 bg-background/80 p-3 text-center"><div className="mb-1 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Código de convite</div><button type="button" onClick={copyMultiplayerCode} className="inline-flex items-center gap-2 text-2xl font-black tracking-[0.2em] text-primary" style={{userSelect:"text"}} aria-label="Copiar código de convite">{displayRoomCode(multiplayerState.roomCode)}<Copy size={16}/></button><div className="mt-1 text-[10px] text-muted-foreground">Toque para copiar</div></div>}
+              {multiplayerState.roomCode&&<div className="rounded border border-primary/30 bg-background/80 p-3 text-center"><div className="mb-1 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">{multiplayerState.inviteToken?"Convite seguro":"Código de convite"}</div><button type="button" onClick={copyMultiplayerCode} className="inline-flex items-center gap-2 text-2xl font-black tracking-[0.2em] text-primary" style={{userSelect:"text"}} aria-label={multiplayerState.inviteToken?"Copiar convite completo":"Copiar código de convite"}>{displayRoomCode(multiplayerState.roomCode)}<Copy size={16}/></button><div className="mt-1 text-[10px] text-muted-foreground">Toque para copiar {multiplayerState.inviteToken?"o convite completo com a chave":"o código"}</div></div>}
               {!!multiplayerState.players.length&&<div className="space-y-1">{multiplayerState.players.map((player)=><div key={player.id} className="flex items-center gap-2 rounded bg-background/60 px-2 py-1.5 text-sm"><Users size={14} className="text-accent"/><span className="flex-1">{player.name}{player.id===multiplayerState.selfId?" · você":""}</span>{multiplayerState.role==="host"&&player.id===multiplayerState.selfId&&<span className="text-[10px] text-primary">ANFITRIÃO</span>}</div>)}</div>}
               {multiplayerState.error&&<p role="alert" className="text-sm text-destructive">{multiplayerState.error}</p>}
               {(multiplayerState.status==="waiting"||multiplayerState.status==="connected"||multiplayerState.status==="connecting")&&<Button variant="outline" size="sm" onClick={leaveMultiplayer}><LogOut size={14}/>Sair da sala</Button>}
             </section>}
             {(multiplayerMessage||multiplayerState.error)&&<p role="status" className="rounded border border-primary/20 bg-primary/5 p-2 text-xs text-primary">{multiplayerMessage||multiplayerState.error}</p>}
-            <p className="text-[11px] leading-relaxed text-muted-foreground">A sala termina quando o anfitrião sai. O PeerJS inclui fallback STUN/TURN público gratuito; em alguns casos ele retransmite dados WebRTC criptografados. A disponibilidade e a capacidade não têm garantia, e políticas de rede ainda podem impedir a conexão. O modo solo segue disponível offline.</p>
+            <p className="text-[11px] leading-relaxed text-muted-foreground">{MULTIPLAYER_WSS_URL?"A sala dedicada preserva presenças sem depender do navegador anfitrião e permite transferência da função de anfitrião; disponibilidade e reconexão ainda dependem do host WSS. O convite copiado inclui a chave necessária para entrar.":"Sem WSS configurado, a sala P2P depende do PeerJS/STUN/TURN público e do anfitrião conectado; não é servidor dedicado."} O modo solo permanece local e funciona offline.</p>
           </div>
         </Modal>}
         {g && !title && !liveOn && (panel === 'farm' || panel === 'build' || panel === 'workshop') && <Modal title={panel === 'farm' ? 'Jardim & colheita' : panel === 'build' ? 'Construir um lar' : 'Oficinas de Potos'} onClose={()=>setPanel(null)}>

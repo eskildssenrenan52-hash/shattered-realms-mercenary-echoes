@@ -33,6 +33,17 @@ export interface MultiplayerRoomState {
   selfId: string;
   players: MultiplayerPlayer[];
   error: string;
+  /** Chave de convite WSS, presente somente no estado local da sala dedicada. */
+  inviteToken?: string;
+}
+
+export interface MultiplayerRoomClient {
+  state(): MultiplayerRoomState;
+  create(name: string): boolean;
+  join(name: string, input: string): boolean;
+  tick(pose: MultiplayerPose, now?: number): void;
+  remotePlayers(zone: string): MultiplayerPlayer[];
+  leave(): void;
 }
 
 type PeerFactory = (id?: string) => Peer;
@@ -122,7 +133,7 @@ function peerErrorMessage(error: PeerError<string>, role: RoomRole | null): stri
   return "Não foi possível criar a sala. Verifique a conexão e tente novamente.";
 }
 
-export class MultiplayerRoom {
+export class MultiplayerRoom implements MultiplayerRoomClient {
   private peer: Peer | null = null;
   private connection: DataConnection | null = null;
   private readonly connections = new Map<string, DataConnection>();

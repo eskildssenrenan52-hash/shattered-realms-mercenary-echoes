@@ -1,0 +1,95 @@
+name: Android APK (offline)
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish_release:
+        description: Publicar o APK debug em um GitHub Release público
+        type: boolean
+        required: true
+        default: false
+      multiplayer_ws_url:
+        description: Endpoint completo wss://servidor/ws; vazio mantém o transporte P2P legado
+        type: string
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Configurar JDK para Android
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Configurar Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Instalar plataforma e build-tools Android 35
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses >/dev/null
+          sdkmanager 'platform-tools' 'platforms;android-35' 'build-tools;35.0.0'
+
+      - name: Configurar Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Instalar pnpm e dependências
+        run: |
+          npm install --global pnpm@11.25.0
+          pnpm install --frozen-lockfile
+
+      - name: Testes e tipos
+        run: |
+          pnpm test
+          pnpm run test:server
+          pnpm exec tsc --noEmit
+
+      - name: Empacotar o jogo offline e compilar APK
+        env:
+          VITE_MULTIPLAYER_WS_URL: ${{ inputs.multiplayer_ws_url }}
+        run: |
+          pnpm run apk:package
+          gradle -p android --no-daemon assembleDebug
+
+      - name: Disponibilizar o APK como artefato
+        uses: actions/upload-artifact@v4
+        with:
+          name: shattered-realms-echoes-android-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publicar APK no GitHub Releases
+        if: ${{ inputs.publish_release }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: android-apk-${{ github.run_number }}
+          name: Shattered Realms — APK Android (build ${{ github.run_number }})
+          body: |
+            APK de teste compilado automaticamente a partir do commit `${{ github.sha }}`.
+
+            O modo solo inclui os assets locais e não exige Manus nem um app companion. Este é um APK debug; para distribuição em loja use assinatura de release própria. O multiplayer requer internet e um serviço WSS configurado.
+          prerelease: true
+          make_latest: false
+          files: android/app/build/outputs/apk/debug/app-debug.apk

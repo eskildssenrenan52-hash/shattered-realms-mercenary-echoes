@@ -190,11 +190,11 @@ A Companhia fica disponível no menu móvel e no botão de espadas da barra infe
 
 ### Como contratar
 
-A Agência oferece vinte personagens. Você pode pagar 140 ouro por contrato ou gastar um Selo de Contrato. Selos são ganhos ao derrotar chefes e são salvos na jornada. O gacha é exclusivamente uma regra de progressão interna: não há dinheiro real, compra externa, energia, anúncios nem temporizador de ansiedade.
+A Agência preserva os vinte mercenários legados e acrescenta 24 novos, totalizando 44 personagens. Cada contrato custa 850 ouro ou 3 Selos de Contrato, ganhos ao derrotar chefes e salvos na jornada. Parte do catálogo exige nível ou progresso de chefes; o painel informa o requisito antes de gastar qualquer recurso. O sistema é uma regra de progressão interna: não há dinheiro real, compra externa, energia, anúncios nem temporizador de ansiedade.
 
-Cada tentativa aumenta o contador de pity. Se as nove anteriores não trouxerem uma unidade Raro ou superior, a décima garante uma raridade Raro, Épico ou Lendário. Personagens já obtidos não são repetidos pelo gacha; o resultado sempre amplia o roster. Isso torna a coleção extensa sem transformar a história em uma loteria infinita.
+O marcador de garantia agora tem marco de 18 tentativas sem unidade Rara ou superior; a Agência mostra o progresso e, ao atingir o marco, garante uma raridade Rara, Épica ou Lendária. Personagens já obtidos não são repetidos, e uma tentativa sem unidade elegível não consome ouro nem selos. Planeje os recursos: contratar ficou intencionalmente bem mais difícil, mas não depende de pagamentos.
 
-### Os cinco contratos
+### Cinco contratos originais
 
 **Ferrovia, a Muralha que Caminha**, é uma guardiã comum. Tem mais defesa, vida estável e protege o herói quando permanece próximo. Sua história começa com refugiados e placas sem nome: ela não procura glória, procura uma estrada segura para quem ficou para trás.
 
@@ -228,6 +228,29 @@ O recuo também é parte da história. Quando alguém retorna ferido, a fala mud
 
 ### Roteiro recomendado
 
-No começo, use Ferrovia para aprender a manter um aliado perto do herói. Depois, teste Mae em áreas com inimigos rápidos. Ao ganhar um Selo em um chefe, tente um contrato de Irmão Cinzas para entender posicionamento à distância. Quando desbloquear Lia, leve-a a uma Expedição Onírica e observe como a recuperação muda o ritmo. Guarde o Rei Sem Rosto para uma combinação em que você consiga preservar a vida dele, porque sua melhor contribuição depende de permanecer saudável.
+No começo, use os aliados que já constam na reserva e aprenda a manter a formação perto do herói. Guarde ouro e Selos até ter recursos para uma contratação válida; um único Selo já não basta. Consulte o requisito exibido na Agência e teste as recomendações de dupla antes de substituir um aliado treinado. Personagens de raridade alta e contratos avançados pedem mais progresso.
 
-Se um aliado recuar, não reinicie a jornada nem force o gacha. Troque a composição, avance em uma missão mais segura, complete um capítulo ou volte a Potos. A demora faz parte do desenho: contratar é fácil; construir uma companhia confiável é uma história longa.
+Se um aliado recuar, não reinicie a jornada nem gaste recursos às cegas. Troque a composição, avance em uma missão mais segura, complete um capítulo ou volte a Potos. A Agência mostra custo, raridade e requisito antes da contratação; confirme apenas quando todos estiverem atendidos.
+
+
+### Formação e comportamento
+
+O painel da Companhia agora permite procurar personagens, filtrar por função/raridade/situação e ver requisitos antes de contratar. Ajuste a formação em linha, cunha ou grupo próximo; escolha postura agressiva, equilibrada ou defensiva; ou use a recomendação de dupla. Os mercenários acompanham o herói segundo a formação, aproximam-se de alvos no alcance da postura e retornam à posição de escolta. Em teleporte ou entrada de interior, espere um instante para a equipe reagrupar.
+
+## 16. Construções pelo mundo e salas online
+
+### Exploração das novas construções
+
+Os setores Frontier contêm 1.000 construções adicionais determinísticas, além das casas/cidades antigas. Procure fachadas e portas pelo mundo: são casas, pousadas, ruínas, laboratórios, observatórios, forjas, arquivos, minas e dungeons. Cada entrada tem ID e desenho determinísticos, paleta, planta interna, objetivo/recompensa e entre 1 e 12 andares; escadas mostram o piso atual e permitem subir ou descer quando disponíveis. Os objetivos concluídos ficam salvos sem reiniciar a jornada. Aproximar-se da porta e usar a interação abre a construção; siga o prompt mostrado na tela.
+
+Os interiores são montados ao entrar para manter o mundo rápido, e seus objetivos usam chaves de save aditivas. Se você já tiver um save antigo, não precisa reiniciar: as novas estruturas e recompensas não substituem os IDs de campanha anteriores.
+
+### Salas dedicadas e convite
+
+O serviço dedicado suporta cinco jogadores por sala, presença/poses e mudança de anfitrião. Ele não compartilha campanhas, combate, inventário nem saves: cada jogador continua em seu mundo/progresso local. Quando o build inclui uma URL `wss://.../ws`, criar sala usa esse servidor. Toque em **Copiar convite** e envie o texto completo a quem vai entrar; ele inclui uma chave privada da sala, não apenas o código curto. O visitante cola o convite inteiro no campo **Convite completo**.
+
+Se o build não informar endpoint WSS, o painel diz que está usando o transporte PeerJS/WebRTC legado; isso não significa que o serviço Node esteja hospedado. Salas online exigem internet e disponibilidade do serviço. O APK solo continua offline; o servidor multiplayer é opcional.
+
+### APK Android
+
+O APK carrega os arquivos do jogo localmente, não precisa de Manus, site ou app companion e salva a jornada no armazenamento privado do Android. Usa o WebView do próprio sistema. Multiplayer dedicado é opcional: para isso, o APK deve ser compilado com endpoint WSS público e precisa de internet.
