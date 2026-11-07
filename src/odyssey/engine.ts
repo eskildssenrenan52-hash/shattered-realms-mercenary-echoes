@@ -32,6 +32,7 @@ import { drawFx, makeFx, preloadFx, tickFx, type FxInst, type FxName } from "./v
 import { petTick, petOnKill, drawPets, petsSave, petsLoad, petGuardMult, petDamageMult } from "./pet-play";
 import { foeTick } from "./foe-play";
 import { BUILDINGS, TREASURES, ROOM, doorOf, createInterior, prepareExploration, canClaimTreasure, type Building } from './exploration';
+import { frontierTownNpcs } from './frontier-town-npcs';
 import { drawBuildings, drawGroundDetails, drawInterior, drawTreasure } from './scenery';
 import { Audio } from "./audio";
 import { ABYSS_BOSS_LOOK } from "./dungeon";
@@ -245,7 +246,7 @@ export class Game {
     }
     if (this.depth || this.island || this.sea) return [];
     if (this.farlandsActive) return farlandsNpcs(this.world);
-    if (!this.interior) return [...NPCS.filter(n => !n.interiorOnly), ...this.restoredNpcs()];
+    if (!this.interior) return [...NPCS.filter(n => !n.interiorOnly), ...this.restoredNpcs(), ...frontierTownNpcs(this.overworld)];
     const npc = NPCS.find(n => n.id === this.interior?.resident);
     return npc ? [{ ...npc, tx: 121, ty: 100 }] : [];
   }
@@ -1085,6 +1086,13 @@ export class Game {
 
   // ---------- interaction ----------
   nearNpc(r = 22) { return this.localNpcs.find((n) => Math.hypot(n.tx * TS + 8 - this.p.x, n.ty * TS + 14 - this.p.y) < r) ?? null; }
+  private nearbyBuildingDoor(r = 30): Building | null {
+    if (this.interior || this.depth || this.island || this.sea || this.farlandsActive || this.doorCooldown > 0) return null;
+    return BUILDINGS.find((building) => {
+      const door = doorOf(building);
+      return Math.hypot(this.p.x - door.tx * TS - 8, this.p.y - door.ty * TS - 8) < r;
+    }) ?? null;
+  }
   tryGather(silent = false) {
     const p = this.p;
     for (const n of this.world.nodes) {
@@ -1104,18 +1112,24 @@ export class Game {
     return false;
   }
   interact() {
-    if (!this.farlandsActive && archipelagoInteract(this)) return;
-    if (!this.depth && !this.farlandsActive && interactSettlement(this)) return;
-    // Portas, escadas e portais têm prioridade idêntica à do prompt contextual.
-    if (this.interactExploration()) return;
+    const building = this.nearbyBuildingDoor();
+    if (building && this.enterInterior(building)) return;
+    if (this.interior && Math.hypot(this.p.x - (ROOM.exitX * TS + 8), this.p.y - (ROOM.exitY * TS + 8)) < 35) {
+      this.leaveInterior();
+      return;
+    }
     const npc = this.nearNpc(26);
     if (npc) { this.talk(npc); return; }
+    if (!this.farlandsActive && archipelagoInteract(this)) return;
+    if (!this.depth && !this.farlandsActive && interactSettlement(this)) return;
+    if (this.interactExploration()) return;
     if (this.tryGather()) return;
   }
 
   enterInterior(b: Building): boolean {
     if (this.interior || this.doorCooldown > 0 || this.depth || this.island || this.sea || this.farlandsActive) return false;
-    this.returnPosition = { x: this.p.x, y: (doorOf(b).ty + 1.7) * TS };
+    const door = doorOf(b);
+    this.returnPosition = { x: door.tx * TS + 8, y: (door.ty + 1.7) * TS };
     this.interior = b; this.world = isPlayerHome(b) ? createHomeInterior(this.settlement.home) : createInterior(b);
     this.p.x = ROOM.spawnX; this.p.y = ROOM.spawnY;
     this.clearTransition(); this.discoveries.add(b.id);
@@ -1145,6 +1159,8 @@ export class Game {
   interactExploration(): boolean {
     if (this.depth) return !!depthAction(this, true);
     if (!this.interior) {
+      const building = this.nearbyBuildingDoor();
+      if (building) return this.enterInterior(building);
       if (farlandsAction(this, true)) return true;
       if (surfaceEntrance(this, true)) return true;
     }
@@ -1165,8 +1181,6 @@ export class Game {
       }
       return false;
     }
-    const b=this.farlandsActive?undefined:BUILDINGS.find(b=>{const d=doorOf(b);return near(d.tx,d.ty,30);});
-    if(b) return this.enterInterior(b);
     const t=TREASURES.find(t=>near(t.tx,t.ty,26));
     if(t){this.claimChest(t.id,t.gold,t.item,t.qty,t.name);return true;}
     return false;
@@ -1306,9 +1320,10 @@ export class Game {
     tickMercenaries(this, dt);
     if (!this.interior && (this.keys.has("Space") || this.keys.has("KeyJ"))) this.attack();
 
-    if(this.doorCooldown<=0){
-      if(this.interior && Math.hypot(p.x-(ROOM.exitX*TS+8),p.y-(ROOM.exitY*TS+8))<12){this.leaveInterior();return;}
-      if(!this.interior&&!this.depth&&!this.island&&!this.farlandsActive){const b=BUILDINGS.find(b=>{const d=doorOf(b);return Math.hypot(p.x-d.tx*TS-8,p.y-d.ty*TS-8)<11;});if(b){this.enterInterior(b);return;}}
+    if (this.doorCooldown <= 0) {
+      if (this.interior && Math.hypot(p.x - (ROOM.exitX * TS + 8), p.y - (ROOM.exitY * TS + 8)) < 12) { this.leaveInterior(); return; }
+      const building = this.nearbyBuildingDoor(11);
+      if (building && this.enterInterior(building)) return;
     }
 
     skillTick(this, dt);
@@ -1893,25 +1908,23 @@ export class Game {
     c.restore();
   }
   renderInteractionPrompt(c: CanvasRenderingContext2D) {
-    const p=this.p, near=(x:number,y:number,r=30)=>Math.hypot(p.x-x*TS-8,p.y-y*TS-8)<r;
-    let text=this.farlandsActive?"":archipelagoPrompt(this);
-    if(text){ /* A dica específica do arquipélago tem prioridade sobre as dicas genéricas. */ }
-    else if(this.depth){text=depthAction(this,false);}
-    else if(this.interior){
-      if(near(ROOM.exitX,ROOM.exitY,35))text='E · Sair';
-      else if(near(110,106,30))text='E · Abrir baú';
-      else if(near(114,100,42))text='E · Ler anotações';
-      else if(near(127,105,35)&&this.interior.kind==='inn')text='E · Descansar';
-      else if(near(109,97,38)&&this.interior.id==='archive')text='E · Examinar estante';
-    }else{
-      const b=this.farlandsActive||this.doorCooldown>0?undefined:BUILDINGS.find(b=>{const d=doorOf(b);return near(d.tx,d.ty);});
-      if(b)text='E · '+b.name;
-      else if(farlandsAction(this,false))text=farlandsAction(this,false);
-      else if(surfaceEntrance(this,false))text=surfaceEntrance(this,false);
-      else if(TREASURES.some(t=>near(t.tx,t.ty,26)))text='E · Abrir baú';
-    }
+    const p = this.p, near = (x: number, y: number, r = 30) => Math.hypot(p.x - x * TS - 8, p.y - y * TS - 8) < r;
+    const building = this.nearbyBuildingDoor();
     const npc = this.nearNpc(26);
-    if(!text&&npc)text=`E · Conversar: ${npc.name}`;
+    const interiorExit = !!this.interior && near(ROOM.exitX, ROOM.exitY, 35);
+    let text = building ? `E · ${building.name}` : interiorExit ? 'E · Sair' : npc ? `E · Conversar: ${npc.name}` : this.farlandsActive ? "" : archipelagoPrompt(this);
+    if (!text) {
+      if (this.depth) text = depthAction(this, false);
+      else if (this.interior) {
+        if (near(ROOM.exitX, ROOM.exitY, 35)) text = 'E · Sair';
+        else if (near(110, 106, 30)) text = 'E · Abrir baú';
+        else if (near(114, 100, 42)) text = 'E · Ler anotações';
+        else if (near(127, 105, 35) && this.interior.kind === 'inn') text = 'E · Descansar';
+        else if (near(109, 97, 38) && this.interior.id === 'archive') text = 'E · Examinar estante';
+      } else if (farlandsAction(this, false)) text = farlandsAction(this, false);
+      else if (surfaceEntrance(this, false)) text = surfaceEntrance(this, false);
+      else if (TREASURES.some((treasure) => near(treasure.tx, treasure.ty, 26))) text = 'E · Abrir baú';
+    }
     if(!text)return;
     c.font='8px monospace';c.textAlign='center';const width=c.measureText(text).width+18;
     c.fillStyle='#152d2f';c.fillRect(this.viewWidth/2-width/2,this.viewHeight-46,width,16);c.strokeStyle='#bfa87b';c.strokeRect(this.viewWidth/2-width/2,this.viewHeight-46,width,16);c.fillStyle='#f1e5c7';c.fillText(text,this.viewWidth/2,this.viewHeight-35);

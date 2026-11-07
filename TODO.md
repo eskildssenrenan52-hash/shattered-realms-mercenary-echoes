@@ -23,6 +23,7 @@
 - [x] Atender “com 100 x mais segredos pelo mapa” preservando as 450 cadeias originais: totalizar 45.000 segredos entre as 650 cadeias (incluídas 200 nas oito regiões novas) e 44.350 descobertas determinísticas, locais e persistentes, indexadas por região para evitar custo global por quadro.
 - [x] Atender “muitos mais biomas secretos com designs únicos”: acrescentar oito Reinos Ocultos com paletas, fauna, itens, lore e arquitetura próprios.
 - [x] Atender “muitas novas cidades, construções”: integrar oito cidades acessíveis em setores de fronteira existentes, com 24 edifícios exploráveis, residentes, paletas próprias e 24 missões opcionais em cadeias de três etapas.
+- [x] **NPCs e casas operacionais:** manter moradores conversáveis em tiles caminháveis nas oito cidades; preservar portas/corredores após todos os carvers; impedir que minas ou a estrada da Cidadela atravessem soleiras; priorizar portas, saída de interiores e conversa de NPCs sobre portais/segredos, com prompt alinhado.
 - [x] Atender “mais tipos de masmorras, dungeons, e muito mais”: acrescentar quatro perfis estruturais de dungeon, desafios e recompensas determinísticos.
 - [x] Atender “faça de tudo pro jogo ficar perfeito”: preservar IDs/saves, validar exploração, acessibilidade de locais, determinismo, build e regressões.
 - [x] Atender “crie um apk do jogo rodando offline sem dependência nenhuma, com tela inicial e tudo”: garantir a tela de título no Android; incluir os recursos no pacote local; conferir permissões e recompilar o APK.
@@ -43,7 +44,7 @@
 
 - [x] **Tutorial sem reaparecimento:** guardar os IDs imutáveis dos spawns comuns abatidos por piso; não reativá-los por temporizador ou ao reiniciar o andar; manter o respawn normal fora do tutorial e a regra do chefe final; cobrir também inimigos que mudaram de posição.
 - [x] **Nêmesis adaptativo:** campanha opcional pós-Ato V com 12 arenas procedurais, chefes e recompensas; acompanhar acertos diretos de arma, resistir apenas à categoria aprendida no duelo anterior e expor progresso/início no painel; migrar saves legados com defaults.
-- [x] **Validação da correção:** suíte Vitest completa 205/205 e testes focais finais 11/11; TypeScript e build web aprovados; regras semânticas dos arquivos alterados aprovadas (regra Prettier do legado excluída); APK offline de 68 MB compilado, assinado em debug e verificado.
+- [x] **Validação da correção:** suíte Vitest serial completa 210/210 (42 arquivos) e regressões focais de casas/NPCs/Cidadela 6/6; TypeScript e build web aprovados; ESLint dos módulos novos e regras semânticas dos arquivos alterados aprovados (regra Prettier legado excluída); APK offline de 71,1 MB, assinado em debug e verificado, com 1.618 entradas locais.
 
 ## Multijogador online sem custo
 

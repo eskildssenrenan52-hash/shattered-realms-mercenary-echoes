@@ -34,6 +34,7 @@ Continuar o RPG 2D Canvas/React trazido do GitHub, sem trocar seu motor nem romp
 7. **Forja e mineração.** Acrescentar oito minérios de bioma/subsolo, veios e caches nas minas, materiais refinados e 24 receitas de equipamento; conectar os itens ao catálogo, custos da forja e loadouts dos mercenários, preservando IDs antigos e receitas já aprendidas.
 8. **Biomas vivos.** Aumentar em cerca de 3× a densidade de microdetalhes compostos em cache nos tiles de todos os biomas e acrescentar camadas ambientais animadas pixeladas, determinísticas e adaptativas à qualidade do aparelho, sem criar objetos, canvases ou partículas ilimitadas a cada quadro.
 9. **Continuidade de entrega.** Conservar português, arte pixel-art, modo offline, controles móveis, save único e comportamento atual; executar as verificações do projeto, revisar os caminhos críticos independentemente, publicar no mesmo GitHub e recompilar o APK offline com tela inicial.
+10. **Residência e interação das cidades.** Instanciar moradores exteriores a partir dos residentes de 24 casas; posicioná-los em tiles caminháveis; proteger soleiras contra minas e estradas; rerotear a Cidadela ao redor de Lira; priorizar portas e saída dos interiores, depois NPCs, antes de portais/segredos, com prompt correspondente.
 
 ## Onze sistemas ambiciosos adicionais
 
@@ -67,6 +68,7 @@ Continuar o RPG 2D Canvas/React trazido do GitHub, sem trocar seu motor nem romp
 - `src/odyssey/expansion.ts`: novos reinos, cidades, crônicas e sistemas da expansão.
 - `src/odyssey/world.ts`, `landmass.ts`, `archipelago.ts` e `sailing.ts`: extensões aditivas do continente e do mar, entradas de POI e novos dados de ilhas; coordenadas e IDs existentes são base imutável.
 - `src/odyssey/farlands.ts` e `farlands-play.ts`: novo continente procedural, portal, destinos de exploração e persistência por IDs sem redimensionar o mapa legado.
+- `src/odyssey/frontier-town-npcs.ts`, `exploration.ts`, `biome-mine-sites.ts` e `demon-citadel.ts`: moradores caminháveis das cidades; corredores de entrada reservados; estrada da Cidadela desviada para não atravessar casas.
 - `src/odyssey/depths.ts`, `dungeon.ts` e `depthplay.ts`: escadarias de dez andares por bioma, nós de minério, boss final temático e transições de retorno, mantendo o Abismo de 100 andares separado.
 - `src/odyssey/daily-login.ts` e componentes React: calendário local de retorno diário e sua apresentação na tela inicial.
 - `src/odyssey/nemesis.ts`, `echoes-state.ts`, `echoes-play.ts` e `EchoesBeyondPanel.tsx`: arenas do Caçador, estilo observado, adaptação persistente, progressão de doze duelos e interface da caçada.

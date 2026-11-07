@@ -3,7 +3,7 @@ import { Game } from './engine';
 import { QUESTS, BOSSES, NPCS } from './data';
 import { actChainQuests, ALL_ECO_BOSSES } from './story';
 import { FRONTIER_GATES, FRONTIER } from './frontier';
-import { solidAt, TS } from './world';
+import { solidAt, TS, W, T } from './world';
 import { bossHp, bossMeleeDamage } from './boss-tuning';
 import { depthAction, enterBiomeMine, enterCitadel, enterTutorialFloor, restartTutorialFloor, startTutorial, skipTutorial, surfaceEntrance, TUTORIAL_BOSS_ID, TUTORIAL_FLOORS } from './depthplay';
 import { biomeMineBossId } from './biome-mines';
@@ -13,7 +13,7 @@ import { FARLANDS_PORTALS } from './farlands';
 import { CITADEL_FINAL_BEAT_ID, CITADEL_FINAL_BOSS_ID, CITADEL_UNLOCK_BOSS_ID } from './demon-citadel';
 import { startNemesisHunt } from './echoes-play';
 import { nemesisBossId } from './nemesis';
-import { BUILDINGS, doorOf, ROOM } from './exploration';
+import { BUILDINGS, FRONTIER_CITIES, doorOf, ROOM } from './exploration';
 
 // Canvas 2D falso: qualquer método é um no-op, gradientes aceitam addColorStop.
 function fakeCtx(canvas: unknown) {
@@ -112,6 +112,40 @@ describe('Engine — campanha integrada', { timeout: 90000 }, () => {
     expect(k.interior).toBeNull();
     expect(k.world).toBe(k.overworld);
     expect(k.localNpcs.some((npc) => npc.id === 'elder')).toBe(true);
+  });
+  it('mantém todas as portas alcançáveis e leva ao interior correto no mapa completo', () => {
+    const k = make();
+    for (const building of BUILDINGS) {
+      const door = doorOf(building);
+      const nearbyMines = biomeMineEntrances(k.world).filter((entrance) => Math.hypot(entrance.tx - door.tx, entrance.ty - door.ty) < 3);
+      expect(k.world.tiles[door.ty * W + door.tx], `${building.id}; minas=${JSON.stringify(nearbyMines)}`).toBe(T.DOOR);
+      expect(solidAt(k.world, door.tx * TS + 8, (door.ty + 1) * TS + 8), building.id).toBe(false);
+      k.p.x = door.tx * TS + 8;
+      k.p.y = (door.ty + 1) * TS + 8;
+      k.doorCooldown = 0;
+      k.interact();
+      expect(k.interior?.id, building.id).toBe(building.id);
+      k.leaveInterior();
+      k.doorCooldown = 0;
+    }
+  });
+  it('povoa todas as cidades de fronteira com moradores visíveis e conversáveis', () => {
+    const k = make();
+    for (const city of FRONTIER_CITIES) {
+      const residents = k.localNpcs.filter((npc) => npc.title.includes(city.name));
+      expect(residents, city.id).toHaveLength(3);
+      for (const resident of residents) {
+        expect(solidAt(k.world, resident.tx * TS + 8, resident.ty * TS + 8), resident.id).toBe(false);
+      }
+      const keeper = residents.find((resident) => NPCS.some((npc) => npc.id === resident.id && npc.interiorOnly));
+      expect(keeper, city.id).toBeDefined();
+      k.p.x = keeper!.tx * TS + 8;
+      k.p.y = keeper!.ty * TS + 14;
+      expect(k.nearNpc(26)?.id).toBe(keeper!.id);
+      k.interact();
+      expect(k.dialog?.npc.id).toBe(keeper!.id);
+      k.dialog = null;
+    }
   });
   it('mantém um guia funcional na cripta e restaura Potos sem escurecimento após pular o treino', () => {
     const k = make();

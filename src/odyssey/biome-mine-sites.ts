@@ -4,6 +4,7 @@ import { TEMPLES, templeDoor } from "./depths";
 import { biomeMineBestFloor } from "./biome-mines";
 import { BIOME_LIST, SOLID, T, TS, W, H, type World } from "./world";
 import type { Game } from "./engine";
+import { BUILDINGS } from "./exploration";
 
 export interface BiomeMineEntrance {
   biome: Biome;
@@ -29,6 +30,12 @@ const colors: Partial<Record<Biome, string>> = {
 
 function reservedTiles(): Set<number> {
   const reserved = new Set<number>();
+  for (const building of BUILDINGS) {
+    for (let y = building.y - 2; y <= building.y + building.h + 2; y++)
+      for (let x = building.x - 2; x <= building.x + building.w + 2; x++) {
+        if (x >= 0 && y >= 0 && x < W && y < H) reserved.add(y * W + x);
+      }
+  }
   for (const temple of TEMPLES) {
     const door = templeDoor(temple);
     for (let y = door.ty - 11; y <= door.ty + 11; y++)

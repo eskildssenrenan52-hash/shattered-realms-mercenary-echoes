@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
-  CITADEL_ENTRY, CITADEL_FLOORS, CITADEL_FINAL_BOSS_ID, CITADEL_UNLOCK_BOSS_ID,
+  CITADEL_ENTRY, CITADEL_FLOORS, CITADEL_FINAL_BOSS_ID, CITADEL_UNLOCK_BOSS_ID, CITADEL_DOOR, carveCitadelSite,
   citadelBest, citadelBoss, citadelCheckpoints, citadelFloorLevel, citadelTheme, citadelUnlocked,
   generateCitadelFloor, isCitadelGuardianFloor, recordCitadelBest,
 } from "./demon-citadel";
 import { beatsFor, STORY_ITEMS, STORY_RECIPES } from "./story";
+import { BUILDINGS, doorOf, prepareExploration } from "./exploration";
+import { generateWorld, solidAt, TS, T, W } from "./world";
 
 describe("Cidadela de Gehenna", () => {
   it("tem 100 andares, dez alas determinísticas e inimigos escalados", () => {
@@ -57,6 +59,18 @@ describe("Cidadela de Gehenna", () => {
     expect(CITADEL_ENTRY.tx).toBeGreaterThan(0);
     expect(CITADEL_ENTRY.tx + CITADEL_ENTRY.w).toBeLessThan(3_200);
     expect(CITADEL_ENTRY.ty + CITADEL_ENTRY.h).toBeLessThan(2_400);
+  });
+
+  it("contorna todas as casas e preserva acessos depois de esculpir a estrada", () => {
+    const world = generateWorld();
+    prepareExploration(world);
+    carveCitadelSite(world);
+    for (const building of BUILDINGS) {
+      const door = doorOf(building);
+      expect(world.tiles[door.ty * W + door.tx], building.id).toBe(T.DOOR);
+      expect(solidAt(world, door.tx * TS + 8, (door.ty + 1) * TS + 8), building.id).toBe(false);
+    }
+    expect(solidAt(world, CITADEL_DOOR.tx * TS + 8, (CITADEL_DOOR.ty + 1) * TS + 8)).toBe(false);
   });
 
   it("registra uma cutscene inédita no gatilho do andar 100 e uma receita de progressão", () => {

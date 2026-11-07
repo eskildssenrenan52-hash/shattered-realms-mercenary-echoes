@@ -133,6 +133,9 @@ export function carveCitadelSite(world: World) {
   let x = farGate.tx, y = farGate.ty + 2;
   const road = (cx: number, cy: number) => { for (let dx = -1; dx <= 1; dx++) set(cx + dx, cy, T.PATH); };
   road(x, y);
+  // Desvia à direita antes de descer: a avenida reta cruzava a casa do mercado da cidade do portão distante.
+  const bypassX = CITADEL_ENTRY.tx - 4;
+  while (x !== bypassX) { x += Math.sign(bypassX - x); road(x, y); }
   const southLane = CITADEL_DOOR.ty + 4;
   while (y !== southLane) { y += Math.sign(southLane - y); road(x, y); }
   while (x !== CITADEL_DOOR.tx) { x += Math.sign(CITADEL_DOOR.tx - x); road(x, y); }
