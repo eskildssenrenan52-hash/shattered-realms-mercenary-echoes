@@ -57,3 +57,8 @@ pnpm run apk
 O workflow manual `.github/workflows/android-apk.yml` compila o APK em GitHub Actions e pode publicá-lo como prerelease público. O modo solo é embarcado e não depende de Manus, site ou app companion; o APK usa o WebView do Android. O transporte dedicado só será incluído se a execução receber um endpoint público `wss://.../ws`.
 
 O APK de depuração aparece em `android/app/build/outputs/apk/debug/app-debug.apk`. O artefato debug é assinado com a chave de desenvolvimento do Android; para distribuição pública, configure a assinatura de release conforme o guia Android.
+
+
+## APK Android publicado
+
+Build de teste atual: [baixar APK (69,8 MB)](https://github.com/eskildssenrenan52-hash/shattered-realms-mercenary-echoes/releases/download/android-apk-3/app-debug.apk) · [release notes](https://github.com/eskildssenrenan52-hash/shattered-realms-mercenary-echoes/releases/tag/android-apk-3) · [execução do workflow](https://github.com/eskildssenrenan52-hash/shattered-realms-mercenary-echoes/actions/runs/42396056037). É um APK debug independente do Manus para teste direto. A campanha solo é offline; esta build foi compilada sem URL WSS dedicado, portanto o multiplayer usa o P2P/PeerJS legado e ainda não se conecta ao serviço Node dedicado hospedado.
