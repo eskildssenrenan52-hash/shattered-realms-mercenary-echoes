@@ -54,7 +54,7 @@ jobs:
             echo "sdkmanager não encontrado sob $SDK_ROOT/cmdline-tools." >&2
             exit 1
           fi
-          yes | "$SDKMANAGER" --licenses >/dev/null
+          printf 'y\n%.0s' {1..100} | "$SDKMANAGER" --licenses >/dev/null
           "$SDKMANAGER" 'platform-tools' 'platforms;android-35' 'build-tools;35.0.0'
 
       - name: Configurar Gradle 8.9
