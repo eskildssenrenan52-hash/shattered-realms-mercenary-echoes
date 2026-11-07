@@ -5,6 +5,7 @@ import { drawK, kImage, K_DIR } from "./kaetram";
 import { drawGearBack, drawGearFront, type GearPick } from "./look-gear";
 import type { FxName } from "./vfx";
 import { EXPANDED_HERO_SKINS } from "./hero-skin-expansion";
+import { drawUniqueCharacter, type UniqueCharacterDesign } from "./unique-character";
 
 export type ComboFx = [FxName, FxName, FxName, FxName, FxName];
 export interface HeroSkin {
@@ -16,6 +17,8 @@ export interface HeroSkin {
   ai?: boolean;
   fx?: ComboFx;
   paletteFilter?: string;
+  /** Design geométrico completo das skins geradas, não apenas um filtro de cor. */
+  design?: UniqueCharacterDesign;
 }
 const CLASSIC_FX: ComboFx = ["slash", "impact", "slash", "shock", "explosion"];
 /** Índice salvo em Look.kskin: só skins no estilo Kaetram (ordem antiga preservada para saves). */
@@ -392,6 +395,17 @@ export function drawHero(
   },
 ): boolean {
   const skin = HERO_SKINS[o.skin] ?? HERO_SKINS[0];
+  if (skin.design) {
+    const sc = o.scale ?? 1;
+    const a = o.alpha ?? 1;
+    const d = K_DIR[o.dir] ?? "down";
+    const flip = o.dir === 1;
+    const anim = o.attack > 0 ? Math.min(3, Math.floor((1 - o.attack) * 4)) : o.moving ? o.frameT : Math.floor(o.time * 2.2);
+    drawGearBack(c, o.gear, x, y, d, flip, o.time, sc, a);
+    drawUniqueCharacter(c, skin.design, { x, y, dir: o.dir, frame: anim, moving: o.moving, attacking: o.attack > 0, time: o.time, scale: sc, alpha: a });
+    drawGearFront(c, o.gear, x, y, d, flip, o.time, sc, a);
+    return true;
+  }
   const renderSheet = skin.paletteFilter ? "player/base" : skin.sheet;
   if (!renderSheet || !kImage(renderSheet)) return false;
   const d = K_DIR[o.dir] ?? "down",

@@ -1,6 +1,7 @@
 import type { HeroSkin } from "./hero-sprite";
+import { uniqueDesign } from "./unique-character";
 
-/** Variações cromáticas: uma folha real + filtro CSS, sem URLs de arte inventadas. */
+/** Designs procedurais: cada skin muda silhueta, rosto, cabelo, roupa, acessório e arma. */
 export const HERO_SKIN_EXPANSION_COUNT = 200;
 const FAMILIES = [
   "Sentinela",
@@ -37,12 +38,13 @@ const MATERIALS = [
   "de Ônix",
 ] as const;
 const DESCRIPTIONS = [
-  "Tonalidade encontrada nos caminhos depois da tempestade.",
-  "Pigmento guardado por artesãos de uma cidade sem muralhas.",
-  "Cores que lembram uma promessa feita ao primeiro amanhecer.",
-  "Uma paleta discreta para atravessar fronteiras sem chamar o medo.",
-  "Brilho de relíquia, aplicado à silhueta clássica do aventureiro.",
+  "Silhueta de viajante com cabelo, roupa e acessório desenhados para esta identidade.",
+  "Armadura de fronteira com rosto e equipamento próprios, sem compartilhar o corpo-base.",
+  "Traje ritual com uma construção visual diferente em cada detalhe.",
+  "Equipamento artesanal criado para atravessar biomas e ruínas.",
+  "Design de personagem completo, com animação pixel-art e arma exclusiva.",
 ] as const;
+const WEAPONS = ["sword", "staff", "bow", "axe", "spear", "orb"] as const;
 
 export const EXPANDED_HERO_SKINS: HeroSkin[] = Array.from(
   { length: HERO_SKIN_EXPANSION_COUNT },
@@ -55,18 +57,15 @@ export const EXPANDED_HERO_SKINS: HeroSkin[] = Array.from(
       .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-");
-    const hue = (index * 47 + 19) % 360;
-    const saturation = (1.04 + (index % 13) * 0.035).toFixed(2);
-    const brightness = (0.88 + (index % 17) * 0.018).toFixed(2);
-    const contrast = (0.94 + (index % 11) * 0.015).toFixed(2);
+    const design = uniqueDesign(10_000 + index, WEAPONS[index % WEAPONS.length]);
 
     return {
-      id: `palette-fronteira-${String(index + 1).padStart(3, "0")}-${slug}`,
+      id: `design-fronteira-${String(index + 1).padStart(3, "0")}-${slug}`,
       name,
-      desc: `${DESCRIPTIONS[index % DESCRIPTIONS.length]!} Variação cromática ${String(index + 1).padStart(3, "0")}.`,
+      desc: `${DESCRIPTIONS[index % DESCRIPTIONS.length]!} Design ${String(index + 1).padStart(3, "0")}.`,
       sheet: "player/base",
       minLevel: 1 + ((index * 37 + 5) % 80),
-      paletteFilter: `hue-rotate(${hue}deg) saturate(${saturation}) brightness(${brightness}) contrast(${contrast})`,
+      design,
     };
   },
 );

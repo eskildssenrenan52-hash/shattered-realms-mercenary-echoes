@@ -2,6 +2,7 @@ import type { Game, Enemy } from "./engine";
 import { K_SHEETS, K_DIR, drawK } from "./kaetram";
 import { ITEMS, type Slot } from "./data";
 import { EXPANDED_MERCENARIES } from "./mercenary-expansion";
+import { drawUniqueCharacter, type UniqueCharacterDesign } from "./unique-character";
 
 export type MercRarity = "comum" | "incomum" | "raro" | "epico" | "lendario";
 export type MercRole = "guardiao" | "duelista" | "mago" | "curandeira" | "lenda";
@@ -35,6 +36,8 @@ export interface MercenaryDef {
   /** Nível mínimo e marco de progresso para o catálogo. */
   minLevel: number;
   progressKey?: string;
+  /** Design completo para os contratos expandidos; ausente nos IDs legados. */
+  design?: UniqueCharacterDesign;
 }
 
 export interface MercenaryRecord {
@@ -1768,13 +1771,17 @@ export function drawMercenaries(
         const frame =
           st.atk > 0 ? Math.min(3, Math.floor((1 - st.atk) * 4)) : moving ? st.walk : g.clock * 2.2;
         const wkey = `player/weapon/${d.weapon}`;
-        c.save();
-        c.filter = mercenaryFilter(m.id);
-        if (dir === "up") drawK(c, wkey, an, frame, m.x, m.y, flip);
-        const rendered = drawK(c, mercSheetKey(m.id), an, frame, m.x, m.y, flip);
-        if (dir !== "up") drawK(c, wkey, an, frame, m.x, m.y, flip);
-        c.restore();
-        if (!rendered) drawMercFallback(g, c, m, d);
+        if (d.design) {
+          drawUniqueCharacter(c, d.design, { x: m.x, y: m.y, dir: st.dir, frame, moving, attacking: st.atk > 0, time: g.clock });
+        } else {
+          c.save();
+          c.filter = mercenaryFilter(m.id);
+          if (dir === "up") drawK(c, wkey, an, frame, m.x, m.y, flip);
+          const rendered = drawK(c, mercSheetKey(m.id), an, frame, m.x, m.y, flip);
+          if (dir !== "up") drawK(c, wkey, an, frame, m.x, m.y, flip);
+          c.restore();
+          if (!rendered) drawMercFallback(g, c, m, d);
+        }
         c.fillStyle = "#271b22";
         c.fillRect(m.x - 9, m.y - 27, 18, 2);
         c.fillStyle = d.color;

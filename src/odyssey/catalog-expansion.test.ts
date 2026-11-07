@@ -57,12 +57,13 @@ describe("catálogos append-only de contratos e aparência", () => {
     expect(new Set(MERCENARIES.map((m) => m.id)).size).toBe(244);
     expect(
       MERCENARIES.slice(44).every(
-        (m) => m.sheet === "/kaetram/img/sprites/player/base.png" && m.portrait === m.sheet,
+        (m) => m.sheet === "/kaetram/img/sprites/player/base.png" && m.portrait === m.sheet && m.design,
       ),
     ).toBe(true);
+    expect(new Set(MERCENARIES.slice(44).map((m) => JSON.stringify(m.design))).size).toBe(200);
   });
 
-  it("mantém os 39 índices de skin legados e anexa 200 paletas reais", () => {
+  it("mantém os 39 índices de skin legados e anexa 200 designs reais", () => {
     const legacy = [
       "base",
       "danbo",
@@ -112,12 +113,12 @@ describe("catálogos append-only de contratos e aparência", () => {
     expect(new Set(added.map((s) => s.name)).size).toBe(200);
     expect(new Set(added.map((s) => s.id)).size).toBe(200);
     expect(new Set(added.map((s) => s.desc)).size).toBe(200);
-    expect(new Set(added.map((s) => s.paletteFilter)).size).toBe(200);
+    expect(new Set(added.map((s) => JSON.stringify(s.design))).size).toBe(200);
     expect(
       added.every(
         (s) =>
           s.sheet === "player/base" &&
-          s.paletteFilter?.startsWith("hue-rotate(") &&
+          s.design &&
           s.minLevel >= 1 &&
           s.minLevel <= 80,
       ),

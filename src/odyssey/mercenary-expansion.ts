@@ -1,10 +1,12 @@
 import type { MercenaryDef, MercRarity, MercRole } from "./mercenaries";
+import { uniqueDesign } from "./unique-character";
 
 /**
  * Catálogo paramétrico da segunda leva de contratos.
  *
- * As entradas deliberadamente compartilham a folha real do herói: identidade,
- * cor, filtro, atributos e texto variam sem prometer 200 sprites que não existem.
+ * As entradas mantêm a folha como fallback de compatibilidade, mas cada uma
+ * recebe um design procedural completo: silhueta, rosto, cabelo, roupa,
+ * acessórios, metal e arma são desenhados individualmente.
  * O índice é a parte estável do ID e do progressKey; não o altere depois de publicado.
  */
 export const MERCENARY_EXPANSION_COUNT = 200;
@@ -209,6 +211,8 @@ const ROLE_SKILLS: Record<MercRole, string> = {
   curandeira: "Pulso restaurador: cura o herói periodicamente",
   lenda: "Estandarte: aumenta o dano da companhia enquanto está saudável",
 };
+const designWeapon = (weapon: string) =>
+  weapon.includes("staff") ? "staff" : weapon.includes("bow") ? "bow" : weapon.includes("axe") ? "axe" : weapon.includes("spear") ? "spear" : weapon.includes("mace") ? "orb" : "sword";
 
 const slug = (value: string) =>
   value
@@ -226,8 +230,8 @@ export const EXPANDED_MERCENARIES: MercenaryDef[] = Array.from(
     const title = `${TITLE_ADJECTIVES[index % TITLE_ADJECTIVES.length]} ${TITLE_NOUNS[Math.floor(index / TITLE_ADJECTIVES.length)]!}`;
     const element = `${ELEMENT_ROOTS[index % ELEMENT_ROOTS.length]} ${ELEMENT_MODIFIERS[Math.floor(index / ELEMENT_ROOTS.length)]!}`;
     const id = `fronteira-${String(index + 1).padStart(3, "0")}-${slug(name)}`;
-    const hue = (index * 47 + 19) % 360;
     const minLevel = 1 + ((index * 79 + 13) % 80);
+    const weapon = WEAPONS[index % WEAPONS.length]!;
 
     return {
       id,
@@ -238,7 +242,7 @@ export const EXPANDED_MERCENARIES: MercenaryDef[] = Array.from(
       element,
       portrait: "/kaetram/img/sprites/player/base.png",
       sheet: "/kaetram/img/sprites/player/base.png",
-      weapon: WEAPONS[index % WEAPONS.length]!,
+      weapon,
       maxHp: 80 + index,
       atk: 9 + ((index * 7 + roleIndex) % 40),
       def: 3 + ((index * 11 + roleIndex * 2) % 28),
@@ -254,9 +258,10 @@ export const EXPANDED_MERCENARIES: MercenaryDef[] = Array.from(
       lore: `${LORE_OPENERS[index % LORE_OPENERS.length]!} ${LORE_ENDINGS[Math.floor(index / LORE_OPENERS.length)]!}; seu diário registra a rota ${String(index + 1).padStart(3, "0")}.`,
       contract: `${CONTRACT_OPENERS[index % CONTRACT_OPENERS.length]!} ${CONTRACT_ENDINGS[Math.floor(index / CONTRACT_OPENERS.length)]!}; o selo ${String(index + 1).padStart(3, "0")} ainda brilha.`,
       skill: `${ROLE_SKILLS[role]}; protocolo de companhia ${String(index + 1).padStart(3, "0")}.`,
-      color: `hsl(${hue} 72% 62%)`,
+      color: `hsl(${(index * 47 + 19) % 360} 72% 62%)`,
       minLevel,
       progressKey: `catalog:fronteira:${String(index + 1).padStart(3, "0")}`,
+      design: uniqueDesign(20_000 + index, designWeapon(weapon)),
     };
   },
 );

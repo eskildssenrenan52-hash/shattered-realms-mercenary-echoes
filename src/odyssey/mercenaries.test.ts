@@ -90,14 +90,16 @@ describe("mercenários", () => {
     expect(new Set(added.map((m) => m.color)).size).toBe(24);
   });
 
-  it("usa folhas e retratos reais compartilhados, filtro determinístico e armas disponíveis", () => {
-    for (const m of MERCENARIES) {
+  it("preserva folhas legadas e usa designs completos nos contratos novos", () => {
+    for (const m of MERCENARIES.slice(0, 44)) {
       expect(m.sheet).toBe("/kaetram/img/sprites/player/base.png");
       expect(m.portrait).toBe("/kaetram/img/sprites/player/base.png");
       expect(K_SHEETS[mercSheetKey(m.id)]?.url).toBe("/kaetram/img/sprites/player/base.png");
       expect(K_SHEETS[`player/weapon/${m.weapon}`]).toBeTruthy();
       expect(mercenaryFilter(m.id)).toContain("hue-rotate");
     }
+    expect(MERCENARIES.slice(44).every((m) => m.design && K_SHEETS[`player/weapon/${m.weapon}`])).toBe(true);
+    expect(new Set(MERCENARIES.slice(44).map((m) => JSON.stringify(m.design))).size).toBe(200);
   });
 
   it("oferece 24 skins de paleta no fim sem alterar índices legados", () => {
