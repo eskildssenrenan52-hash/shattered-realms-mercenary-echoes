@@ -103,8 +103,7 @@ describe("mercenários", () => {
   it("oferece 24 skins de paleta no fim sem alterar índices legados", () => {
     expect(HERO_SKINS.slice(0, 9).every((s) => s.sheet.startsWith("player/"))).toBe(true);
     expect(HERO_SKINS.slice(9, 15).every((s) => s.sheet.startsWith("hero/") && s.ai)).toBe(true);
-    const palette = HERO_SKINS.slice(15);
-    expect(palette.length).toBeGreaterThanOrEqual(24);
+    const palette = HERO_SKINS.slice(15, 39);
     expect(palette).toHaveLength(24);
     expect(
       palette.every((s) => s.sheet.startsWith("hero/palette/") && s.paletteFilter && s.ai),
@@ -141,6 +140,7 @@ describe("mercenários", () => {
 
   it("não cobra quando o pool está vazio", () => {
     const g = fake();
+    g.p.level = 80;
     for (const def of MERCENARIES) {
       if (def.progressKey) g.mercenaries.chapters.push(def.progressKey);
       expect(recruitMercenary(g, def.id)).toBe(true);

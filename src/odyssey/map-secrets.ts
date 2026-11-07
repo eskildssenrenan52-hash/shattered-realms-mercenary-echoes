@@ -7,7 +7,9 @@ export const MAP_SECRET_CHUNK = 80;
 export const MAP_SECRET_COLUMNS = Math.ceil(W / MAP_SECRET_CHUNK);
 export const MAP_SECRET_ROWS = Math.ceil(H / MAP_SECRET_CHUNK);
 export const MAP_SECRET_CHUNK_COUNT = MAP_SECRET_COLUMNS * MAP_SECRET_ROWS;
-const BASE_PER_CHUNK = 37;
+// A área dobrou horizontalmente; reduza a densidade por chunk para preservar
+// o total legado de 44.350 locais e não transformar a expansão em inflação de loot.
+const BASE_PER_CHUNK = 19;
 const REDUCED_CHUNKS = MAP_SECRET_CHUNK_COUNT * BASE_PER_CHUNK - MAP_SECRET_TOTAL;
 const MAX_CHUNK_CACHE = 64;
 

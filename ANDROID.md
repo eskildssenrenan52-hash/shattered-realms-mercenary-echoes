@@ -43,3 +43,7 @@ Para habilitar o servidor dedicado, informe `multiplayer_ws_url` com a URL compl
 ## APK de teste publicado
 
 A build atual está no [GitHub Release android-apk-3](https://github.com/eskildssenrenan52-hash/shattered-realms-mercenary-echoes/releases/tag/android-apk-3): [baixar `app-debug.apk`](https://github.com/eskildssenrenan52-hash/shattered-realms-mercenary-echoes/releases/download/android-apk-3/app-debug.apk) (69.825.590 bytes). SHA-256: `7cd2f2c5b96ef904966ee4a4b0e8d1782461a83b33f1826726f28e0e493daea4`. GitHub Actions passou testes, typecheck, bundle offline e `assembleDebug`; o APK foi baixado e validado como pacote Android/ZIP. A assinatura é debug, não distribuição de loja.
+
+## Worker Cloudflare gratuito opcional
+
+O código de `server/cloudflare/` está pronto para deploy em Workers + Durable Objects SQLite e mantém o protocolo WSS do jogo. Ele foi validado localmente, mas não existe uma URL pública nesta entrega porque a conta Cloudflare acessível não expôs nenhum account/namespace. Depois de conectar uma conta gratuita com a permissão necessária, execute o fluxo descrito em [`server/cloudflare/README.md`](server/cloudflare/README.md), confirme `GET /healthz` e use a URL completa `wss://<worker>/ws` no input `multiplayer_ws_url` do workflow. Sem esse input, o APK segue independente e usa o transporte P2P legado; o modo solo não depende do servidor.

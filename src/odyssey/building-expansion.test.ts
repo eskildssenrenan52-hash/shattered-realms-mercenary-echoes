@@ -219,4 +219,32 @@ describe("expansão procedural de construções", () => {
     ).toBe(true);
     expect(local.length).toBeLessThan(BUILDINGS.length);
   });
+
+  it("mantém o prefixo Frontier legado e só depois emite as colunas novas", () => {
+    const generated = generateFrontierBuildings(0);
+    expect(generated.length).toBeGreaterThanOrEqual(1000);
+    const legacyCount = Math.min(1000, generated.length),
+      legacyPrefix = generated.slice(0, legacyCount);
+    expect(legacyPrefix.map((building) => building.id)).toEqual(
+      legacyPrefix.map((_, index) => `frontier-building-${String(index + 1).padStart(4, "0")}`),
+    );
+    expect(legacyPrefix.every((building) => building.x < 3200)).toBe(true);
+    const firstNew = generated.findIndex((building) => building.x >= 3200);
+    expect(firstNew === -1 || firstNew >= 1000).toBe(true);
+    if (firstNew >= 0) expect(generated.slice(firstNew).every((building) => building.x >= 3200)).toBe(true);
+  });
+
+  it("oferece vinte famílias e vinte layouts interiores determinísticos", () => {
+    const generated = BUILDINGS.slice(52),
+      architectures = new Set(generated.map((building) => building.architecture)),
+      layouts = new Set(generated.map((building) => interiorPlanOf(building).layout));
+    expect(architectures.size).toBeGreaterThanOrEqual(20);
+    expect(layouts.size).toBeGreaterThanOrEqual(20);
+    for (const building of generated.slice(0, 40)) {
+      const plan = interiorPlanOf(building, building.objective?.floor ?? 1);
+      expect(plan.architecture).toBe(building.architecture);
+      expect(plan.obstacles.length).toBeGreaterThanOrEqual(3);
+      expect(plan).toEqual(interiorPlanOf(building, building.objective?.floor ?? 1));
+    }
+  });
 });

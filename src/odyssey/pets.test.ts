@@ -34,8 +34,9 @@ describe("Pet progression and imported skins", () => {
     const st = freshPets(); const a = makePet(st,"rato",rng); const b = makePet(st,"gato",rng); adopt(st,a); adopt(st,b);
     setActive(st,b.uid); toggleTeam(st,b.uid); expect(st.active).toBe(a.uid);
   });
-  it("keeps the nine Kaetram skins first, then AI skins appended", () => {
-    expect(HERO_SKINS.slice(0,9).every(s => s.sheet.startsWith("player/"))).toBe(true); expect(HERO_SKINS.slice(9).every(s => s.sheet.startsWith("hero/"))).toBe(true);
+  it("keeps the nine Kaetram skins first, AI skins next, then palettes append-only", () => {
+    expect(HERO_SKINS.slice(0,9).every(s => s.sheet.startsWith("player/"))).toBe(true); expect(HERO_SKINS.slice(9,15).every(s => s.sheet.startsWith("hero/") && s.ai)).toBe(true);
+    expect(HERO_SKINS.slice(15).every(s => s.sheet.startsWith("hero/palette/") || s.sheet === "player/base")).toBe(true);
     expect(skinUnlocked(8,14)).toBe(false); expect(skinUnlocked(8,15)).toBe(true);
   });
 });

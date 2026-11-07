@@ -50,6 +50,9 @@ export interface BuildingObjective {
 
 export interface InteriorPlan {
   variant: number;
+  architecture: string;
+  layout: string;
+  obstacles: Array<{ tx: number; ty: number; w: number; h: number }>;
   objective: { tx: number; ty: number } | null;
   stairUp: { tx: number; ty: number } | null;
   stairDown: { tx: number; ty: number } | null;
@@ -77,6 +80,8 @@ export interface Building {
   designSignature?: string;
   palette?: BuildingPalette;
   facade?: number;
+  /** Família visual aditiva; não participa da assinatura persistida. */
+  architecture?: string;
   objective?: BuildingObjective;
   interiorPlan?: InteriorPlan;
 }
@@ -754,6 +759,72 @@ const rewardItems = [
   "frost_herb",
   "desert_rose",
 ] as const;
+const ARCHITECTURE_FAMILIES = [
+  "pátio-jardim",
+  "torre-ampulheta",
+  "claustro-lunar",
+  "cúpula-de-vidro",
+  "casa-barco",
+  "salão-de-arcos",
+  "cabana-raiz",
+  "observatório-espiral",
+  "oficina-brasa",
+  "arquivo-hexagonal",
+  "estufa-cristal",
+  "ponte-suspensa",
+  "cripta-mosaico",
+  "mercado-circular",
+  "fortim-escalonado",
+  "santuário-cascata",
+  "galeria-de-âmbar",
+  "torre-de-bambu",
+  "mina-terraceada",
+  "ruína-estelar",
+] as const;
+const INTERIOR_LAYOUTS = [
+  "corredor-central",
+  "alas-gêmeas",
+  "bancadas-norte",
+  "pilares-alternados",
+  "varanda-leste",
+  "arquivo-em-leque",
+  "fornalha-lateral",
+  "estufas-pares",
+  "círculo-aberto",
+  "oficina-em-L",
+  "nicho-oeste",
+  "salão-em-degraus",
+  "mesa-diagonal",
+  "galeria-vazia",
+  "depósito-sul",
+  "altar-recuado",
+  "bancadas-cruzadas",
+  "janela-panorâmica",
+  "câmara-de-veios",
+  "ruína-com-pórtico",
+] as const;
+const INTERIOR_OBSTACLES: Array<Array<[number, number, number, number]>> = [
+  [[108, 96, 4, 2], [126, 96, 4, 2], [108, 102, 3, 2]],
+  [[107, 96, 3, 2], [125, 96, 3, 2], [124, 102, 4, 2]],
+  [[109, 96, 5, 2], [124, 100, 4, 2], [108, 104, 3, 2]],
+  [[108, 97, 2, 3], [126, 97, 2, 3], [124, 103, 4, 2]],
+  [[107, 96, 4, 2], [126, 100, 4, 2], [108, 104, 4, 2]],
+  [[108, 96, 3, 2], [113, 96, 3, 2], [125, 96, 3, 2]],
+  [[108, 101, 4, 2], [126, 101, 4, 2], [108, 96, 2, 2]],
+  [[107, 96, 3, 2], [111, 96, 3, 2], [125, 96, 3, 2]],
+  [[108, 97, 3, 2], [125, 97, 3, 2], [108, 103, 3, 2]],
+  [[108, 96, 4, 2], [125, 100, 4, 2], [108, 104, 3, 2]],
+  [[107, 98, 3, 2], [126, 98, 3, 2], [112, 104, 4, 2]],
+  [[108, 96, 3, 2], [125, 96, 3, 2], [108, 103, 4, 2]],
+  [[107, 97, 4, 2], [125, 101, 4, 2], [108, 104, 2, 2]],
+  [[109, 96, 3, 2], [124, 96, 3, 2], [109, 103, 3, 2]],
+  [[108, 98, 4, 2], [125, 98, 4, 2], [108, 104, 4, 2]],
+  [[108, 96, 3, 2], [125, 96, 3, 2], [112, 103, 3, 2]],
+  [[107, 97, 3, 2], [126, 97, 3, 2], [108, 103, 4, 2]],
+  [[108, 96, 4, 2], [125, 102, 4, 2], [108, 104, 2, 2]],
+  [[109, 97, 3, 2], [124, 97, 3, 2], [108, 103, 3, 2]],
+  [[107, 96, 3, 2], [125, 96, 3, 2], [112, 104, 4, 2]],
+];
 
 function paletteForLegacy(b: Building, index: number): BuildingPalette {
   const base = LEGACY_PALETTES[index % LEGACY_PALETTES.length]!;
@@ -919,6 +990,7 @@ function generatedBuilding(
   ]!;
   const biome = frontierBiomeAt(x, y) as Biome;
   const facade = Math.floor(hash(index, seed, 23) * 6);
+  const architecture = ARCHITECTURE_FAMILIES[index % ARCHITECTURE_FAMILIES.length]!;
   const floors = 1 + Math.floor(hash(index, seed, 31) * 12);
   const biomeName = FRONTIER[biome as keyof typeof FRONTIER]?.name ?? biome;
   const ordinal = String(index + 1).padStart(4, "0");
@@ -971,6 +1043,7 @@ function generatedBuilding(
     designSignature: signature,
     palette: generatedPalette(biome, index, facade),
     facade,
+    architecture,
     objective,
   };
 }
@@ -986,9 +1059,12 @@ export function generateFrontierBuildings(seed = 0): Building[] {
   }));
   const targetPerSector = 11;
   const sectorsX = Math.ceil(W / LEGACY_W),
-    sectorsY = Math.ceil(H / LEGACY_H);
+    sectorsY = Math.ceil(H / LEGACY_H),
+    legacySectorsX = Math.min(10, sectorsX);
+  // Esta passagem é deliberadamente idêntica à enumeração histórica 10×10:
+  // nenhum setor novo pode consumir um slot antes dos prédios persistidos.
   for (let sy = 0; sy < sectorsY; sy++)
-    for (let sx = 0; sx < sectorsX; sx++) {
+    for (let sx = 0; sx < legacySectorsX; sx++) {
       if (sx === 0 && sy === 0) continue;
       const slots = Array.from({ length: 8 * 7 }, (_, slot) => slot).sort(
         (a, b) => hash(a, sx + seed, sy + 101) - hash(b, sx + seed, sy + 101),
@@ -1012,7 +1088,7 @@ export function generateFrontierBuildings(seed = 0): Building[] {
   // A segunda malha só é usada se um bioma muito ocupado rejeitar slots da primeira.
   if (generated.length < 1000) {
     for (let sy = 0; sy < sectorsY && generated.length < 1008; sy++)
-      for (let sx = 0; sx < sectorsX && generated.length < 1008; sx++) {
+      for (let sx = 0; sx < legacySectorsX && generated.length < 1008; sx++) {
         if (sx === 0 && sy === 0) continue;
         for (let row = 0; row < 12 && generated.length < 1008; row++)
           for (let col = 0; col < 14 && generated.length < 1008; col++) {
@@ -1029,6 +1105,29 @@ export function generateFrontierBuildings(seed = 0): Building[] {
           }
       }
   }
+  // Só depois do prefixo legado entram as colunas 10–19 do mundo dobrado.
+  // Elas recebem IDs consecutivos novos, sem renumerar andares/descobertas antigas.
+  for (let sy = 0; sy < sectorsY; sy++)
+    for (let sx = legacySectorsX; sx < sectorsX; sx++) {
+      const slots = Array.from({ length: 8 * 7 }, (_, slot) => slot).sort(
+        (a, b) => hash(a, sx + seed, sy + 101) - hash(b, sx + seed, sy + 101),
+      );
+      let made = 0;
+      for (const slot of slots) {
+        if (made >= targetPerSector) break;
+        const col = slot % 8,
+          row = Math.floor(slot / 8);
+        const x = sx * LEGACY_W + 8 + col * 38 + Math.floor(hash(slot, sx + seed, sy + 7) * 4);
+        const y = sy * LEGACY_H + 8 + row * 31 + Math.floor(hash(slot, sy + seed, sx + 13) * 4);
+        const w = 5 + Math.floor(hash(slot, sx + 19, sy + seed) * 4);
+        const h = 4 + Math.floor(hash(slot, sy + 23, sx + seed) * 4);
+        const rect = { x, y, w, h: h + 4 };
+        if (protectedRect(rect) || occupied.some((other) => overlaps(rect, other, 3))) continue;
+        generated.push(generatedBuilding(generated.length, x, y, w, h, seed));
+        occupied.push(rect);
+        made++;
+      }
+    }
   return generated;
 }
 
@@ -1058,14 +1157,17 @@ export function interiorPlanOf(b: Building, floor = 1): InteriorPlan {
   const total = buildingFloors(b),
     current = Math.max(1, Math.min(total, Math.floor(floor)));
   const seed = interiorSeed(b),
-    variant = Math.abs(seed + current * 17) % 6;
+    variant = Math.abs(seed + current * 17) % INTERIOR_LAYOUTS.length,
+    architecture = b.architecture ?? ARCHITECTURE_FAMILIES[variant % ARCHITECTURE_FAMILIES.length]!,
+    layout = INTERIOR_LAYOUTS[variant]!,
+    obstacles = INTERIOR_OBSTACLES[variant]!.map(([tx, ty, w, h]) => ({ tx, ty, w, h }));
   const objective =
     b.objective && b.objective.floor === current
-      ? { tx: 114 + (variant % 3) * 5, ty: 99 + Math.floor(variant / 3) * 4 }
+      ? { tx: 114 + (variant % 3) * 5, ty: 99 + (Math.floor(variant / 3) % 2) * 4 }
       : null;
   const stairUp = current < total ? { tx: 128 - (variant % 2) * 3, ty: 106 } : null;
   const stairDown = current > 1 ? { tx: 111 + (variant % 2) * 3, ty: 106 } : null;
-  return { variant, objective, stairUp, stairDown };
+  return { variant, architecture, layout, obstacles, objective, stairUp, stairDown };
 }
 export const buildingEnteredKey = (id: string) => `building:${id}:entered`;
 export const buildingFloorKey = (id: string, floor: number) =>
@@ -1121,21 +1223,7 @@ export function createInterior(b: Building, floor = 1, reuse?: World): World {
     world.tiles[y * W + ROOM.left] = T.PANEL;
     world.tiles[y * W + ROOM.left + ROOM.width - 1] = T.PANEL;
   }
-  const furniture =
-    plan.variant % 2 === 0
-      ? [
-          [108, 96, 4, 2],
-          [126, 96, 4, 2],
-          [114, 101, 4, 2],
-          [126, 103, 3, 3],
-        ]
-      : [
-          [108, 97, 3, 2],
-          [128, 97, 3, 2],
-          [113, 102, 3, 2],
-          [124, 103, 4, 2],
-        ];
-  for (const [x, y, w, h] of furniture)
+  for (const { tx: x, ty: y, w, h } of plan.obstacles)
     for (let dy = 0; dy < h; dy++)
       for (let dx = 0; dx < w; dx++) {
         const tx = x + dx,

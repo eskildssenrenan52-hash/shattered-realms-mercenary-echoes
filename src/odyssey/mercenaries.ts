@@ -1,6 +1,7 @@
 import type { Game, Enemy } from "./engine";
 import { K_SHEETS, K_DIR, drawK } from "./kaetram";
 import { ITEMS, type Slot } from "./data";
+import { EXPANDED_MERCENARIES } from "./mercenary-expansion";
 
 export type MercRarity = "comum" | "incomum" | "raro" | "epico" | "lendario";
 export type MercRole = "guardiao" | "duelista" | "mago" | "curandeira" | "lenda";
@@ -1143,6 +1144,8 @@ export const MERCENARIES: MercenaryDef[] = [
     progressKey: "catalog:vivi-constelacao",
   }),
 ];
+// Append-only: saves refer to these records by string ID, so the legacy prefix stays byte-for-byte ordered.
+MERCENARIES.push(...EXPANDED_MERCENARIES);
 export const MERC_BY_ID = Object.fromEntries(MERCENARIES.map((m) => [m.id, m]));
 /** Cada contrato reutiliza a folha real do herói; a cor determinística evita 44 URLs inventadas. */
 export const mercSheetKey = (id: string) => `merc/${id}`;

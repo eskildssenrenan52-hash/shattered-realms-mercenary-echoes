@@ -1,33 +1,21 @@
-// Irregular continent + organic frontier regions + random road graph.
+// Irregular continent + organic frontier regions + deterministic sector frontier.
 // Tile ids are literals here (not imported) to avoid a circular-import init order issue with ./world.
-import { FRONTIER, FRONTIER_KEYS, FRONTIER_GATES, LEGACY_W, LEGACY_H, type FrontierBiome } from './frontier';
+import { FRONTIER, FRONTIER_KEYS, FRONTIER_GATES, LEGACY_W, LEGACY_H, LEGACY_WORLD_W, type FrontierBiome, frontierBiomeAt } from './frontier';
 import { hash, noise } from './world';
 
-const WATER = 3, ROCK = 7, WALL = 14, PILLAR = 18, CRYSTAL = 12, PINE = 16, DTREE = 20, AUTUMN_TREE = 27, MUSHROOM = 32, TREE = 4, PALM = 29, LAVA = 30, CACTUS = 21;
+const WATER = 3, ROCK = 7, WALL = 14, PILLAR = 18, CRYSTAL = 12, PINE = 16, DTREE = 20, AUTUMN_TREE = 27, MUSHROOM = 32, TREE = 4, PALM = 29, LAVA = 30;
 const SOLID_IDS = new Set([3, 4, 7, 11, 12, 14, 15, 16, 18, 20, 21, 23, 25, 27, 29, 30, 32]);
 
 export type Layout = 'groves' | 'maze' | 'rings' | 'ridges' | 'terraces' | 'cells' | 'rooms';
 /** Each frontier biome organises its walls and structures differently. */
 export const BIOME_LAYOUT: Record<FrontierBiome, { layout: Layout; wall: number; pool?: number }> = {
-  sakura: { layout: 'groves', wall: TREE },
-  moonwood: { layout: 'cells', wall: DTREE },
-  prism: { layout: 'maze', wall: CRYSTAL },
-  coral: { layout: 'cells', wall: PALM, pool: WATER },
-  bamboo: { layout: 'terraces', wall: PALM },
-  thunder: { layout: 'ridges', wall: ROCK },
-  obsidian: { layout: 'ridges', wall: ROCK, pool: LAVA },
-  sunflower: { layout: 'rings', wall: AUTUMN_TREE },
-  lavender: { layout: 'terraces', wall: MUSHROOM },
-  mangrove: { layout: 'cells', wall: DTREE, pool: WATER },
-  aurora: { layout: 'rings', wall: PINE },
-  amber: { layout: 'ridges', wall: ROCK },
-  spores: { layout: 'cells', wall: MUSHROOM },
-  lotus: { layout: 'rings', wall: TREE, pool: WATER },
-  marble: { layout: 'maze', wall: PILLAR },
-  crimson: { layout: 'groves', wall: AUTUMN_TREE },
-  oasis: { layout: 'rooms', wall: WALL, pool: WATER },
+  sakura: { layout: 'groves', wall: TREE }, moonwood: { layout: 'cells', wall: DTREE }, prism: { layout: 'maze', wall: CRYSTAL },
+  coral: { layout: 'cells', wall: PALM, pool: WATER }, bamboo: { layout: 'terraces', wall: PALM }, thunder: { layout: 'ridges', wall: ROCK },
+  obsidian: { layout: 'ridges', wall: ROCK, pool: LAVA }, sunflower: { layout: 'rings', wall: AUTUMN_TREE }, lavender: { layout: 'terraces', wall: MUSHROOM },
+  mangrove: { layout: 'cells', wall: DTREE, pool: WATER }, aurora: { layout: 'rings', wall: PINE }, amber: { layout: 'ridges', wall: ROCK },
+  spores: { layout: 'cells', wall: MUSHROOM }, lotus: { layout: 'rings', wall: TREE, pool: WATER }, marble: { layout: 'maze', wall: PILLAR },
+  crimson: { layout: 'groves', wall: AUTUMN_TREE }, oasis: { layout: 'rooms', wall: WALL, pool: WATER },
 };
-void CACTUS;
 
 export function rng(seed: number) {
   let a = seed >>> 0;
@@ -59,7 +47,8 @@ const blend = (v: number, lo: number, hi: number) => Math.max(0, Math.min(1, (v 
 
 export interface Shape { land(x: number, y: number): boolean; legacy(x: number, y: number): boolean }
 
-/** Coastline with random bays/peninsulas on every side, inland lakes, and a ragged legacy border. */
+/** Coastline with random bays/peninsulas and a ragged border. The old right edge is
+ * deliberately evaluated at 3200 so expanding the backing array cannot move old shores. */
 export function createShape(W: number, H: number, seed = 0): Shape {
   const top = line(W, 170, 201 + seed), bottom = line(W, 150, 203 + seed), left = line(H, 160, 205 + seed), right = line(H, 140, 207 + seed);
   const lw = line(H, 36, 211 + seed), lh = line(W, 36, 213 + seed);
@@ -80,7 +69,10 @@ export function createShape(W: number, H: number, seed = 0): Shape {
   return {
     legacy,
     land(x, y) {
-      if (x < thrL[y] || y < thrT[x] || W - x < thrR[y] || H - y < thrB[x]) return false;
+      if (x < 0 || y < 0 || x >= W || y >= H) return false;
+      // Preserve the complete old coastline, not only the 320×240 tutorial island.
+      const rightWidth = x < LEGACY_WORLD_W ? LEGACY_WORLD_W : W;
+      if (x < thrL[y] || y < thrT[x] || rightWidth - x < thrR[y] || H - y < thrB[x]) return false;
       if (!legacy(x, y) && lakes.at(x, y) > 0.73) return false;
       return true;
     },
@@ -95,116 +87,90 @@ export interface PaintCtx {
   road: (pts: [number, number][], width?: number) => void;
 }
 
-export function paintFrontier(o: PaintCtx, seed = 0) {
-  const { tiles, biomes, W, H, shape } = o;
-  const r = rng(0x5eed1e + seed);
-  const h = (x: number, y: number, s = 0) => hash(x, y, s + seed);
-  const n = (x: number, y: number, s = 0) => noise(x, y, s + seed);
+function paintLegacyFrontier(o: PaintCtx, seed: number) {
+  const { tiles, biomes, H, shape } = o, W = Math.min(o.W, LEGACY_WORLD_W), r = rng(0x5eed1e + seed);
+  const h = (x: number, y: number, s = 0) => hash(x, y, s + seed), n = (x: number, y: number, s = 0) => noise(x, y, s + seed);
   const seeds: Seed[] = FRONTIER_GATES.map(g => ({ x: g.tx, y: g.ty, biome: g.biome, s: 1 }));
   for (let tries = 0; seeds.length < 135 && tries < 6000; tries++) {
     const x = 20 + r() * (W - 40), y = 20 + r() * (H - 40);
     if (shape.legacy(x, y) || !shape.land(x | 0, y | 0)) continue;
     const minD = 80 + r() * 80;
     if (seeds.some(s => Math.hypot(s.x - x, s.y - y) < minD)) continue;
-    seeds.push({ x, y, biome: FRONTIER_KEYS[Math.floor(r() * FRONTIER_KEYS.length)], s: 0.55 + r() * 1.0 });
+    seeds.push({ x, y, biome: FRONTIER_KEYS[Math.floor(r() * FRONTIER_KEYS.length)]!, s: 0.55 + r() * 1.0 });
   }
-  // Weighted (power) Voronoi on a coarse grid; per-tile domain warp makes the borders organic.
-  const gw = Math.ceil(W / C) + 2, gh = Math.ceil(H / C) + 2;
-  const region = new Uint16Array(gw * gh);
+  const gw = Math.ceil(W / C) + 2, gh = Math.ceil(H / C) + 2, region = new Uint16Array(gw * gh);
   for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) {
     const x = i * C, y = j * C; let best = 0, bd = Infinity;
-    for (let k = 0; k < seeds.length; k++) { const s = seeds[k], d = ((s.x - x) ** 2 + (s.y - y) ** 2) / (s.s * s.s); if (d < bd) { bd = d; best = k; } }
+    for (let k = 0; k < seeds.length; k++) { const s = seeds[k]!, d = ((s.x - x) ** 2 + (s.y - y) ** 2) / (s.s * s.s); if (d < bd) { bd = d; best = k; } }
     region[j * gw + i] = best;
   }
   const wx = field(gw, gh, (i, j) => (n(i / 5, j / 5, 231) - 0.5) * 34 + (n(i / 1.7, j / 1.7, 233) - 0.5) * 12);
   const wy = field(gw, gh, (i, j) => (n(i / 5, j / 5, 235) - 0.5) * 34 + (n(i / 1.7, j / 1.7, 237) - 0.5) * 12);
-  const fa = field(gw, gh, (i, j) => n(i / 3.2, j / 3.2, 241));
-  const fb = field(gw, gh, (i, j) => n(i / 1.4, j / 1.4, 243));
+  const fa = field(gw, gh, (i, j) => n(i / 3.2, j / 3.2, 241)), fb = field(gw, gh, (i, j) => n(i / 1.4, j / 1.4, 243));
   const ids = FRONTIER_KEYS.map(k => o.biomeId(k));
-
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     if (shape.legacy(x, y)) continue;
-    const idx = y * W + x;
-    const ci = Math.max(0, Math.min(gw - 1, Math.round((x + wx.at(x, y)) / C)));
-    const cj = Math.max(0, Math.min(gh - 1, Math.round((y + wy.at(x, y)) / C)));
-    const sid = region[cj * gw + ci], s = seeds[sid], b = s.biome, d = FRONTIER[b], L = BIOME_LAYOUT[b];
-    biomes[idx] = ids[FRONTIER_KEYS.indexOf(b)];
+    const idx = y * o.W + x, ci = Math.max(0, Math.min(gw - 1, Math.round((x + wx.at(x, y)) / C))), cj = Math.max(0, Math.min(gh - 1, Math.round((y + wy.at(x, y)) / C)));
+    const sid = region[cj * gw + ci]!, s = seeds[sid]!, b = s.biome, d = FRONTIER[b]!, L = BIOME_LAYOUT[b]!;
+    biomes[idx] = ids[FRONTIER_KEYS.indexOf(b)]!;
     if (!shape.land(x, y) && !FRONTIER_GATES.some(g => Math.abs(g.tx - x) < 30 && Math.abs(g.ty - y) < 30)) { tiles[idx] = WATER; continue; }
-    const rr = h(x, y, 777), a = fa.at(x, y), bb = fb.at(x, y);
-    let t: number = d.ground;
-    const scatter = rr > 0.982 ? d.obstacle : -1;
-    const lx = Math.floor(x - s.x + 9000), ly = Math.floor(y - s.y + 9000);
+    const rr = h(x, y, 777), a = fa.at(x, y), bb = fb.at(x, y); let t: number = d.ground;
+    const scatter = rr > 0.982 ? d.obstacle : -1, lx = Math.floor(x - s.x + 9000), ly = Math.floor(y - s.y + 9000);
     switch (L.layout) {
       case 'groves': if (a > 0.64 || bb > 0.8) t = L.wall; else if (scatter >= 0) t = scatter; break;
-      case 'maze': {
-        const cs = 11, gx = lx % cs, gy = ly % cs, cx = Math.floor(lx / cs), cy = Math.floor(ly / cs);
-        if ((gx === 0 && h(cx, cy, 301 + sid) > 0.42 && (gy < 4 || gy > 6)) || (gy === 0 && h(cx, cy, 303 + sid) > 0.42 && (gx < 4 || gx > 6))) t = L.wall;
-        else if (rr > 0.99) t = d.obstacle;
-        break;
-      }
-      case 'rings': {
-        const dd = Math.hypot(x - s.x, y - s.y), band = Math.floor(dd / 17);
-        const seg = Math.floor(((Math.atan2(y - s.y, x - s.x) + Math.PI) / (Math.PI * 2)) * (8 + band * 3));
-        if (dd > 9 && dd % 17 < 1.5 && h(seg, band, 307 + sid) > 0.3) t = L.wall; else if (scatter >= 0) t = scatter;
-        break;
-      }
-      case 'ridges':
-        if ((Math.abs(a - 0.5) < 0.022 || Math.abs(bb - 0.5) < 0.016) && h(x >> 3, y >> 3, 311 + sid) > 0.18) t = L.wall;
-        else if (rr > 0.975) t = d.obstacle;
-        break;
-      case 'terraces': {
-        const band = (y + a * 40) / 13, f = band - Math.floor(band);
-        if (f < 0.09 && h(Math.floor(x / 8), Math.floor(band), 313 + sid) > 0.32) t = L.wall; else if (scatter >= 0) t = scatter;
-        break;
-      }
-      case 'cells': {
-        const f = (a * 6) % 1;
-        if (f < 0.07 && h(x >> 2, y >> 2, 317 + sid) > 0.25) t = L.wall; else if (scatter >= 0) t = scatter;
-        break;
-      }
-      case 'rooms': {
-        const cs = 17, gx = lx % cs, gy = ly % cs, roomHash = h(Math.floor(lx / cs), Math.floor(ly / cs), 319 + sid);
-        const rw = 6 + Math.floor(roomHash * 97) % 7, rh = 5 + Math.floor(roomHash * 53) % 6;
-        const inRoom = roomHash > 0.45 && gx >= 2 && gy >= 2 && gx <= 2 + rw && gy <= 2 + rh;
-        const border = inRoom && (gx === 2 || gy === 2 || gx === 2 + rw || gy === 2 + rh);
-        const door = gy === 2 + rh && Math.abs(gx - (2 + (rw >> 1))) < 1 || gx === 2 && roomHash > 0.8 && gy === 2 + (rh >> 1);
-        if (border && !door) t = L.wall; else if (!inRoom && scatter >= 0) t = scatter;
-        break;
-      }
+      case 'maze': { const cs = 11, gx = lx % cs, gy = ly % cs, cx = Math.floor(lx / cs), cy = Math.floor(ly / cs); if ((gx === 0 && h(cx, cy, 301 + sid) > 0.42 && (gy < 4 || gy > 6)) || (gy === 0 && h(cx, cy, 303 + sid) > 0.42 && (gx < 4 || gx > 6))) t = L.wall; else if (rr > 0.99) t = d.obstacle; break; }
+      case 'rings': { const dd = Math.hypot(x - s.x, y - s.y), band = Math.floor(dd / 17), seg = Math.floor(((Math.atan2(y - s.y, x - s.x) + Math.PI) / (Math.PI * 2)) * (8 + band * 3)); if (dd > 9 && dd % 17 < 1.5 && h(seg, band, 307 + sid) > 0.3) t = L.wall; else if (scatter >= 0) t = scatter; break; }
+      case 'ridges': if ((Math.abs(a - 0.5) < 0.022 || Math.abs(bb - 0.5) < 0.016) && h(x >> 3, y >> 3, 311 + sid) > 0.18) t = L.wall; else if (rr > 0.975) t = d.obstacle; break;
+      case 'terraces': { const band = (y + a * 40) / 13, f = band - Math.floor(band); if (f < 0.09 && h(Math.floor(x / 8), Math.floor(band), 313 + sid) > 0.32) t = L.wall; else if (scatter >= 0) t = scatter; break; }
+      case 'cells': { const f = (a * 6) % 1; if (f < 0.07 && h(x >> 2, y >> 2, 317 + sid) > 0.25) t = L.wall; else if (scatter >= 0) t = scatter; break; }
+      case 'rooms': { const cs = 17, gx = lx % cs, gy = ly % cs, roomHash = h(Math.floor(lx / cs), Math.floor(ly / cs), 319 + sid), rw = 6 + Math.floor(roomHash * 97) % 7, rh = 5 + Math.floor(roomHash * 53) % 6, inRoom = roomHash > 0.45 && gx >= 2 && gy >= 2 && gx <= 2 + rw && gy <= 2 + rh, border = inRoom && (gx === 2 || gy === 2 || gx === 2 + rw || gy === 2 + rh), door = (gy === 2 + rh && Math.abs(gx - (2 + (rw >> 1))) < 1) || (gx === 2 && roomHash > 0.8 && gy === 2 + (rh >> 1)); if (border && !door) t = L.wall; else if (!inRoom && scatter >= 0) t = scatter; break; }
     }
     if (L.pool !== undefined && bb < 0.2) t = L.pool;
     tiles[idx] = t;
     if (x % 32 === 8 && y % 24 === 8 && !SOLID_IDS.has(t)) o.pushNode(x, y, rr < 0.35 ? 'iron_ore' : d.resource);
   }
-
-  // Random connection graph: spanning tree (all regions reachable) + random extra links.
-  const regionCount = seeds.length, inTree = new Array(regionCount).fill(false), bestD = new Array(regionCount).fill(Infinity), from = new Array(regionCount).fill(-1);
-  const edges: [number, number][] = [];
+  const regionCount = seeds.length, inTree = new Array(regionCount).fill(false), bestD = new Array(regionCount).fill(Infinity), from = new Array(regionCount).fill(-1), edges: [number, number][] = [];
   bestD[0] = 0;
-  for (let it = 0; it < regionCount; it++) {
-    let u = -1; for (let k = 0; k < regionCount; k++) if (!inTree[k] && (u < 0 || bestD[k] < bestD[u])) u = k;
-    inTree[u] = true; if (from[u] >= 0) edges.push([from[u], u]);
-    for (let k = 0; k < regionCount; k++) if (!inTree[k]) { const dd = Math.hypot(seeds[k].x - seeds[u].x, seeds[k].y - seeds[u].y) * (0.7 + h(u, k, 401) * 0.6); if (dd < bestD[k]) { bestD[k] = dd; from[k] = u; } }
-  }
-  for (let k = 0; k < regionCount; k++) {
-    if (r() > 0.4) continue;
-    const near = seeds.map((s, i) => [i, Math.hypot(s.x - seeds[k].x, s.y - seeds[k].y)] as [number, number]).sort((p, q) => p[1] - q[1]);
-    const pick = near[2 + Math.floor(r() * 3)];
-    if (pick && pick[1] < 520) edges.push([k, pick[0]]);
-  }
-  const bent = (ax: number, ay: number, bx: number, by: number): [number, number][] => {
-    const len = Math.hypot(bx - ax, by - ay) || 1, nx = -(by - ay) / len, ny = (bx - ax) / len, pts: [number, number][] = [[ax, ay]];
-    for (const t of [0.33, 0.66]) { const off = (r() - 0.5) * len * 0.35; pts.push([Math.round(ax + (bx - ax) * t + nx * off), Math.round(ay + (by - ay) * t + ny * off)]); }
-    pts.push([bx, by]);
-    return pts.map(([px, py]) => [Math.max(4, Math.min(W - 5, px)), Math.max(4, Math.min(H - 5, py))] as [number, number]);
-  };
-  for (const [a, b] of edges) o.road(bent(Math.round(seeds[a].x), Math.round(seeds[a].y), Math.round(seeds[b].x), Math.round(seeds[b].y)), 1 + Math.floor(r() * 2));
-  // Old-world crossings: randomly chosen anchors on existing legacy roads join the nearest regions.
+  for (let it = 0; it < regionCount; it++) { let u = -1; for (let k = 0; k < regionCount; k++) if (!inTree[k] && (u < 0 || bestD[k] < bestD[u]!)) u = k; inTree[u] = true; if (from[u] >= 0) edges.push([from[u]!, u]); for (let k = 0; k < regionCount; k++) if (!inTree[k]) { const sk = seeds[k]!, su = seeds[u]!, dd = Math.hypot(sk.x - su.x, sk.y - su.y) * (0.7 + h(u, k, 401) * 0.6); if (dd < bestD[k]!) { bestD[k] = dd; from[k] = u; } } }
+  for (let k = 0; k < regionCount; k++) { if (r() > 0.4) continue; const near = seeds.map((s, i) => [i, Math.hypot(s.x - seeds[k]!.x, s.y - seeds[k]!.y)] as [number, number]).sort((p, q) => p[1] - q[1]), pick = near[2 + Math.floor(r() * 3)]; if (pick && pick[1] < 520) edges.push([k, pick[0]]); }
+  const bent = (ax: number, ay: number, bx: number, by: number): [number, number][] => { const len = Math.hypot(bx - ax, by - ay) || 1, nx = -(by - ay) / len, ny = (bx - ax) / len, pts: [number, number][] = [[ax, ay]]; for (const t of [0.33, 0.66]) { const off = (r() - 0.5) * len * 0.35; pts.push([Math.round(ax + (bx - ax) * t + nx * off), Math.round(ay + (by - ay) * t + ny * off)]); } pts.push([bx, by]); return pts.map(([px, py]) => [Math.max(4, Math.min(W - 5, px)), Math.max(4, Math.min(H - 5, py))]); };
+  for (const [a, b] of edges) o.road(bent(Math.round(seeds[a]!.x), Math.round(seeds[a]!.y), Math.round(seeds[b]!.x), Math.round(seeds[b]!.y)), 1 + Math.floor(r() * 2));
   const anchors: [number, number][] = [[290, 205], [140, 202], [48, 202], [218, 22], [288, 197]];
-  for (const [ax, ay] of anchors.filter((_, i) => i < 2 || r() > 0.35)) {
-    const near = seeds.map((s, i) => [i, Math.hypot(s.x - ax, s.y - ay)] as [number, number]).sort((p, q) => p[1] - q[1]);
-    const t = seeds[near[Math.floor(r() * 2)][0]];
-    o.road(bent(ax, ay, Math.round(t.x), Math.round(t.y)), 2);
+  for (const [ax, ay] of anchors.filter((_, i) => i < 2 || r() > 0.35)) { const near = seeds.map((s, i) => [i, Math.hypot(s.x - ax, s.y - ay)] as [number, number]).sort((p, q) => p[1] - q[1]), t = seeds[near[Math.floor(r() * 2)]![0]]!; o.road(bent(ax, ay, Math.round(t.x), Math.round(t.y)), 2); }
+}
+
+/** Paint the expanded half directly from sector codes. It is intentionally O(tiles)
+ * and uses no world-sized seed list; the small road grid keeps every new sector reachable. */
+function paintExpandedFrontier(o: PaintCtx, seed: number) {
+  const start = Math.min(LEGACY_WORLD_W, o.W), h = (x: number, y: number, s = 0) => hash(x, y, s + seed);
+  for (let y = 0; y < o.H; y++) for (let x = start; x < o.W; x++) {
+    const idx = y * o.W + x, b = frontierBiomeAt(x, y), d = FRONTIER[b]!, L = BIOME_LAYOUT[b]!;
+    o.biomes[idx] = o.biomeId(b);
+    if (!o.shape.land(x, y)) { o.tiles[idx] = WATER; continue; }
+    const lx = x % LEGACY_W, ly = y % LEGACY_H, edge = Math.min(lx, LEGACY_W - 1 - lx, ly, LEGACY_H - 1 - ly), rr = h(x, y, 777), n = noise(x / 15, y / 15, 733 + seed);
+    let t: number = d.ground;
+    if (edge > 3) {
+      if (L.pool !== undefined && n < 0.075) t = L.pool;
+      else if (rr > 0.978) t = d.obstacle;
+      else if (L.layout === 'ridges' && Math.abs(n - 0.5) < 0.028 && h(x >> 3, y >> 3, 311) > 0.25) t = L.wall;
+      else if (L.layout === 'cells' && (lx % 19 < 2 || ly % 23 < 2) && h(x >> 2, y >> 2, 317) > 0.65) t = L.wall;
+      else if (L.layout === 'rings' && Math.abs(Math.hypot(lx - 160, ly - 120) % 22) < 1.4 && h(x >> 3, y >> 3, 307) > 0.5) t = L.wall;
+    }
+    o.tiles[idx] = t;
+    if ((x - start) % 32 === 8 && y % 24 === 8 && !SOLID_IDS.has(t)) o.pushNode(x, y, rr < 0.35 ? 'iron_ore' : d.resource);
   }
-  return { seeds, edges };
+  // Sector-center cross roads are deterministic, cheap, and make every new sector walkable.
+  for (let sx = Math.ceil(start / LEGACY_W); sx < Math.ceil(o.W / LEGACY_W); sx++) for (let sy = 0; sy < Math.ceil(o.H / LEGACY_H); sy++) {
+    const cx = sx * LEGACY_W + (LEGACY_W >> 1), cy = sy * LEGACY_H + (LEGACY_H >> 1), b = frontierBiomeAt(cx, cy);
+    o.road([[cx - 120, cy], [cx + 120, cy]], 1); o.road([[cx, cy - 90], [cx, cy + 90]], 1);
+    const i = cy * o.W + cx; if (i >= 0 && i < o.tiles.length) { o.tiles[i] = FRONTIER[b]!.ground; o.biomes[i] = o.biomeId(b); }
+  }
+}
+
+export function paintFrontier(o: PaintCtx, seed = 0) {
+  // Keeping these passes separate is what makes X<3200 byte-stable while the right
+  // half can use a much cheaper sector generator.
+  paintLegacyFrontier(o, seed);
+  paintExpandedFrontier(o, seed);
+  return { seeds: [] as Seed[], edges: [] as [number, number][] };
 }

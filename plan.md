@@ -123,3 +123,26 @@ Os 44 arquivos de teste Vitest/225 testes, os cinco testes de sockets do servido
 ### Design
 
 Manter o direcionamento existente de aventura pixel-art 16-bit e fantasia melancólica com luzes de mana. O projeto já definiu hierarquia visual, assinatura cromática por reino e interface tátil; a expansão reutilizará esses princípios. Os novos prédios terão ornamentos, paletas, telhados e plantas gerados de modo determinístico, com fachadas legíveis e objetivos explicados por prompts curtos. Preferir opções contextuais simples a acrescentar mais painéis sem orientação; controles essenciais devem caber em telas móveis e salvar preferências sem tocar nos dados antigos da campanha.
+
+
+## Revisão de escopo — expansão solicitada em 7 de novembro de 2026
+
+### Escala de mundo, tiles e vida ambiental
+
+Expandir o continente de 10×10 para 20×10 setores de 320×240 tiles (o dobro da área total, sem quadruplicar a memória por uma duplicação em ambos os eixos). Preservar literalmente a geração/coordenadas da região antiga e seus anchors. Gerar os dez setores adicionais a leste, com sementes estáveis e conteúdo por setor, dentro do mesmo mundo/sistema de saves. Atribuir irregularidade costeira e de biomas a campos de ruído e contornos já compatíveis com o mapa antigo. Compor uma faixa de transição de tiles em cache determinístico sobre os tiles base; não mudar colisão, IDs persistidos, estradas, pontes ou interiores. Expandir animação usando apenas viewport, pooling/cache e budgets por nível de qualidade; evitar trabalho por frame proporcional à área inteira.
+
+### Construções, mercenários e skins
+
+Refinar a gramática determinística já responsável por mais de 1.000 estruturas por combinação de tipos arquitetônicos, tema regional, materiais, planta, número de andares, finalidade, objetivo, encontros e recompensa; manter geração de interiores sob demanda e entradas legadas imóveis. O pedido “literalmente 20x mais” ainda precisa ser interpretado com cuidado: a implementação inicial aumenta a profundidade/diversidade do catálogo, não promete 20.000 instâncias sem confirmação explícita de que o usuário quer quantidade em vez de qualidade.
+
+Append-only de 200 novos mercenários (244 total) e 200 skins (239 total). ID string e gates de progresso dos mercenários permanecem estáveis; índices numéricos salvos nas aparências continuam a apontar às mesmas 39 skins antigas. Definições são dados de jogo sem serializar o catálogo no save. Componente de aparência e catálogo ficam pesquisáveis/paginados em celular. Variações cromáticas reaproveitam a folha base; documentação/README distingue isso de uma folha de personagem ilustrada individualmente. Roster completo não participa do loop de combate, apenas até dois companheiros ativos.
+
+### Servidor WSS na faixa gratuita
+
+Usar Cloudflare Workers + um Durable Object SQLite por sala, com API WebSocket Hibernation e estado reconstruível via attachments/SQLite. Considerar no projeto as cotas documentadas de Workers Free e Durable Objects, colocar limite inicial de 4 atualizações de pose/s por jogador para salas de até cinco e coalescer/ignorar poses sem alterações. O modo Node já existente e o transporte P2P permanecem como fallback; nenhuma conta é requisito para o modo solo. Nenhum host foi provisionado durante pesquisa inicial: a listagem autenticada do token disponível retornou 0 contas Cloudflare; o conector Worker Bindings apenas expõe leitura de Workers e bindings, não implantação de scripts. Implementar e validar localmente primeiro. Para tornar público, usuário deve conectar uma conta Cloudflare Free com permissão para Worker e Durable Objects, depois do que pode-se configurar `workers.dev`, allowlist e `VITE_MULTIPLAYER_WS_URL`, implantar e testar dois clientes. Free tier não promete disponibilidade/perfeição nem SLA; sem endpoint de produção, não embutir URL inventada.
+
+### Estrutura afetada
+
+- Mundo/geração: `src/odyssey/frontier.ts`, `world.ts`, `landmass.ts`, `engine.ts`, `biome-tiles.ts`, `biome-anim.ts`, `scenery.ts` e testes existentes de mundo/bioma.
+- Conteúdo: módulos de dados de mercenários/skins, `mercenaries.ts`, `hero-sprite.ts`, `AppearancePanel.tsx`, eventualmente `MercenariesPanel.tsx` e testes de save/catálogos.
+- Serviço novo isolado: `server/cloudflare/` para Worker/DO/wrangler, testes, configuração e guia de deploy/limites.

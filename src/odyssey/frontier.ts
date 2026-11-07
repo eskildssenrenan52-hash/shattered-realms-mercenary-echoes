@@ -20,14 +20,26 @@ export const FRONTIER = {
 } as const;
 export type FrontierBiome = keyof typeof FRONTIER;
 export const FRONTIER_KEYS = Object.keys(FRONTIER) as FrontierBiome[];
+/** Tamanho fixo de um setor; saves e âncoras usam estas coordenadas. */
 export const LEGACY_W = 320;
 export const LEGACY_H = 240;
+export const LEGACY_COLUMNS = 10;
+export const WORLD_COLUMNS = 20;
+export const WORLD_ROWS = 10;
+export const LEGACY_WORLD_W = LEGACY_W * LEGACY_COLUMNS;
+export const LEGACY_WORLD_H = LEGACY_H * WORLD_ROWS;
+/** Mantido para módulos antigos que usavam WORLD_SCALE como número de colunas. */
 export const WORLD_SCALE = 10;
 export const FRONTIER_GATES = FRONTIER_KEYS.map((biome,i) => ({ id: `frontier-${biome}`, biome, name: FRONTIER[biome].name, tx: (i%9+1)*LEGACY_W+160, ty: Math.floor(i/9)*LEGACY_H+120 }));
 export function frontierBiomeAt(x:number,y:number): FrontierBiome {
   const column=Math.floor(x/LEGACY_W), row=Math.floor(y/LEGACY_H);
-  const sector=row*10+column;
+  // Não alterar este ramo: os setores 0–9 são parte do contrato dos saves antigos.
+  // As novas colunas têm um índice próprio, evitando que a adição de setores
+  // reordene qualquer código de bioma já persistido.
+  const sector = column < LEGACY_COLUMNS ? row * LEGACY_COLUMNS + column : row * WORLD_COLUMNS + column;
   // First two rows feature every unique region; later rows are deterministic mosaics.
-  const i=row<2&&column>0 ? row*9+column-1 : sector*7+Math.floor(x/80)+Math.floor(y/60)*3;
+  const i = column < LEGACY_COLUMNS && row < 2 && column > 0
+    ? row * 9 + column - 1
+    : sector * 7 + Math.floor(x / 80) + Math.floor(y / 60) * 3;
   return FRONTIER_KEYS[i%FRONTIER_KEYS.length];
 }

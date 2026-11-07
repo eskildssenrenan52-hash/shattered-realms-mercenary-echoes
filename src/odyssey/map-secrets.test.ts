@@ -17,7 +17,7 @@ describe("Segredos locais do mapa", () => {
   it("distribui exatamente 44.350 locais entre setores consultados sob demanda", () => {
     let total = 0;
     for (let i = 0; i < MAP_SECRET_CHUNK_COUNT; i++) total += mapSecretsInChunk(i);
-    expect(MAP_SECRET_CHUNK_COUNT).toBe(1_200);
+    expect(MAP_SECRET_CHUNK_COUNT).toBe(2_400);
     expect(total).toBe(MAP_SECRET_TOTAL);
     expect(total + 650).toBe(45_000);
     expect(mapSecretsInChunk(-1)).toBe(0);

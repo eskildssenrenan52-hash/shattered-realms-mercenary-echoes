@@ -53,6 +53,50 @@ const ANIMATED = new Set<number>([T.WATER]);
 export const BIOME_VARIANTS = 48;
 
 const cache = new Map<string, HTMLCanvasElement>();
+const transitionCache = new Map<string, HTMLCanvasElement>();
+
+export type BiomeTransitionEdge = "n" | "e" | "s" | "w";
+export type BiomeTransitionMark = readonly [along: number, depth: number, alpha: number];
+
+export function biomeTransitionMarks(from: string, to: string, edge: BiomeTransitionEdge, variant: number): BiomeTransitionMark[] {
+  if (from === to) return [];
+  const marks: BiomeTransitionMark[] = [];
+  for (let i = 0; i < 7; i++) {
+    marks.push([
+      Math.floor(hash(i, variant, 1701 + from.length * 13 + to.length * 17) * TS),
+      1 + Math.floor(hash(i, variant, 1801 + from.length + to.length) * 3),
+      0.12 + hash(i, variant, 1901) * 0.18,
+    ]);
+  }
+  void edge;
+  return marks;
+}
+
+/**
+ * Small visual seam only: it is drawn after the base tile and never writes to
+ * World.tiles/World.biomes, so collision and save semantics remain untouched.
+ * The 1–3px marks are cached by biome pair, edge and spatial variant.
+ */
+export function biomeTransitionOverlay(from: string, to: string, edge: BiomeTransitionEdge, variant: number): HTMLCanvasElement | null {
+  if (from === to || !BIOME_STYLES[from] || !BIOME_STYLES[to] || typeof document === "undefined") return null;
+  const key = `${from}|${to}|${edge}|${variant & 7}`;
+  const found = transitionCache.get(key); if (found) return found;
+  const cv = document.createElement("canvas"); cv.width = TS; cv.height = TS;
+  const c = cv.getContext("2d"); if (!c) return null;
+  const a = rgb(BIOME_STYLES[from]!.tint), b = rgb(BIOME_STYLES[to]!.tint);
+  const mixColor = `rgb(${Math.round((a[0] + b[0]) / 2)},${Math.round((a[1] + b[1]) / 2)},${Math.round((a[2] + b[2]) / 2)})`;
+  c.fillStyle = mixColor;
+  for (const [i, [along, depth, alpha]] of biomeTransitionMarks(from, to, edge, variant).entries()) {
+    c.globalAlpha = alpha;
+    if (edge === "n") c.fillRect(along, 0, 1 + (i & 1), depth);
+    else if (edge === "s") c.fillRect(along, TS - depth, 1 + (i & 1), depth);
+    else if (edge === "w") c.fillRect(0, along, depth, 1 + (i & 1));
+    else c.fillRect(TS - depth, along, depth, 1 + (i & 1));
+  }
+  c.globalAlpha = 1;
+  transitionCache.set(key, cv);
+  return cv;
+}
 
 /** Devolve o tile próprio do bioma (ou null para usar o tile comum). */
 export function biomeTile(src: HTMLCanvasElement, t: number, biome: string, v: number): HTMLCanvasElement | null {

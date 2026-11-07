@@ -4,6 +4,7 @@ import type { ItemDef, WeaponKind } from "./data";
 import { drawK, kImage, K_DIR } from "./kaetram";
 import { drawGearBack, drawGearFront, type GearPick } from "./look-gear";
 import type { FxName } from "./vfx";
+import { EXPANDED_HERO_SKINS } from "./hero-skin-expansion";
 
 export type ComboFx = [FxName, FxName, FxName, FxName, FxName];
 export interface HeroSkin {
@@ -349,6 +350,8 @@ export const HERO_SKINS: HeroSkin[] = [
     paletteFilter: "hue-rotate(220deg) saturate(1.6) brightness(1.1) contrast(1.1)",
   },
 ];
+// Append-only: Look.kskin is an index persisted in browser saves.
+HERO_SKINS.push(...EXPANDED_HERO_SKINS);
 export const skinUnlocked = (i: number, level: number) => level >= (HERO_SKINS[i]?.minLevel ?? 1);
 /** Efeito especial do golpe `step` (0–4) do combo para a skin. */
 export const skinFx = (i: number, step: number): FxName =>

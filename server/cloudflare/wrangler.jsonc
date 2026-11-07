@@ -1,0 +1,21 @@
+{
+  "$schema": "https://developers.cloudflare.com/workers/wrangler/config-schema.json",
+  "name": "shattered-realms-room-service",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-11-07",
+  "compatibility_flags": ["web_socket_auto_reply_to_close"],
+  "durable_objects": {
+    "bindings": [{ "name": "ROOM_COORDINATOR", "class_name": "RoomCoordinator" }],
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["RoomCoordinator"],
+    },
+  ],
+  "vars": {
+    "ORIGIN_ALLOWLIST": "",
+    "ROOM_TTL_MS": "1800000",
+    "FREE_POSE_MAX_HZ": "4",
+  },
+}

@@ -61,3 +61,15 @@
 - [x] **APK independente — bundle:** atender “crie um apk online do jogo mas sem nenhuma dependência do manus ou nenhum app, sem marca d agua”; o bundle solo local inclui HTML/JS/CSS/fontes/imagens/áudio sem runtime/conta do Manus nem app companion e foi empacotado com 70 MB. O Android usa o WebView do próprio sistema; multiplayer é opcional e usa endpoint WSS externo configurável.
 - [x] **APK independente — publicação:** workflow GitHub Actions executado com sucesso (`42396056037`); prerelease público `android-apk-3` contém `app-debug.apk` (69.825.590 bytes), baixado e verificado como APK/ZIP íntegro. SHA-256: `7cd2f2c5b96ef904966ee4a4b0e8d1782461a83b33f1826726f28e0e493daea4`. Build sem WSS dedicado porque não havia host/URL; modo solo offline e P2P legado continuam disponíveis.
 - [x] **Push para GitHub:** “depois faça o push pro github”; código, correções de CI e documentação foram enviados com commits normais a `origin/main`, sem reescrever histórico nem incluir chaves. O HEAD remoto foi consultado e conferido depois do push final.
+
+
+## Expansão solicitada em 7 de novembro de 2026 — mundo, catálogos e WSS gratuito
+
+- [x] **Mundo 2× maior:** duplicada a área explorável do continente para 6.400×2.400 tiles, preservando a região 3.200×2.400 e suas assinaturas; novos setores são determinísticos, conectados e adequados a geração por setor.
+- [x] **Mundo mais orgânico e vivo:** margens novas irregulares, transições visuais determinísticas entre biomas e overlays limitados à viewport foram adicionados sem alterar colisão/IDs; animações ambientais existentes continuam governadas por qualidade.
+- [x] **Construções — refinamento do sistema existente:** mais de 1.000 instâncias mantidas com 20 famílias arquitetônicas, 20 layouts internos, fachadas/paletas, 1–12 andares, objetivos e recompensas; prédios legados não foram renumerados. “20×” foi tratado como profundidade de variedade, não como promessa de 20.000 prédios.
+- [x] **Catálogo de mercenários:** adicionados exatamente 200 aos 44 anteriores, total 244, com IDs/gates estáveis, estatísticas e identidades paramétricas; os sprites usam a folha base local com filtros, sem alegar 200 PNGs individuais.
+- [x] **Skins do jogador:** adicionadas exatamente 200 após as 39 antigas, total 239; índices persistidos permanecem estáveis e a tela usa busca, filtro e paginação de 18 itens.
+- [x] **Servidor online gratuito — implementação:** preparado Worker Cloudflare + Durable Object SQLite com WebSocket Hibernation, protocolo compatível, limites gratuitos, allowlist, TTL e health check. Os testes locais do Worker (4/4) e Node (5/5) passaram.
+- [ ] **Servidor online gratuito — publicação:** ainda falta uma conta Cloudflare com Workers/Durable Objects acessível, endereço público TLS/WSS e teste externo com dois clientes. A API disponível retornou zero contas; não há URL pública para afirmar como online.
+- [x] **Validação e publicação do código:** TypeScript, build e suíte completa passaram (45 arquivos/234 testes); o APK/release anterior permanece disponível. O push desta nova expansão ainda será feito após a revisão final do diff.

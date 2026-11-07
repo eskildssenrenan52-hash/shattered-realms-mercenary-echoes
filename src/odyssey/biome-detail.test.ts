@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BIOME_STYLES, BIOME_VARIANTS, biomeVariant } from './biome-tiles';
+import { BIOME_STYLES, BIOME_VARIANTS, biomeTransitionMarks, biomeVariant } from './biome-tiles';
 import { BIOME_ANIMATION_FAMILY } from './biome-anim';
 
 describe('detalhe e vida dos biomas', () => {
@@ -22,5 +22,12 @@ describe('detalhe e vida dos biomas', () => {
     expect(maxMicroMarks).toBeLessThanOrEqual(26);
     expect([64, 144, 256]).toEqual([64, 144, 256]);
     expect([3, 7, 12]).toEqual([3, 7, 12]);
+  });
+  it('mantém blends de borda determinísticos e pequenos', () => {
+    const first = biomeTransitionMarks('plains', 'sakura', 'e', 17);
+    expect(first).toEqual(biomeTransitionMarks('plains', 'sakura', 'e', 17));
+    expect(first).toHaveLength(7);
+    expect(first.every(([along, depth, alpha]) => along >= 0 && along < 16 && depth >= 1 && depth <= 3 && alpha > 0 && alpha < 0.31)).toBe(true);
+    expect(biomeTransitionMarks('plains', 'plains', 'e', 17)).toEqual([]);
   });
 });

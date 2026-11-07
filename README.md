@@ -62,3 +62,11 @@ O APK de depuração aparece em `android/app/build/outputs/apk/debug/app-debug.a
 ## APK Android publicado
 
 Build de teste atual: [baixar APK (69,8 MB)](https://github.com/eskildssenrenan52-hash/shattered-realms-mercenary-echoes/releases/download/android-apk-3/app-debug.apk) · [release notes](https://github.com/eskildssenrenan52-hash/shattered-realms-mercenary-echoes/releases/tag/android-apk-3) · [execução do workflow](https://github.com/eskildssenrenan52-hash/shattered-realms-mercenary-echoes/actions/runs/42396056037). É um APK debug independente do Manus para teste direto. A campanha solo é offline; esta build foi compilada sem URL WSS dedicado, portanto o multiplayer usa o P2P/PeerJS legado e ainda não se conecta ao serviço Node dedicado hospedado.
+
+## Expansão de novembro de 2026
+
+A expansão atual dobra a área continental para 6.400×2.400 tiles sem deslocar a região legada, acrescenta transições de bioma determinísticas e mantém a renderização ambiental limitada à viewport. O mundo distribui mais de 1.000 construções procedurais, com 20 famílias arquitetônicas, 20 plantas interiores, fachadas/paletas, 1–12 andares e objetivos/recompensas próprios; os IDs antigos permanecem estáveis.
+
+O catálogo agora contém 244 mercenários (44 antigos + 200 novos) e 239 skins (39 antigas + 200 novas). Os dados são append-only: os mercenários usam a folha local do herói com filtros cromáticos e as skins usam `player/base` com filtros CSS, sem URLs ou imagens inexistentes. A tela de aparência inclui busca, filtro e paginação para celular.
+
+`server/cloudflare/` contém uma implementação preparada para Cloudflare Workers + Durable Object SQLite, com WebSocket Hibernation, `/healthz`, `/ws`, salas de cinco jogadores, tokens, TTL, allowlist, soft guard de quota e protocolo compatível. Ela passou 4 testes focados, mas ainda não está online: esta sessão não tem uma conta Cloudflare/namespace acessível para fazer deploy. Para publicar, siga [`server/cloudflare/README.md`](server/cloudflare/README.md), obtenha uma URL `wss://.../ws` e gere o APK/web com `VITE_MULTIPLAYER_WS_URL`; sem isso, o jogo continua usando o modo P2P legado.

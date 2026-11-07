@@ -3,7 +3,7 @@ import { epicOnKill, epicOnBiome, epicSave, epicLoad, shopPriceMult } from "./ep
 import { castSkill, skillTick, freshBuffs, knows, damageTakenMult, damageDealtMult, speedMult, luckMult, type Buffs } from "./skill-play";
 import { SKILL_BY_ID, SPIRIT_IDS } from "./skills";
 import { cloudShadows, filmGrain, lensGlow, lightMotes, softBloom, splitTone } from "./cinema-fx";
-import { biomeTile, biomeVariant } from "@/odyssey/biome-tiles";
+import { biomeTile, biomeTransitionOverlay, biomeVariant } from "@/odyssey/biome-tiles";
 import { pickVariant } from "@/odyssey/tile-art";
 import { WorldArt, TREE_TILES, hasProp } from './world-art';
 import { TEMPLES } from './depths';
@@ -16,7 +16,7 @@ import { drawSecrets, secretLights, isRealm } from './secret-play';
 import { MANOPLA_ITEM } from './manopla-lore';
 import { SAGA_BOSS_LOOK, sagaOnBoss, sagaOnKill, sagaModeTick, drawSaga, sagaLights, sagaPosOf, sagaWeather, sagaPlaza } from './saga-play';
 import { softHole, softGlow, Quality } from './perf';
-import { FRONTIER, FRONTIER_GATES, LEGACY_W, LEGACY_H, type FrontierBiome } from './frontier';
+import { FRONTIER, FRONTIER_GATES, LEGACY_W, LEGACY_H, LEGACY_WORLD_W, frontierBiomeAt, type FrontierBiome } from './frontier';
 import { createHomeInterior, drawHome, drawFurniture, FURNITURE, freshHome, type FurnitureKind } from "./home";
 import { isPlayerHome, freshSettlement, growPlots, applyWorldTool, interactSettlement, renderSettlement, applyStructures, CARPENTRY_RECIPES, type Tool, type CropKind, type StructureKind } from "./settlement";
 import {
@@ -1604,13 +1604,26 @@ export class Game {
       let v = pickVariant(hash(tx, ty, 1));
       if (t === T.WATER) v = (v + Math.floor(wt * 2)) % 4;
       if (t === T.LAVA) v = (v + Math.floor(wt * 3)) % 4;
-      const b=biomeOf(this.world,tx*TS,ty*TS),frontier=b in FRONTIER?FRONTIER[b as FrontierBiome]:null;
+      const worldBiome=biomeOf(this.world,tx*TS,ty*TS);
+      // A frontier sector has a stable code even before any viewport is visited;
+      // the backing biome array remains authoritative for legacy coordinates.
+      const frontierCode=tx>=LEGACY_WORLD_W?frontierBiomeAt(tx,ty):null;
+      const b=frontierCode ?? worldBiome,frontier=b in FRONTIER?FRONTIER[b as FrontierBiome]:null;
       const ground=frontier&&t===frontier.obstacle&&this.art.frontier.naturalWidth?frontier.ground
         :this.depth&&t===this.depth.data.theme.deco&&t!==T.WATER&&t!==T.LAVA?this.depth.data.theme.floor
         :this.art.canopy.naturalWidth&&!this.spriteBlocked(tx,ty)?this.art.groundUnder(t,b):t;
       const baseTile = this.tiles[ground][v];
       const own = !this.interior&&!this.depth && baseTile ? biomeTile(baseTile, ground, b, ground === T.WATER ? v : biomeVariant(tx, ty)) : null;
       c.drawImage(own ?? baseTile, tx * TS, ty * TS);
+      if (!this.interior && !this.depth && !this.island) {
+        const sides = [[0, -1, "n"], [1, 0, "e"], [0, 1, "s"], [-1, 0, "w"]] as const;
+        for (const [dx, dy, edge] of sides) {
+          const nb = biomeOf(this.world, (tx + dx) * TS, (ty + dy) * TS);
+          if (nb === b) continue;
+          const seam = biomeTransitionOverlay(b, nb, edge, biomeVariant(tx, ty));
+          if (seam) c.drawImage(seam, tx * TS, ty * TS);
+        }
+      }
     }
     drawGroundDetails(c,this.world,x0,y0,x1,y1,wt);
     if(!this.interior&&!this.depth&&!this.island){waterLife(this,c,x0,y0,x1,y1,wt);windLife(this,c,x0,y0,x1,y1,wt);}

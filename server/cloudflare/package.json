@@ -1,0 +1,14 @@
+{
+  "name": "shattered-realms-cloudflare-room-service",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --config wrangler.jsonc",
+    "deploy": "wrangler deploy --config wrangler.jsonc",
+    "test": "vitest run --config vitest.config.mjs"
+  },
+  "devDependencies": {
+    "vitest": "4.1.12",
+    "wrangler": "4.30.0"
+  }
+}

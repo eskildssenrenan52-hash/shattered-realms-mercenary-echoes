@@ -11,9 +11,9 @@ describe('Expanded living world',()=>{
     for(const [i,b] of BIOME_LIST.entries()){expect(ids.has(i)).toBe(true);expect(BIOME_NAMES[b]).toBeTruthy();expect(BIOME_ENEMIES[b].length).toBeGreaterThan(0);}
     expect(world.tiles[130*W+143]).toBe(T.GRASS);
   },20000);
-  it('expands the previous world to exactly 100 times its area',()=>{
-    expect(W*H).toBe(320*240*100);
-    expect(W).toBe(LEGACY_W*10);expect(H).toBe(LEGACY_H*10);
+  it('expands the previous world to exactly 200 sector areas',()=>{
+    expect(W*H).toBe(320*240*200);
+    expect(W).toBe(LEGACY_W*20);expect(H).toBe(LEGACY_H*10);
   });
   it('keeps each unique frontier destination walkable with its own terrain',()=>{
     const world=generateWorld();

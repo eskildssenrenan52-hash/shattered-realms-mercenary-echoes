@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { generateWorld, H, W } from "./world";
+import { generateWorld, H, W, BIOME_LIST, SOLID } from "./world";
+import { frontierBiomeAt, LEGACY_WORLD_W, WORLD_COLUMNS, WORLD_ROWS } from "./frontier";
 
 describe("geração por seed do continente", () => {
   it("mantém o mapa legado byte a byte na seed padrão", () => {
@@ -12,12 +13,27 @@ describe("geração por seed do continente", () => {
         signature = Math.imul(signature ^ world.biomes[index]!, 16777619);
       }
     }
-    expect(W).toBe(3200);
+    expect(W).toBe(6400);
     expect(H).toBe(2400);
+    expect(W * H).toBe(3200 * 2400 * 2);
+    expect(WORLD_COLUMNS).toBe(20);
+    expect(WORLD_ROWS).toBe(10);
     expect(signature >>> 0).toBe(4135917396);
   });
 
-  it("gera terreno procedural diferente sem redimensionar o mapa", () => {
+  it("gera setores novos determinísticos e caminháveis à direita", () => {
+    const a = generateWorld(2764087), b = generateWorld(2764087);
+    for (const row of [0, 4, 9]) for (const column of [10, 14, 19]) {
+      const tx = column * 320 + 160, ty = row * 240 + 120, index = ty * W + tx;
+      expect(a.biomes[index]).toBe(b.biomes[index]);
+      expect(a.tiles[index]).toBe(b.tiles[index]);
+      expect(BIOME_LIST[a.biomes[index]!]).toBe(frontierBiomeAt(tx, ty));
+      expect(SOLID.has(a.tiles[index]!)).toBe(false);
+    }
+    expect(LEGACY_WORLD_W).toBe(3200);
+  });
+
+  it("gera terreno procedural diferente por seed sem alterar dimensões", () => {
     const legacy = generateWorld();
     const farlands = generateWorld(2764087);
     expect(farlands.tiles).toHaveLength(legacy.tiles.length);

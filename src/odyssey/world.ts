@@ -1,9 +1,9 @@
 import { BOSSES, NPCS, STATUES, type Biome } from "./data";
-import { FRONTIER, FRONTIER_KEYS, FRONTIER_GATES, LEGACY_W, LEGACY_H, WORLD_SCALE, type FrontierBiome } from './frontier';
+import { FRONTIER, FRONTIER_KEYS, FRONTIER_GATES, LEGACY_W, LEGACY_H, WORLD_COLUMNS, WORLD_ROWS, type FrontierBiome } from './frontier';
 import { createShape, paintFrontier } from './landmass';
 
-export const W = LEGACY_W * WORLD_SCALE;
-export const H = LEGACY_H * WORLD_SCALE;
+export const W = LEGACY_W * WORLD_COLUMNS;
+export const H = LEGACY_H * WORLD_ROWS;
 export const TS = 16;
 
 export const T = {
