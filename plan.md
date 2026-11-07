@@ -118,7 +118,7 @@ Manter o APK como pacote independente do Manus: HTML, JavaScript, CSS, fontes, i
 
 ### Validação e bloqueios remanescentes
 
-Os 44 arquivos de teste Vitest/225 testes, os cinco testes de sockets do servidor, TypeScript, lint funcional dos arquivos WSS/rota e build web foram aprovados; o empacotador produziu 70 MB de assets locais para Android. O lint da rota foi executado com a regra Prettier desligada porque o arquivo legado contém formatação preexistente não corrigida em toda sua extensão. Ainda faltam: push sem reescrever histórico, host persistente e URL pública TLS/WSS, teste com dois clientes externos, execução do workflow e publicação do APK em GitHub Releases. Sem essas etapas, não afirmar que multiplayer público ou o APK online já estejam disponíveis.
+Os 44 arquivos de teste Vitest/225 testes, os cinco testes de sockets do servidor, TypeScript, lint funcional dos arquivos WSS/rota e build web foram aprovados; o empacotador produziu 70 MB de assets locais para Android. O lint da rota foi executado com a regra Prettier desligada porque o arquivo legado contém formatação preexistente não corrigida em toda sua extensão. O commit `3535fc3a10fd92d22cd27561fc836ec9c8b1c202` já foi enviado e confirmado em `origin/main` sem reescrever histórico. Ainda faltam: host persistente e URL pública TLS/WSS, teste com dois clientes externos, execução do workflow e publicação do APK em GitHub Releases. Sem essas etapas, não afirmar que multiplayer público ou o APK online já estejam disponíveis.
 
 ### Design
 

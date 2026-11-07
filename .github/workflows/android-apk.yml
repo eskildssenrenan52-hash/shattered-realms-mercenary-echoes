@@ -89,7 +89,7 @@ jobs:
           body: |
             APK de teste compilado automaticamente a partir do commit `${{ github.sha }}`.
 
-            O modo solo inclui os assets locais e não exige Manus nem um app companion. Este é um APK debug; para distribuição em loja use assinatura de release própria. O multiplayer requer internet e um serviço WSS configurado.
+            O modo solo inclui assets locais e não exige Manus nem app companion. Este APK debug serve para teste; para lojas use assinatura release própria. O transporte dedicado só é ativado quando `multiplayer_ws_url` foi informado; sem ele, permanece o modo PeerJS/WebRTC legado. Ambos os modos online exigem internet.
           prerelease: true
           make_latest: false
           files: android/app/build/outputs/apk/debug/app-debug.apk
