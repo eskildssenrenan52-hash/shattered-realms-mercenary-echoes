@@ -43,7 +43,7 @@ Para habilitar o servidor dedicado, informe `multiplayer_ws_url` com a URL compl
 
 ## APK de teste publicado
 
-A build compatível está no [GitHub Release android-apk-7](https://github.com/eskildssenrenan52-hash/shattered-realms-mercenary-echoes/releases/tag/android-apk-7): [baixar `app-debug.apk`](https://github.com/eskildssenrenan52-hash/shattered-realms-mercenary-echoes/releases/download/android-apk-7/app-debug.apk) (70.046.658 bytes). SHA-256: `c68784267b8c21026d4e730a476cfd6ea10592e28426e884c0153cfe73c79357`. GitHub Actions passou testes, typecheck, bundle offline e `assembleDebug`; o APK foi baixado e validado como pacote Android/ZIP. Esta versão usa SDK mínimo API 21 e `ContextCompat` para compatibilidade com Android antigo. A assinatura é debug, não distribuição de loja.
+A build compatível está no [GitHub Release android-apk-8](https://github.com/eskildssenrenan52-hash/shattered-realms-mercenary-echoes/releases/tag/android-apk-8): [baixar `app-debug.apk`](https://github.com/eskildssenrenan52-hash/shattered-realms-mercenary-echoes/releases/download/android-apk-8/app-debug.apk) (70.048.681 bytes). SHA-256: `39ea8ba062057dc372b22df347996882760c8d6ed9d8278d9e2b283eace170e9`. GitHub Actions passou testes, typecheck, bundle offline e `assembleDebug`; o APK foi baixado e validado como pacote Android/ZIP. Esta versão usa SDK mínimo API 21, `ContextCompat` e os designs únicos completos dos catálogos expandidos. A assinatura é debug, não distribuição de loja.
 
 ## Worker Cloudflare gratuito opcional
 

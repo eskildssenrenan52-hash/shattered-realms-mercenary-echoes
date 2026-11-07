@@ -63,7 +63,7 @@ O APK de depuração aparece em `android/app/build/outputs/apk/debug/app-debug.a
 
 ## APK Android publicado
 
-Build de teste atual: [baixar APK compatível (66,8 MB)](https://github.com/eskildssenrenan52-hash/shattered-realms-mercenary-echoes/releases/download/android-apk-7/app-debug.apk) · [release notes](https://github.com/eskildssenrenan52-hash/shattered-realms-mercenary-echoes/releases/tag/android-apk-7) · [execução do workflow](https://github.com/eskildssenrenan52-hash/shattered-realms-mercenary-echoes/actions/runs/42405987080). É um APK debug independente do Manus para teste direto, gerado com SDK mínimo API 21 e correção de compatibilidade para Android antigo. A campanha solo é offline; esta build usa o servidor público automático PeerJS/WebRTC e inclui o painel multiplayer aprimorado.
+Build de teste atual: [baixar APK compatível (66,8 MB)](https://github.com/eskildssenrenan52-hash/shattered-realms-mercenary-echoes/releases/download/android-apk-8/app-debug.apk) · [release notes](https://github.com/eskildssenrenan52-hash/shattered-realms-mercenary-echoes/releases/tag/android-apk-8) · [execução do workflow](https://github.com/eskildssenrenan52-hash/shattered-realms-mercenary-echoes/actions/runs/42414030886). É um APK debug independente do Manus para teste direto, gerado com SDK mínimo API 21 e correção de compatibilidade para Android antigo. A campanha solo é offline; esta build inclui 200 skins e 200 mercenários com designs geométricos completos, não apenas recolor.
 
 ## Expansão de novembro de 2026
 
