@@ -117,7 +117,7 @@ interface Tele { x: number; y: number; r: number; t: number; max: number; dmg: n
 interface Part { x: number; y: number; vx: number; vy: number; life: number; max: number; color: string; size: number; grav: number }
 interface FText { x: number; y: number; text: string; color: string; life: number }
 export interface InvSlot { id: string; qty: number }
-export interface DialogChoice { label: string; act: () => void }
+export interface DialogChoice { label: string; act: () => void; kind?: "question" | "quest" | "system" }
 export interface Dialog { npc: NpcDef; text: string; choices: DialogChoice[] }
 export interface RouteSelection { kind: "quest" | "secret"; id: string }
 
@@ -989,27 +989,35 @@ export class Game {
   }
   talk(npc: NpcDef) {
     this.audio.sfx("ui");
-    const line = npc.lines[Math.floor(Math.random() * npc.lines.length)];
+    const line = npc.lines[Math.floor(Math.random() * npc.lines.length)] ?? `Olá, viajante. Sou ${npc.name}.`;
     this.dialog = { npc, text: line, choices: this.npcChoices(npc) };
   }
+  npcQuestions(npc: NpcDef): DialogChoice[] {
+    const ask = (label: string, text: string): DialogChoice => ({ label, kind: "question", act: () => this.say(npc, text) });
+    return [
+      ask("? Perguntar sobre este lugar", `${npc.name}: ${npc.title} conhece cada ruína daqui. Se olhar com atenção, encontrará caminhos que não aparecem no mapa e histórias que ninguém ousa contar.`),
+      ask("? Perguntar sobre a ameaça", `A ameaça não é apenas um monstro. O Silêncio cresce quando as pessoas deixam de lembrar umas das outras. Por isso cada escolha sua importa.`),
+      ask("? Perguntar sobre o passado", `Antes do Silêncio, esta terra era diferente. ${npc.name} ainda guarda uma lembrança — e talvez você possa ajudá-la a voltar à luz.`),
+    ];
+  }
   npcChoices(npc: NpcDef): DialogChoice[] {
-    const ch: DialogChoice[] = [];
+    const ch: DialogChoice[] = [...this.npcQuestions(npc)];
     for (const q of QUESTS) {
       if (this.questStatus[q.id] !== "active" || q.goal.kind !== "talk" || q.goal.npc !== npc.id || (this.questProg[q.id] ?? 0) >= 1) continue;
       const line = q.goal.line, giver = NPCS.find((n) => n.id === q.giver);
-      ch.push({ label: `✉ Recado de ${giver?.name ?? "alguém"}`, act: () => { this.questProg[q.id] = 1; this.audio.sfx("pickup"); this.toast(`Missão pronta: ${q.title}`, "#a0ffa0"); this.say(npc, line); this.save(); } });
+      ch.push({ label: `✉ Recado de ${giver?.name ?? "alguém"}`, kind: "quest", act: () => { this.questProg[q.id] = 1; this.audio.sfx("pickup"); this.toast(`Missão pronta: ${q.title}`, "#a0ffa0"); this.say(npc, line); this.save(); } });
     }
     for (const q of QUESTS.filter((q) => q.giver === npc.id && this.questStatus[q.id] === "active")) {
-      if (this.questReady(q)) ch.push({ label: `✔ Entregar: ${q.title}`, act: () => this.completeQuest(q, npc) });
-      else ch.push({ label: `… ${q.title}`, act: () => this.say(npc, `Ainda falta: ${this.questProgressText(q)}. ${q.desc}`) });
+      if (this.questReady(q)) ch.push({ label: `✔ Entregar: ${q.title}`, kind: "quest", act: () => this.completeQuest(q, npc) });
+      else ch.push({ label: `… ${q.title}`, kind: "quest", act: () => this.say(npc, `Ainda falta: ${this.questProgressText(q)}. ${q.desc}`) });
     }
     const av = this.availableQuest(npc.id);
-    if (av) ch.push({ label: `${av.main ? "★" : "!"} Missão: ${av.title}`, act: () => this.offer(npc, av) });
+    if (av) ch.push({ label: `${av.main ? "★" : "!"} Missão: ${av.title}`, kind: "quest", act: () => this.offer(npc, av) });
     if (npc.role === "smith") ch.push({ label: "⚒ Forjar equipamentos", act: () => { this.dialog = null; this.openStation = "smith"; } });
     if (npc.role === "alchemist") ch.push({ label: "⚗ Alquimia", act: () => { this.dialog = null; this.openStation = "alchemist"; } });
     if (npc.role === "shop" || npc.role === "alchemist") ch.push({ label: "💰 Comprar / Vender", act: () => { this.dialog = null; this.openStation = "shop"; } });
-    ch.push({ label: "Conversar", act: () => this.say(npc, npc.lines[Math.floor(Math.random() * npc.lines.length)]) });
-    ch.push({ label: "Adeus", act: () => { this.dialog = null; } });
+    ch.push({ label: "Conversar livremente", kind: "system", act: () => this.say(npc, npc.lines[Math.floor(Math.random() * npc.lines.length)] ?? "O silêncio responde por mim.") });
+    ch.push({ label: "Encerrar conversa", kind: "system", act: () => { this.dialog = null; } });
     return ch;
   }
   say(npc: NpcDef, text: string) { this.audio.sfx("ui"); this.dialog = { npc, text, choices: this.npcChoices(npc) }; }

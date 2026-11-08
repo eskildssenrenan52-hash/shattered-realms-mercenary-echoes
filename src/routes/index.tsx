@@ -138,6 +138,7 @@ function Intro() {
           <div className="title-white" />
           <div className="title-block">
             <div className="title-arrow" aria-hidden />
+            <div className="title-studio-mark">REMULU GAMES · APRESENTA</div>
             <h1 className="game-title">Golden Arrow<span>Odyssey</span></h1>
             <p className="game-subtitle">A Crônica do Cântico Partido</p>
           </div>
@@ -151,6 +152,7 @@ function Intro() {
 function MainMenu() {
   return (
     <div className="title-menu">
+      <div className="menu-opening-note">A abertura completa — Remulu Games, a Canção e o primeiro Eco — será exibida antes da sua jornada.</div>
       <div className="menu-greet">Modo offline — progresso salvo neste aparelho</div>
       <Link to="/odyssey" className="menu-btn primary">▶ Golden Arrow Odyssey</Link>
     </div>

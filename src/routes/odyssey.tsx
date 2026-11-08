@@ -131,10 +131,10 @@ function Portrait({ pal }: { pal: Parameters<typeof drawChar>[3] }) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const c = ref.current?.getContext("2d"); if (!c) return;
-    c.imageSmoothingEnabled = false; c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, 64, 64);
-    c.setTransform(4, 0, 0, 4, 0, 0); drawChar(c, 8, 20, pal, 0, 0);
+    c.imageSmoothingEnabled = false; c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, 80, 80);
+    c.setTransform(5, 0, 0, 5, 0, 0); drawChar(c, 8, 24, pal, 0, 0);
   }, [pal]);
-  return <canvas ref={ref} width={64} height={64} className="game-frame bg-secondary" style={{ width: 80, height: 80, imageRendering: "pixelated" }} />;
+  return <canvas ref={ref} width={80} height={80} className="game-frame bg-secondary" style={{ width: 124, height: 124, imageRendering: "pixelated" }} />;
 }
 function Bar({ v, max, cls, label }: { v: number; max: number; cls: string; label: string }) {
   return (
@@ -487,13 +487,14 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
 
             {/* Dialog */}
             {g.dialog && (
-              <div className="dialog-box absolute bottom-20 left-1/2 -translate-x-1/2 w-[80%] game-panel p-3 flex gap-3">
-                <Portrait pal={g.dialog.npc.pal} />
+              <div className="dialog-box dialog-layout absolute bottom-20 left-1/2 -translate-x-1/2 w-[86%] game-panel p-3">
+                <aside className="dialog-profile"><Portrait pal={g.dialog.npc.pal} /><div className="dialog-profile-copy"><b>{g.dialog.npc.name}</b><small>{g.dialog.npc.title}</small><span>NPC · companheiro de jornada</span></div></aside>
                 {g.dialog.choices.length <= 1 && <div className="tap-to-continue tap-small" aria-hidden>Toque para continuar</div>}
-                <div className="flex-1 text-[12px] space-y-2">
-                  <div className="text-primary">{g.dialog.npc.name} <span className="opacity-60">— {g.dialog.npc.title}</span></div>
-                  <p className="font-body text-lg leading-5">{g.dialog.text}</p>
-                  <div className="flex flex-wrap gap-1">{g.dialog.choices.map((c, i) => <Button variant="game" key={i} onClick={() => { g.audio.sfx("ui"); c.act(); }} className="game-btn">{c.label}</Button>)}</div>
+                <div className="dialog-main text-[12px] space-y-2">
+                  <div className="dialog-speaker"><span>FALA ATUAL</span><b>{g.dialog.npc.name}</b></div>
+                  <p className="font-body text-lg leading-5 dialog-speech">{g.dialog.text}</p>
+                  {g.dialog.choices.some((c) => c.kind === "question") && <div><div className="dialog-choice-heading">Escolha uma pergunta</div><div className="dialog-questions">{g.dialog.choices.filter((c) => c.kind === "question").map((c, i) => <Button variant="game" key={`q${i}`} onClick={() => { g.audio.sfx("ui"); c.act(); }} className="game-btn dialog-question">{c.label}</Button>)}</div></div>}
+                  <div className="dialog-actions">{g.dialog.choices.filter((c) => c.kind !== "question").map((c, i) => <Button variant="game" key={`a${i}`} onClick={() => { g.audio.sfx("ui"); c.act(); }} className={`game-btn dialog-action ${c.kind === "quest" ? "is-quest" : ""}`}>{c.label}</Button>)}</div>
                 </div>
               </div>
             )}

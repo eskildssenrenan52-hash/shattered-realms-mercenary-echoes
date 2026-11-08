@@ -10,10 +10,10 @@ describe("arsenal Kaetram e slots expandidos", () => {
     expect(slots).toContain("shield");
   });
   it("usa sprites Kaetram locais nos quatro slots novos", () => {
-    expect(ITEMS.kae_iron_helmet.sprite).toBe("ironhelmet");
-    expect(ITEMS.kae_gold_bracer.sprite).toBe("braceletgoldruby");
-    expect(ITEMS.kae_steel_boots.sprite).toBe("steelboots");
-    expect(ITEMS.kae_iron_shield.sprite).toBe("ironroundshield");
+    expect(ITEMS["kae_iron_helmet"].sprite).toBe("ironhelmet");
+    expect(ITEMS["kae_gold_bracer"].sprite).toBe("braceletgoldruby");
+    expect(ITEMS["kae_steel_boots"].sprite).toBe("steelboots");
+    expect(ITEMS["kae_iron_shield"].sprite).toBe("ironroundshield");
   });
   it("atribui cada item novo ao slot certo e fornece bônus", () => {
     for (const [id, slot] of [["kae_iron_helmet", "helmet"], ["kae_gold_bracer", "gloves"], ["kae_steel_boots", "boots"], ["kae_iron_shield", "shield"]] as const) {
