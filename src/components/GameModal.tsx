@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { GameIcon } from "@/components/GameIcon";
 
 /** Janela padrão dos dois jogos: cabeçalho fixo, corpo com rolagem e fecha com Esc. */
-export function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
+export function Modal({ title, onClose, children, wide, overlayClassName = "" }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean; overlayClassName?: string }) {
   const m = title.match(/^(.*?)\s+[—·]\s+(.*)$/);
   const main = m ? m[1] : title, sub = m ? m[2] : "";
   const lower = title.toLocaleLowerCase();
@@ -28,7 +28,7 @@ export function Modal({ title, onClose, children, wide }: { title: string; onClo
     return () => { window.removeEventListener("keydown", k, true); restoreRef.current?.focus(); };
   }, [onClose]);
   return (
-    <div className="modal-overlay absolute inset-0 flex items-center justify-center p-4" onMouseDown={onClose}>
+    <div className={`modal-overlay absolute inset-0 flex items-center justify-center p-4 ${overlayClassName}`} onMouseDown={onClose}>
       <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} data-modal-theme={theme} className={`game-panel modal-content modal-shell w-full ${wide ? "max-w-4xl" : "max-w-3xl"} text-[12px]`} onMouseDown={(e) => e.stopPropagation()}>
         <header className="modal-head">
           <span className="modal-gem" aria-hidden="true" />
