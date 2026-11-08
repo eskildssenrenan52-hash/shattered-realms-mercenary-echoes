@@ -3,7 +3,7 @@ import { K_SHEETS, K_DIR, drawK } from "./kaetram";
 import { ITEMS, type Slot } from "./data";
 import { EXPANDED_MERCENARIES } from "./mercenary-expansion";
 import { AI_EXPANDED_MERCENARY_SHEET_IDS, LEGACY_AI_MERCENARY_SHEET_IDS } from "./mercenary-skins";
-import { drawUniqueCharacter, type UniqueCharacterDesign } from "./unique-character";
+import { drawUniqueCharacter, uniqueDesign, type UniqueCharacterDesign } from "./unique-character";
 import { resetFollowerNavigation, safeFollowerPosition, walkFollowerToward } from "./follower-navigation";
 
 export type MercRarity = "comum" | "incomum" | "raro" | "epico" | "lendario";
@@ -1147,6 +1147,56 @@ export const MERCENARIES: MercenaryDef[] = [
     color: "#e5a7ff",
     minLevel: 29,
     progressKey: "catalog:vivi-constelacao",
+  }),
+  M({
+    id: "aurora-ventoalto",
+    name: "Aurora Ventoalto",
+    title: "Cartógrafa do Céu Partido",
+    rarity: "epico",
+    role: "curandeira",
+    element: "céu",
+    portrait: "/mercenaries/portrait-aurora.png",
+    sheet: "/kaetram/img/sprites/player/base.png",
+    weapon: "oldonesblade",
+    maxHp: 94,
+    atk: 22,
+    def: 7,
+    speed: 54,
+    attackRange: 92,
+    attackCooldown: 1.8,
+    recoverySeconds: 72,
+    lore: "Aurora mapeou correntes de mana entre as nuvens e voltou com um caminho seguro para os viajantes.",
+    contract: "Ela pede apenas uma janela aberta para continuar desenhando o horizonte.",
+    skill: "Rosa dos Ventos: cura o herói e aumenta a velocidade da companhia.",
+    color: "#79d9e8",
+    minLevel: 12,
+    progressKey: "catalog:fronteira:106",
+    design: uniqueDesign(31106, "staff"),
+  }),
+  M({
+    id: "brasa-ferrante",
+    name: "Brasa Ferrante",
+    title: "Guardião da Caldeira",
+    rarity: "lendario",
+    role: "guardiao",
+    element: "cinza",
+    portrait: "/mercenaries/portrait-brasa.png",
+    sheet: "/kaetram/img/sprites/player/base.png",
+    weapon: "executionershammer",
+    maxHp: 164,
+    atk: 31,
+    def: 16,
+    speed: 32,
+    attackRange: 34,
+    attackCooldown: 2.15,
+    recoverySeconds: 102,
+    lore: "Brasa vigia uma forja apagada e conhece o som de cada pedra antes que ela rache.",
+    contract: "Ele entra na companhia quando a rota precisa de alguém que não recue.",
+    skill: "Muralha Incandescente: reduz fortemente o dano recebido pelo herói quando está próximo.",
+    color: "#ff9a5b",
+    minLevel: 18,
+    progressKey: "catalog:fronteira:107",
+    design: uniqueDesign(31107, "axe"),
   }),
 ];
 // IDs legados ficam intactos; novos contratos só entram no jogo quando a folha AI existe.

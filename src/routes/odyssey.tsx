@@ -32,6 +32,7 @@ import { petsNewGame } from "@/odyssey/pet-play";
 import { PetsPanel } from "@/components/PetsPanel";
 import { EchoesBeyondPanel } from "@/components/EchoesBeyondPanel";
 import { MercenariesPanel } from "@/components/MercenariesPanel";
+import { SkillTreePanel } from "@/components/SkillTreePanel";
 import { drawKIcon, kImage } from "@/odyssey/kaetram";
 import { PawPrint } from "lucide-react";
 import { skipTutorial, startTutorial, TUTORIAL_FLOORS } from "@/odyssey/depthplay";
@@ -46,6 +47,7 @@ import { DailyLoginPanel } from "@/components/DailyLoginPanel";
 import { claimDailyLogin, createDailyLoginState, DAILY_REWARDS, dailyLoginSnapshot, type DailyLoginState, type DailyReward } from "@/odyssey/daily-login";
 import { displayRoomCode, normalizeRoomCode, MultiplayerRoom, MULTIPLAYER_MAX_PLAYERS, type MultiplayerRoomClient, type MultiplayerRoomState } from "@/odyssey/multiplayer-room";
 import { DedicatedMultiplayerRoom, formatRoomInvite, parseRoomInvite } from "@/odyssey/multiplayer-ws";
+import { panelLabel, panelUnlockLevel, panelUnlocked, type ProgressPanel } from "@/odyssey/progression";
 
 const MULTIPLAYER_WSS_URL = (import.meta.env["VITE_MULTIPLAYER_WS_URL"] ?? "").trim();
 
@@ -64,7 +66,7 @@ export const Route = createFileRoute("/odyssey")({
   component: OdysseyScreen,
 });
 
-type Panel = null | "inv" | "char" | "quest" | "map" | "secrets" | "workshop" | "build" | "farm" | "home" | "chronicle" | "bestiary" | "grimoire" | "epic" | "pets" | "echoes" | "mercenaries";
+type Panel = null | ProgressPanel | "skills" | "workshop" | "build" | "farm" | "home";
 
 const DAILY_STATE_KEY = "shattered-realms:daily-login:v1";
 const DAILY_RECEIPTS_KEY = "shattered-realms:daily-receipts:v1";
@@ -160,6 +162,7 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
   const [fullscreen,setFullscreen]=useState(false);
   const [menuOpen,setMenuOpen]=useState(false);
   const [heroTab,setHeroTab]=useState<"stats"|"look">("stats");
+  const [inventoryFilter,setInventoryFilter]=useState<"all"|"weapon"|"armor"|"ring"|"amulet"|"potion"|"material">("all");
   const [tutorialMode,setTutorialMode]=useState<"none"|"dungeon"|"modals">("none");
   const [multiplayerOpen,setMultiplayerOpen]=useState(false);
   const [multiplayerName,setMultiplayerName]=useState("Aventureiro");
@@ -274,6 +277,14 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
   }, []);
 
   const g = gameRef.current;
+  const openProgressPanel = (next: Panel) => {
+    const game = gameRef.current;
+    if (game && next && ["inv", "char", "quest", "map", "secrets", "bestiary", "grimoire", "chronicle", "epic", "echoes", "pets", "mercenaries"].includes(next)) {
+      const required = panelUnlockLevel(next as ProgressPanel);
+      if (!panelUnlocked(game.p.level, next as ProgressPanel)) { game.toast(`${panelLabel(next as ProgressPanel)} libera no nível ${required}.`, "#ffcf70"); setMenuOpen(false); return; }
+    }
+    setPanel(next);
+  };
   const clearTutorialInput = (game: Game) => { game.keys.clear(); game.mouse.down = false; game.moveTarget = null; game.targetEnemy = null; game.talkTarget = null; };
   const openGuide = () => {
     const game = gameRef.current;
@@ -513,15 +524,18 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
               <Modal title={`Inventário · ${g.inventory.length}/${g.INV_MAX} espaços`} onClose={() => setPanel(null)}>
                 <div className="inv-layout">
                   <Section title="Equipamento" aside={`ATQ ${g.attackPower()} · DEF ${g.defense()}`}>
+                    <div className="equip-summary"><span>Arma</span><b>{g.weapon().name}</b><span>Defesa</span><b>{g.defense()}</b><span>HP/MP</span><b>{g.maxHp()}/{g.maxMp()}</b></div>
                     <div className="equip-list">{(["weapon", "armor", "ring", "amulet"] as Slot[]).map((s) => {
                       const id = p.equip[s];
                       return <Button variant="game" key={s} onClick={() => g.unequip(s)} className="equip-slot equip-row">{id ? <Icon id={id} /> : <div className="w-8 h-8 equip-empty" />}<div><div className="row-label">{{ weapon: "Arma", armor: "Armadura", ring: "Anel", amulet: "Amuleto" }[s]}</div><div className="row-name">{id ? ITEMS[id].name : "Vazio"}</div></div></Button>;
                     })}</div>
                   </Section>
                   <Section title="Mochila" aside={<Meter value={g.inventory.length} max={g.INV_MAX} />}>
+                    <div className="inventory-filters" role="tablist">{([['all','Tudo'],['weapon','Armas'],['armor','Defesa'],['ring','Anéis'],['amulet','Amuletos'],['potion','Poções'],['material','Materiais']] as const).map(([id,label])=><button key={id} className={inventoryFilter===id?'on':''} onClick={()=>setInventoryFilter(id)}>{label}</button>)}</div>
                     <div className="inv-grid">
                       {Array.from({ length: g.INV_MAX }).map((_, i) => {
                         const s = g.inventory[i];
+                        if (s && inventoryFilter !== "all" && ITEMS[s.id].type !== inventoryFilter) return <div key={i} className="inv-slot-empty" aria-hidden />;
                         return <Button variant="game" key={i} onClick={() => s && g.equip(i)} title={s ? `${ITEMS[s.id].name} — ${ITEMS[s.id].desc}` : ""} className="inv-slot relative aspect-square flex items-center justify-center">{s && <><Icon id={s.id} />{s.qty > 1 && <span className="slot-qty">{s.qty}</span>}</>}</Button>;
                       })}
                     </div>
@@ -532,7 +546,7 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
             )}
             {panel === "char" && (
               <Modal title={`Herói · Nível ${p.level}`} onClose={() => setPanel(null)}>
-                <div className="hero-tabs" role="tablist">{([["stats","Atributos"],["look","Aparência"]] as const).map(([id,l])=><button key={id} role="tab" aria-selected={heroTab===id} className={heroTab===id?"on":""} onClick={()=>setHeroTab(id)}>{l}</button>)}</div>
+                <div className="hero-tabs" role="tablist">{([["stats","Atributos"],["look","Aparência"]] as const).map(([id,l])=><button key={id} role="tab" aria-selected={heroTab===id} className={heroTab===id?"on":""} onClick={()=>setHeroTab(id)}>{l}</button>)}<button onClick={()=>openProgressPanel("skills")}>Habilidades {p.skillPoints ? `· ${p.skillPoints}` : ""}</button></div>
                 {heroTab==="look" ? <AppearancePanel level={p.level} armor={ITEMS[p.equip.armor ?? "cloth"].color} ring={p.equip.amulet ? ITEMS[p.equip.amulet].color : "#ddc58e"} /> : <div className="modal-cols">
                   <Section title="Atributos" aside={p.points > 0 ? `${p.points} pontos livres` : "Sem pontos livres"}>
                     <div className="stat-list">{([["str", "Força", "Dano corpo-a-corpo"], ["dex", "Destreza", "Arco, crítico, velocidade"], ["vit", "Vitalidade", "HP e defesa"], ["int", "Inteligência", "Magias e cajado"], ["wis", "Sabedoria", "MP, cura, regeneração"]] as [keyof Stats, string, string][]).map(([k, n, d]) => (
@@ -545,6 +559,7 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
                 </div>}
               </Modal>
             )}
+            {panel === "skills" && g && <SkillTreePanel g={g} onClose={() => setPanel(null)} />}
             {panel === "chronicle" && (
               <Modal title={`A Crônica do Cântico Partido — Ciclo ${g.cycle + 1}`} onClose={() => setPanel(null)}>
                 <div className="chronicle-top"><span>Ecos restaurados <b>{g.ecosRestored()}/{ECOS.length}</b></span><span>Nível dos inimigos do ciclo <b>+{g.cycle * 20}</b></span></div>
@@ -696,8 +711,8 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
                 <div className="menu-grid">{([
                   {p:'inv',label:'Mochila',icon:'inv'},{p:'char',label:'Herói',icon:'char'},{p:'quest',label:'Missões',icon:'quest'},{p:'map',label:'Mapa',icon:'map'},
                   {p:'chronicle',label:'Crônica',icon:'chronicle'},{p:'epic',label:'Grande Crônica',icon:'chronicle'},{p:'echoes',label:'Ecos Além',icon:'secrets'},{p:'bestiary',label:'Bestiário',icon:'bestiary'},{p:'grimoire',label:'Grimório',icon:'secrets'},{p:'secrets',label:'Descobertas',icon:'secrets'},
-                ] as const).map(it=><button key={it.p} onClick={()=>{setMenuOpen(false);setPanel(it.p);}}><GameIcon name={it.icon as never} size={30}/><span>{it.label}</span></button>)}
-                <Button variant="game" onClick={()=>{setMenuOpen(false);setPanel('pets');}}><PawPrint size={28}/><span>Pets</span></Button><Button variant="game" onClick={()=>{setMenuOpen(false);setPanel('mercenaries');}}><Swords size={28}/><span>Mercenários</span></Button><button onClick={()=>{setMenuOpen(false);setHeroTab('look');setPanel('char');}}><span className="menu-emoji" aria-hidden>🎭</span><span>Aparência</span></button></div>
+                ] as const).map(it=><button key={it.p} onClick={()=>{setMenuOpen(false);openProgressPanel(it.p);}}><GameIcon name={it.icon as never} size={30}/><span>{it.label}</span></button>)}
+                <Button variant="game" onClick={()=>{setMenuOpen(false);openProgressPanel('pets');}}><PawPrint size={28}/><span>Pets</span></Button><Button variant="game" onClick={()=>{setMenuOpen(false);openProgressPanel('mercenaries');}}><Swords size={28}/><span>Mercenários</span></Button><button onClick={()=>{setMenuOpen(false);setHeroTab('look');openProgressPanel('char');}}><span className="menu-emoji" aria-hidden>🎭</span><span>Aparência</span></button></div>
                 <div className="menu-group">Ferramenta · {g.tool==='explore'?'Explorar':g.tool}</div>
                 <div className="menu-grid menu-grid-5">{([{id:'explore',label:'Explorar',icon:'explore'},{id:'mine',label:'Minerar',icon:'mine'},{id:'axe',label:'Lenhar',icon:'axe'},{id:'till',label:'Terra',icon:'till'},{id:'water',label:'Regar',icon:'water'}] as const).map(t=><button key={t.id} className={g.tool===t.id?'on':''} onClick={()=>{g.tool=t.id;setMenuOpen(false);}}><GameIcon name={t.icon as never} size={28}/><span>{t.label}</span></button>)}</div>
                 <div className="menu-group">Lar e oficinas</div>
@@ -719,11 +734,11 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
         </>
       )}
       <footer className="game-toolbar" style={liveOn ? { visibility: "hidden" } : undefined}>
-        <Button variant="ghost" size="icon" disabled={title} aria-label="Pets" title="Pets (P)" onClick={()=>setPanel(panel==='pets'?null:'pets')}><PawPrint size={20}/></Button>
-        <Button variant="ghost" size="icon" disabled={title} aria-label="Mercenários" title="Mercenários · contratos e companhia" onClick={()=>setPanel(panel==='mercenaries'?null:'mercenaries')}><Swords size={20}/></Button>
+        <Button variant="ghost" size="icon" disabled={title} aria-label="Pets" title="Pets (P)" onClick={()=>openProgressPanel(panel==='pets'?null:'pets')}><PawPrint size={20}/></Button>
+        <Button variant="ghost" size="icon" disabled={title} aria-label="Mercenários" title="Mercenários · contratos e companhia" onClick={()=>openProgressPanel(panel==='mercenaries'?null:'mercenaries')}><Swords size={20}/></Button>
         <Button variant="ghost" size="icon" disabled={title} aria-label="Ecos Além" title="Ecos Além · sistemas da expansão" onClick={()=>setPanel(panel==='echoes'?null:'echoes')}><Sparkles size={20}/></Button>
         <Button variant="ghost" size="icon" disabled={title} aria-label="Multijogador" title="Sala multijogador · até cinco pessoas" onClick={()=>{setPanel(null);setMultiplayerMessage("");setMultiplayerOpen(true);}} className={multiplayerState.status==="connected"?"text-primary":"text-muted-foreground"}><Users size={20}/></Button>
-        <div className="toolbar-actions">{([{p:'inv',icon:Backpack,label:'Inventário'},{p:'char',icon:UserRound,label:'Herói'},{p:'quest',icon:ScrollText,label:'Missões'},{p:'chronicle',icon:BookOpen,label:'Crônica (J)'},{p:'map',icon:Map,label:'Mapa'},{p:'secrets',icon:Compass,label:'Descobertas'},{p:'bestiary',icon:Skull,label:'Bestiário (B)'},{p:'grimoire',icon:Sparkles,label:'Grimório (V)'},{p:'epic',icon:ScrollText,label:'Grande Crônica (O)'}] as const).map(({p:tab,icon:ToolIcon,label})=><Button key={tab} variant="ghost" size="icon" disabled={title} title={label} aria-label={label} onClick={()=>setPanel(panel===tab?null:tab)} className={panel===tab?'text-primary':'text-muted-foreground'}><GameIcon name={tab}/><ToolIcon size={18}/></Button>)}<span className="toolbar-divider"/>{([{id:'explore',icon:Swords,label:'Explorar'},{id:'mine',icon:Pickaxe,label:'Minerar'},{id:'axe',icon:Axe,label:'Cortar madeira'},{id:'till',icon:Shovel,label:'Preparar terra'},{id:'water',icon:Droplets,label:'Regar'}] as const).map(({id,icon:ToolIcon,label})=><Button key={id} variant="ghost" size="icon" aria-label={label} title={label} disabled={title} onClick={()=>{if(g)g.tool=id;}} className={g?.tool===id&&!title?'tool-active':'text-muted-foreground'}><GameIcon name={id}/><ToolIcon size={18}/></Button>)}</div>
+        <div className="toolbar-actions">{([{p:'inv',icon:Backpack,label:'Inventário'},{p:'char',icon:UserRound,label:'Herói'},{p:'quest',icon:ScrollText,label:'Missões'},{p:'chronicle',icon:BookOpen,label:'Crônica (J)'},{p:'map',icon:Map,label:'Mapa'},{p:'secrets',icon:Compass,label:'Descobertas'},{p:'bestiary',icon:Skull,label:'Bestiário (B)'},{p:'grimoire',icon:Sparkles,label:'Grimório (V)'},{p:'epic',icon:ScrollText,label:'Grande Crônica (O)'}] as const).map(({p:tab,icon:ToolIcon,label})=><Button key={tab} variant="ghost" size="icon" disabled={title} title={label} aria-label={label} onClick={()=>openProgressPanel(panel===tab?null:tab)} className={panel===tab?'text-primary':'text-muted-foreground'}><GameIcon name={tab}/><ToolIcon size={18}/></Button>)}<span className="toolbar-divider"/>{([{id:'explore',icon:Swords,label:'Explorar'},{id:'mine',icon:Pickaxe,label:'Minerar'},{id:'axe',icon:Axe,label:'Cortar madeira'},{id:'till',icon:Shovel,label:'Preparar terra'},{id:'water',icon:Droplets,label:'Regar'}] as const).map(({id,icon:ToolIcon,label})=><Button key={id} variant="ghost" size="icon" aria-label={label} title={label} disabled={title} onClick={()=>{if(g)g.tool=id;}} className={g?.tool===id&&!title?'tool-active':'text-muted-foreground'}><GameIcon name={id}/><ToolIcon size={18}/></Button>)}</div>
         {g && !title && panel === 'home' && <Modal title={`Minha casa · ${HOME_LEVELS[g.settlement.home.level - 1].name}`} onClose={()=>setPanel(null)}>
           {g.settlement.home.level < HOME_LEVELS.length ? <Button variant="secondary" className="mb-4" onClick={()=>{upgradeHome(g);setPanel(null);}}><Hammer/>Reformar para {HOME_LEVELS[g.settlement.home.level].name}<small className="ml-2 opacity-80">{Object.entries(HOME_LEVELS[g.settlement.home.level].cost).map(([key,n])=>`${ITEMS[key].name} ${g.count(key)}/${n}`).join(' · ')}</small></Button> : <div className="progress-line mb-4">Sua mansão está completa.</div>}
           <div className="choice-grid">{(Object.entries(FURNITURE) as [FurnitureKind,typeof FURNITURE.bed][]).map(([id,def])=><Button variant="outline" className="choice-item" key={id} disabled={g.settlement.home.level < def.minLevel} onClick={()=>{g.furniture=id;g.tool='furnish';setPanel(null);}}><House/><span>{def.name}<small>{g.settlement.home.level < def.minLevel ? `Requer ${HOME_LEVELS[def.minLevel-1].name}` : Object.entries(def.cost).map(([key,n])=>`${ITEMS[key].name} ${g.count(key)}/${n}`).join(' · ')}</small></span></Button>)}</div>

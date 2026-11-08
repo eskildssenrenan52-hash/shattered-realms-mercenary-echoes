@@ -84,5 +84,14 @@
 - [x] **Escolha de missão e rota:** no Livro de Missões, permitir selecionar qualquer missão ativa ou disponível e manter a missão principal como padrão automático sem seleção manual; mostrar alvo/progresso atuais, priorizar a missão selecionada no HUD desktop e em um resumo mobile e permitir limpar a rota.
 - [x] **Segredos rastreáveis sem spoilers:** no Diário de Descobertas, listar as cadeias de enigmas já iniciadas, exibir a pista e a etapa atual e permitir selecionar uma delas; não revelar nome, pista ou posição de cadeias que ainda não foram descobertas.
 - [x] **Trajeto visual seguro e persistente:** desenhar caminho pontilhado até o objetivo escolhido no mundo e no minimapa, calculado sobre tiles caminháveis para contornar paredes; atualizar após mudanças de objetivo/área e salvar a seleção sem quebrar saves anteriores.
+
+## Pedido de 8 de novembro de 2026 — progressão e equipamento (autorizado)
+
+- [x] **Acesso progressivo:** começar com Atributos, Aparência e Mochila; liberar os outros painéis nos níveis 3, 5, 6, 7, 8, 10, 12, 15 e 20, com mensagens claras e save compatível.
+- [x] **Árvore de habilidades:** oito nós em três ramos, custos, pré-requisitos, pontos ganhos por nível, compra idempotente e bônus efetivos em HP/MP/dano/defesa/velocidade/regeneração.
+- [x] **Slots organizados:** IDs e slots legados preservados; equipamento agrupado com resumo de ATQ/DEF/HP/MP e filtros de armas, defesa, acessórios, poções e materiais.
+- [x] **Novos conteúdos visuais:** Aurora Ventoalto e Brasa Ferrante adicionados com retratos gerados originalmente, folhas locais, design procedural e gates de nível; Kaetram/licenças/créditos preservados.
+- [x] **Validação:** typecheck, build web, bundle offline (1.844 arquivos/81 MB), 247/249 testes na suíte ampliada; multiplayer-room/ws, engine (31/31), catálogo, progressão e tutorial passaram. Duas falhas baseline não relacionadas permanecem em `exploration.test.ts` e `kaetram-assets.test.ts`.
+- [ ] **APK final:** bundle offline pronto, mas `assembleDebug` não pôde rodar nesta sandbox porque não há Gradle nem Android SDK; workflow GitHub Actions existente é o caminho para gerar o APK após o push.
 - [x] **APK offline 0.3.3:** compilado com versionCode 6, assinatura debug, 71 MB e SHA-256 `7dc9da88fb8cad226038d24a0948046710ee9866d469af64a23c275972fd9bef`; o pacote local validou 1.838 arquivos, HTML de entrada, JavaScript offline e FX.
 - [x] **Validação das rotas:** 39/39 testes focais de motor/waypoint/rota passaram; TypeScript e builds web/Android offline aprovados. Seleção e segredo descoberto têm testes de persistência/ocultação.

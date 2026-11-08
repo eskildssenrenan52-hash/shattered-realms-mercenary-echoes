@@ -493,12 +493,16 @@ button:disabled{filter:grayscale(.8) brightness(.7)!important}
 .inv-layout{display:grid;grid-template-columns:200px minmax(0,1fr);gap:10px}
 .inv-layout>.modal-section{margin-bottom:0}
 .equip-list{display:flex;flex-direction:column;gap:6px}
+.equip-summary{display:grid;grid-template-columns:auto 1fr;gap:3px 8px;margin-bottom:8px;padding:7px;background:oklch(.12 .03 170 / .75);border:1px solid oklch(.6 .12 70 / .25);font-size:10px}.equip-summary span{color:oklch(.78 .04 90 / .7)}.equip-summary b{text-align:right;color:var(--ui-gold)}
 .equip-row{width:100%;display:flex!important;align-items:center;gap:8px;height:auto!important;padding:4px!important;text-align:left;justify-content:flex-start}
 .row-label{font-size:9px;text-transform:uppercase;letter-spacing:.08em;opacity:.6}
 .row-name{font-size:11px}
 .equip-empty{border:1px dashed oklch(.6 .12 70 / .5)}
 .inv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:4px}
 .slot-qty{position:absolute;right:1px;bottom:0;font-family:'Press Start 2P',monospace;font-size:7px;color:#fff;text-shadow:1px 1px 0 #000,-1px -1px 0 #000}
+.inventory-filters{display:flex;gap:4px;overflow-x:auto;margin-bottom:7px;padding-bottom:3px}.inventory-filters button{flex:0 0 auto;padding:5px 7px;font-size:9px;background:oklch(.14 .02 170 / .8);border:1px solid oklch(.6 .12 70 / .35);color:inherit}.inventory-filters button.on{background:var(--ui-gold);color:oklch(.15 .03 60);border-color:var(--ui-gold-deep)}.inv-slot-empty{aspect-ratio:1;opacity:.15;border:1px dashed oklch(.6 .12 70 / .18)}
+.skill-tree-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.skill-branch{display:flex;flex-direction:column;gap:7px}.skill-node{padding:8px;background:oklch(.15 .025 170 / .9);border:1px solid oklch(.6 .12 70 / .45);min-height:124px}.skill-node.is-learned{border-color:var(--ui-gold);box-shadow:0 0 0 1px oklch(.7 .15 85 / .25)}.skill-node.is-locked{opacity:.6}.skill-node b{display:block;color:var(--ui-gold);font-size:11px}.skill-node small{display:block;font-size:9px;opacity:.75}.skill-node p{margin:6px 0;font-family:'Press Start 2P',monospace;font-size:8px;line-height:1.5;opacity:.85}.skill-node button{width:100%;margin-top:7px;font-size:9px}.skill-rank{display:grid;place-items:center;width:22px;height:22px;border:1px solid var(--ui-gold);color:var(--ui-gold);font-size:10px}
+@media(max-width:700px){.skill-tree-grid{grid-template-columns:1fr}.skill-node{min-height:0}.equip-summary{font-size:9px}}
 /* Herói */
 .stat-list{display:flex;flex-direction:column;gap:8px}
 .stat-row{display:grid;grid-template-columns:1fr 34px;grid-template-areas:"head plus" "bar plus" "desc plus";column-gap:10px;row-gap:3px;align-items:center}

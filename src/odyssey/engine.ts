@@ -61,6 +61,7 @@ import { registerForgeExpansion } from "./forge-expansion";
 import { carveBiomeMineEntrances, drawBiomeMineEntrances } from "./biome-mine-sites";
 import { biomeMineBestFloor, BIOME_MINE_FLOORS } from "./biome-mines";
 import type { MultiplayerPlayer, MultiplayerPose } from "./multiplayer-room";
+import { buySkill, freshSkillRanks, skillBonuses, type SkillId, type SkillRanks } from "./progression";
 
 registerForgeExpansion();
 
@@ -324,7 +325,7 @@ export class Game {
 
   p = {
     x: 122 * TS + 8, y: 128 * TS + 8, vx: 0, vy: 0, dir: 0, frame: 0, frameT: 0, attackT: 0, atkCd: 0, spellCd: 0, inv: 0,
-    hp: 100, mp: 30, level: 1, xp: 0, points: 0, gold: 50,
+    hp: 100, mp: 30, level: 1, xp: 0, points: 0, skillPoints: 0, skills: freshSkillRanks(), gold: 50,
     base: { str: 5, dex: 5, vit: 5, int: 5, wis: 5 } as Stats,
     equip: { weapon: "wood_sword", armor: "cloth", ring: null, amulet: null } as Record<Slot, string | null>,
     spirits: ["salamando", "dryad"] as SpiritId[],
@@ -375,10 +376,12 @@ export class Game {
     }
     return s;
   }
-  bonus(k: "hp" | "mp") { let v = 0; for (const id of Object.values(this.p.equip)) if (id) v += ITEMS[id].bonus?.[k] ?? 0; return v; }
+  skillRanks(): SkillRanks { return this.p.skills ?? (this.p.skills = freshSkillRanks()); }
+  buySkill(id: SkillId) { const result = buySkill(this.p.level, this.p.skillPoints ?? 0, this.skillRanks(), id); if (!result.ok) return false; this.p.skillPoints = result.points; this.p.skills = result.ranks; this.p.hp = Math.min(this.maxHp(), this.p.hp); this.p.mp = Math.min(this.maxMp(), this.p.mp); this.audio.sfx("level"); this.toast("Habilidade aprendida.", "#ffd040"); this.save(); return true; }
+  bonus(k: "hp" | "mp") { let v = 0; for (const id of Object.values(this.p.equip)) if (id) v += ITEMS[id].bonus?.[k] ?? 0; const b = skillBonuses(this.skillRanks()); return v + (k === "hp" ? b.hp : b.mp); }
   maxHp() { return 50 + this.stats().vit * 10 + this.p.level * 6 + this.bonus("hp"); }
   maxMp() { const s = this.stats(); return 20 + s.wis * 5 + s.int * 2 + this.bonus("mp"); }
-  defense() { const a = this.p.equip.armor; return (a ? ITEMS[a].def ?? 0 : 0) + Math.floor(this.stats().vit / 2); }
+  defense() { const a = this.p.equip.armor; return (a ? ITEMS[a].def ?? 0 : 0) + Math.floor(this.stats().vit / 2) + skillBonuses(this.skillRanks()).defense; }
   weapon() { return ITEMS[this.p.equip.weapon ?? "wood_sword"]; }
   attackPower() {
     const w = this.weapon(), s = this.stats();
@@ -386,7 +389,7 @@ export class Game {
     if (w.weapon === "bow") return s.dex * 2 + atk + s.str * 0.5;
     if (w.weapon === "staff") return s.int * 2 + atk;
     if (w.weapon === "spear") return Math.round((s.str * 2 + atk) * 1.15);
-    return s.str * 2 + atk;
+    return Math.round((s.str * 2 + atk) * (1 + skillBonuses(this.skillRanks()).weaponDamage));
   }
   xpNeed() { return Math.floor(25 * Math.pow(this.p.level, 1.6)); }
 
@@ -663,8 +666,9 @@ export class Game {
       p.xp -= this.xpNeed();
       p.level++;
       p.points += 3;
+      p.skillPoints = (p.skillPoints ?? 0) + 1;
       p.hp = this.maxHp(); p.mp = this.maxMp();
-      this.toast(`Nível ${p.level}! +3 pontos de atributo (C)`, "#ffd040");
+      this.toast(`Nível ${p.level}! +3 atributos e +1 ponto de habilidade`, "#ffd040");
       this.audio.sfx("level");
       this.burst(p.x, p.y - 10, "#ffd040", 30, 90, 2, -40);
       this.levelBeats.push(p.level); // disparadas no próximo quadro, depois das cenas de chefe
@@ -673,7 +677,7 @@ export class Game {
   hurtPlayer(raw: number, sx: number, sy: number, visual?: FxSig) {
     const p = this.p;
     if (p.inv > 0 || p.dead > 0) return;
-    const dmg = Math.max(1, Math.round((raw - this.defense() * 0.6 + (Math.random() * 4 - 2)) * damageTakenMult(this) * petGuardMult(this) * mercGuardMult(this)));
+    const dmg = Math.max(1, Math.round((raw - this.defense() * 0.6 + (Math.random() * 4 - 2)) * damageTakenMult(this) * skillBonuses(this.skillRanks()).damageTaken * petGuardMult(this) * mercGuardMult(this)));
     p.hp -= dmg;
     p.inv = 0.6;
     const a = Math.atan2(p.y - sy, p.x - sx);
@@ -883,7 +887,7 @@ export class Game {
     this.p.hp = Math.min(this.p.hp, this.maxHp()); this.p.mp = Math.min(this.p.mp, this.maxMp());
     this.audio.sfx("ui");
   }
-  allocate(k: keyof Stats) { if (this.p.points > 0) { this.p.points--; this.p.base[k]++; this.audio.sfx("ui"); } }
+  allocate(k: keyof Stats) { if (this.p.points > 0) { this.p.points--; this.p.base[k]++; this.audio.sfx("ui"); this.save(); } }
   canCraft(r: Recipe) { return this.p.gold >= r.gold && Object.entries(r.cost).every(([id, n]) => this.count(id) >= n); }
   craft(r: Recipe) {
     if (this.inventory.length >= this.INV_MAX && !this.inventory.some(s=>s.id===r.out && ITEMS[r.out].type==="material")) { this.toast("Inventário cheio!"); return; }
@@ -1416,7 +1420,7 @@ export class Game {
     if (il > 0) { ix /= il; iy /= il; }
     const tile = tileAt(w, Math.floor(p.x / TS), Math.floor(p.y / TS));
     const onIce = tile === T.ICE;
-    const speed = (78 + this.stats().dex * 0.6 * (tile === T.SAND || tile === T.DUNE ? 0.85 : 1)) * speedMult(this);
+    const speed = (78 + this.stats().dex * 0.6 * (tile === T.SAND || tile === T.DUNE ? 0.85 : 1)) * speedMult(this) * skillBonuses(this.skillRanks()).speed;
     const accel = onIce ? 3 : 18;
     p.vx += (ix * speed - p.vx) * Math.min(1, accel * dt);
     p.vy += (iy * speed - p.vy) * Math.min(1, accel * dt);
@@ -1441,7 +1445,7 @@ export class Game {
 
     skillTick(this, dt);
     // regen
-    p.mp = Math.min(this.maxMp(), p.mp + dt * (0.6 + this.stats().wis * 0.12));
+    p.mp = Math.min(this.maxMp(), p.mp + dt * (0.6 + this.stats().wis * 0.12) * skillBonuses(this.skillRanks()).mpRegen);
     p.hp = Math.min(this.maxHp(), p.hp + dt * (0.3 + this.stats().vit * 0.05));
 
     // statues
@@ -2146,6 +2150,8 @@ export class Game {
       const raw = localStorage.getItem("golden-arrow-save"); if (!raw) return;
       const d = JSON.parse(raw);
       Object.assign(this.p, d.p);
+      this.p.skillPoints = Number.isFinite(this.p.skillPoints) ? Math.max(0, this.p.skillPoints) : Math.max(0, (this.p.level ?? 1) - 1);
+      this.p.skills = d.p?.skills && typeof d.p.skills === "object" ? d.p.skills : freshSkillRanks();
       this.farlandsActive = d.farlandsActive === true;
       if (d.farlandsReturnPos && Number.isFinite(d.farlandsReturnPos.x) && Number.isFinite(d.farlandsReturnPos.y)) this.farlandsReturnPos = d.farlandsReturnPos;
       this.settlement = { ...freshSettlement(), ...(d.settlement ?? {}) }; this.settlement.home ??= freshHome(); this.terrainEdits = d.terrainEdits ?? {};

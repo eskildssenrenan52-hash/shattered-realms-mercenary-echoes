@@ -23,6 +23,8 @@ export const LEGACY_AI_MERCENARY_SHEET_IDS = [
 ] as const;
 
 export const AI_EXPANDED_MERCENARY_SHEET_IDS = [
+  "aurora-ventoalto",
+  "brasa-ferrante",
   "fronteira-001-amaro-da-nevoa",
   "fronteira-002-anira-da-nevoa",
   "fronteira-003-arua-da-nevoa",

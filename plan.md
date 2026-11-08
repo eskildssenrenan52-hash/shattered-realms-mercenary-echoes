@@ -154,3 +154,13 @@ Usar Cloudflare Workers + um Durable Object SQLite por sala, com API WebSocket H
 - Ampliar o Diário de Descobertas para listar cadeias de segredos já iniciadas, exibir a pista/etapa atual e permitir escolher qual cadeia seguir. Segredos ainda não encontrados não aparecem com nome ou coordenadas no diário.
 - Mostrar uma trilha pontilhada contornando tiles sólidos no mundo e no minimapa; atualizar o alvo conforme o objetivo/progresso muda, permitir limpar a seleção e persistir a escolha de forma aditiva e compatível com saves antigos.
 - Manter o Canvas/React, os controles táteis e a paleta pixel-art existentes; não alterar colisão, recompensas ou regras de descoberta dos segredos.
+
+## Implementação autorizada — progressão, equipamento e companhia
+
+O usuário confirmou autorização direta dos criadores do Kaetram para modificação assistida por IA e geração de arte. A atribuição, os textos de licença e o link direto continuam visíveis em `public/game-credits.txt` e `public/kaetram/`.
+
+1. **Progressão por nível:** preservar os saves locais e adicionar uma camada aditiva de desbloqueios. No início, o jogador acessa apenas Atributos, Aparência e Mochila; os demais sistemas aparecem bloqueados com o nível necessário e liberam-se gradualmente.
+2. **Árvore de habilidades:** criar dados determinísticos de nós, custos e pré-requisitos; persistir ranks no save e aplicar bônus somente após a compra. Pontos de habilidade são ganhos nos níveis e não substituem pontos de atributo.
+3. **Equipamento organizado:** manter os quatro slots antigos (`weapon`, `armor`, `ring`, `amulet`) e apresentar grupos claros para arma, defesa, acessórios e consumíveis, com filtros e resumo de bônus sem mudar IDs ou regras de itens existentes.
+4. **Tutorial adaptado:** explicar a ordem dos desbloqueios e apontar a árvore de habilidades/equipamento quando o nível atingir cada marco, sem interromper o treino de combate existente.
+5. **Arte e companhia:** usar os assets Kaetram licenciados existentes para equipamentos/inimigos e adicionar retratos originais novos gerados com autorização, sem remover créditos nem substituir o fallback procedural.
