@@ -1,6 +1,6 @@
 import { FRONTIER_GATES } from "@/odyssey/frontier";
 import { CITADEL_DOOR, CITADEL_FLOORS, citadelBest, citadelUnlocked } from "@/odyssey/demon-citadel";
-import worldArt from "@/assets/mana-world.jpg";
+const worldArt = "/assets/intro/title-cinematic-ai.jpg";
 import gehennaRelicArt from "@/assets/depths/game/gehenna-relic.png";
 import { CROPS, STRUCTURES, isPlayerHome, upgradeHome, type Tool, type CropKind, type StructureKind } from "@/odyssey/settlement";
 import { FURNITURE, HOME_LEVELS, type FurnitureKind } from "@/odyssey/home";
@@ -8,7 +8,7 @@ import { Pickaxe, Axe, Shovel, Sprout, Droplets, Hammer, House, Anvil, ChevronRi
 import { BIOME_LIST } from "@/odyssey/world";
 import { BIOME_NAMES } from "@/odyssey/data";
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Compass, Backpack, ScrollText, Map, UserRound,  Sparkles, Play, BookOpen, Skull } from "lucide-react";
 import { BestiaryPanel } from "@/components/BestiaryPanel";
 import { GameIcon } from "@/components/GameIcon";
@@ -699,13 +699,16 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
         {title && (
           <div className="title-screen absolute inset-0">
             <img src={worldArt} width={1536} height={864} alt="A Árvore de Mana, a vila e seus jardins" className="title-art"/>
+            <div className="title-ai-atmosphere" aria-hidden="true"><span className="title-orb orb-a"/><span className="title-orb orb-b"/><span className="title-orb orb-c"/><span className="title-comet"/></div>
+            <div className="title-stars" aria-hidden="true">{Array.from({length: 28}, (_, i) => <i key={i} style={{"--i": i} as CSSProperties}/>)}</div>
+            <div className="title-scanline" aria-hidden="true"/>
             <div className="title-content">
-              <div className="title-eyebrow"><span/> UM NOVO CAPÍTULO DA SUA HISTÓRIA <span/></div>
+              <div className="title-eyebrow"><span/> REMULU GAMES · APRESENTA <span/></div>
               <h1 className="game-title">Golden Arrow <em>Odyssey</em></h1>
-              <div className="title-subtitle">CRÔNICAS DE UM MUNDO VIVO</div>
+              <div className="title-subtitle"><b>CRÔNICAS DE UM MUNDO VIVO</b><span>O CÂNTICO PARTIDO</span></div>
               <p className="title-story">Dezessete notas sustentavam o mundo. O Silêncio as apagou, uma a uma.<br/>Ouça a Canção. Reacenda os Ecos.</p>
               <div className="title-actions"><Button onClick={() => start(false)} className="start-button"><Play size={16} fill="currentColor"/>Nova jornada<ChevronRight size={16}/></Button>{hasSave && <Button variant="outline" onClick={()=>start(true)} className="continue-button">Continuar</Button>}<Button variant="outline" onClick={()=>{setMultiplayerMessage("");setMultiplayerOpen(true);}} className="continue-button"><Users size={16}/>Jogar em grupo</Button></div>
-              <button type="button" className="title-daily-card mx-auto mt-3 flex w-full max-w-[30rem] items-center gap-3 rounded-xl border border-amber-200/20 bg-slate-950/75 px-4 py-3 text-left text-amber-100 shadow-lg backdrop-blur transition hover:border-amber-100/50 hover:bg-slate-900/85" onClick={() => { setDailyMessage(""); setDailyOpen(true); }} aria-label="Abrir calendário de presentes diários"><CalendarDays size={18}/><span className="min-w-0 flex-1"><b className="block">Presente diário</b><small className="block truncate text-amber-100/70">{dailySnapshot.claimedToday ? `Resgatado · sequência ${dailySnapshot.streak}` : `Dia ${dailySnapshot.nextReward.day} · ${dailySnapshot.nextReward.gold} ouro + ${dailySnapshot.nextReward.xp} XP`}</small></span><ChevronRight size={16}/></button>
+              <button type="button" className="title-daily-card mx-auto mt-3 flex w-full max-w-[30rem] items-center gap-3 rounded-xl border border-amber-200/20 bg-slate-950/75 px-4 py-3 text-left text-amber-100 shadow-lg backdrop-blur transition hover:border-amber-100/50 hover:bg-slate-900/85" onClick={() => { setDailyMessage(""); setDailyOpen(true); }} aria-label="Abrir missões diárias e calendário de recompensas"><span className="daily-card-icon"><CalendarDays size={18}/><Sparkles size={10}/></span><span className="min-w-0 flex-1"><b className="block">Missões diárias</b><small className="block truncate text-amber-100/70">{dailySnapshot.claimedToday ? `Recompensa resgatada · sequência ${dailySnapshot.streak}` : `Dia ${dailySnapshot.nextReward.day} · ${dailySnapshot.nextReward.gold} ouro + ${dailySnapshot.nextReward.xp} XP`}</small></span><span className="daily-card-arrow"><ChevronRight size={16}/></span></button>
               <span className="title-chapter"><Sparkles size={12}/> O mundo floresce com cada escolha.</span>
             </div>
             <span className="scene-label"><span className="world-status"/> ÁRVORE DE MANA · POTOS</span>

@@ -112,3 +112,11 @@
 - [x] **Modais:** foco inicial no fechamento, foco preso por Tab, retorno ao acionador, heading semântico e `aria-labelledby`.
 - [x] **Multiplayer:** cadência WSS elevada para 72 ms para absorver jitter acima do limite de 50 ms do servidor, reduzindo rate-limit falso em celulares.
 - [x] **Validação:** typecheck, build web, testes focados 17/17, servidor multiplayer 5/5 e suíte do engine 31/31 aprovados.
+
+## Tela inicial cinematográfica e missões diárias — 8 de novembro de 2026
+
+- [x] **Missões diárias:** corrigir a abertura do calendário na tela inicial elevando a camada dos modais acima da `title-screen`; renomear o CTA para “Missões diárias”, preservar resgate offline UTC e manter compatibilidade Android/touch.
+- [x] **Página inicial:** substituir o fundo por arte original gerada por IA, com espaço negativo para texto, marca Remulu Games, subtítulo narrativo, CTA de jornada, continuar, multiplayer e calendário diário.
+- [x] **Animação:** adicionar estrelas, orbes mágicos, cometa, varredura de luz, respiração do cartão diário, microinterações e fallback para `prefers-reduced-motion`.
+- [x] **Validação:** TypeScript aprovado, testes diários/engine/migração/progressão 41/41 aprovados e build web aprovado.
+- [ ] **APK da rodada:** gerar e validar no workflow Android após o push.
