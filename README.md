@@ -18,9 +18,10 @@ RPG de ação 2D em Canvas com campanha, Saga, arquipélago, combate procedural,
 - A nova camada narrativa evita exposição forçada: as histórias entram por contratos, retornos a Potos, decisões de companhia, consequências de recuo e diálogos curtos que recontextualizam reinos já visitados.
 - O Cântico Oculto conserva as 450 cadeias e acrescenta 200: agora há 650 cadeias determinísticas, 26 Reinos Ocultos mais o Coração e 44.350 caches de exploração; total combinado: 45.000 segredos. Os 450 IDs antigos permanecem estáveis.
 - Oito Reinos Ocultos inéditos trazem paletas, terrenos, fauna, relíquias, histórias e dungeons desenhados para cada identidade. As masmorras variam entre labirintos estreitos, arenas de combate, cofres de tesouro e salas espelhadas.
-- Oito cidades de fronteira acrescentam 24 construções acessíveis, distritos com paletas próprias, moradores inéditos e 24 missões secundárias em cadeias de três etapas. O Atlas permite viajar diretamente aos novos destinos.
+- Oito cidades de fronteira acrescentam 24 construções acessíveis, distritos com paletas próprias, moradores inéditos e 48 missões secundárias em cadeias de seis etapas. O Atlas permite viajar diretamente aos novos destinos.
 - Potos conserva suas quatro construções antigas e todos os IDs de progresso/save existentes; as novas cidades e descobertas usam chaves separadas.
 - A expansão de arquitetura acrescenta 1.000 construções exploráveis determinísticas nos setores Frontier: casas, pousadas, laboratórios, observatórios, forjas, arquivos, minas, ruínas e dungeons. Cada instância recebe ID/assinatura, paleta, planta, objetivo/recompensa e 1–12 andares; interiores são gerados ao entrar e as fachadas são culladas pela câmera.
+
 
 ## Multiplayer online
 
@@ -64,7 +65,7 @@ O APK de depuração aparece em `android/app/build/outputs/apk/debug/app-debug.a
 
 ## APK Android publicado
 
-O APK de depuração desta revisão é a versão 0.3.1 (versionCode 4) e ficará diretamente no repositório em `android/apk/shattered-realms-mercenary-echoes-0.3.1-debug.apk`. Ele inclui as artes Kaetram offline e as correções de dano, navegação, colisão e cenas; é assinado com chave debug e não é uma build de loja.
+O APK de depuração desta revisão é a versão 0.3.2 (versionCode 5) e fica em `android/apk/shattered-realms-mercenary-echoes-0.3.2-debug.apk`. Ele inclui as 48 missões secundárias das cidades de fronteira, além das artes Kaetram offline e das correções de dano, navegação, colisão e cenas; é assinado com chave debug e não é uma build de loja.
 
 ## Expansão de novembro de 2026
 
