@@ -61,7 +61,7 @@ import { registerForgeExpansion } from "./forge-expansion";
 import { carveBiomeMineEntrances, drawBiomeMineEntrances } from "./biome-mine-sites";
 import { biomeMineBestFloor, BIOME_MINE_FLOORS } from "./biome-mines";
 import type { MultiplayerPlayer, MultiplayerPose } from "./multiplayer-room";
-import { buySkill, freshSkillRanks, skillBonuses, type SkillId, type SkillRanks } from "./progression";
+import { buySkill, freshSkillRanks, normalizeSkillRanks, skillBonuses, type SkillId, type SkillRanks } from "./progression";
 
 registerForgeExpansion();
 
@@ -325,7 +325,7 @@ export class Game {
 
   p = {
     x: 122 * TS + 8, y: 128 * TS + 8, vx: 0, vy: 0, dir: 0, frame: 0, frameT: 0, attackT: 0, atkCd: 0, spellCd: 0, inv: 0,
-    hp: 100, mp: 30, level: 1, xp: 0, points: 0, skillPoints: 0, skills: freshSkillRanks(), gold: 50,
+    hp: 100, mp: 30, level: 1, xp: 0, points: 0, skillPoints: 0, skills: freshSkillRanks(), learnedSkills: [] as string[], gold: 50,
     base: { str: 5, dex: 5, vit: 5, int: 5, wis: 5 } as Stats,
     equip: { weapon: "wood_sword", armor: "cloth", helmet: null, gloves: null, boots: null, shield: null, ring: null, amulet: null } as Record<Slot, string | null>,
     spirits: ["salamando", "dryad"] as SpiritId[],
@@ -359,6 +359,9 @@ export class Game {
       const qty = Math.floor(Number((entry as { qty?: unknown }).qty));
       return typeof id === "string" && ITEMS[id] && Number.isFinite(qty) && qty > 0 ? [{ id, qty }] : [];
     }).slice(0, this.INV_MAX);
+  }
+  private stringList(value: unknown): string[] {
+    return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === "string") : [];
   }
 
   constructor(public canvas: HTMLCanvasElement) {
@@ -395,7 +398,11 @@ export class Game {
     }
     return s;
   }
-  skillRanks(): SkillRanks { return this.p.skills ?? (this.p.skills = freshSkillRanks()); }
+  skillRanks(): SkillRanks {
+    const normalized = normalizeSkillRanks(this.p.skills);
+    this.p.skills = normalized;
+    return normalized;
+  }
   buySkill(id: SkillId) { const result = buySkill(this.p.level, this.p.skillPoints ?? 0, this.skillRanks(), id); if (!result.ok) return false; this.p.skillPoints = result.points; this.p.skills = result.ranks; this.p.hp = Math.min(this.maxHp(), this.p.hp); this.p.mp = Math.min(this.maxMp(), this.p.mp); this.audio.sfx("level"); this.toast("Habilidade aprendida.", "#ffd040"); this.save(); return true; }
   bonus(k: "hp" | "mp") { let v = 0; for (const id of Object.values(this.p.equip)) if (id) v += ITEMS[id].bonus?.[k] ?? 0; const b = skillBonuses(this.skillRanks()); return v + (k === "hp" ? b.hp : b.mp); }
   maxHp() { return 50 + this.stats().vit * 10 + this.p.level * 6 + this.bonus("hp"); }
@@ -2194,16 +2201,22 @@ export class Game {
       epicLoad(this); petsLoad(this);
       const raw = localStorage.getItem("golden-arrow-save"); if (!raw) return;
       const d = JSON.parse(raw);
-      Object.assign(this.p, d.p);
+      if (d.p && typeof d.p === "object" && !Array.isArray(d.p)) Object.assign(this.p, d.p);
       this.ensureEquipmentSlots();
       this.p.skillPoints = Number.isFinite(this.p.skillPoints) ? Math.max(0, this.p.skillPoints) : Math.max(0, (this.p.level ?? 1) - 1);
-      this.p.skills = d.p?.skills && typeof d.p.skills === "object" ? d.p.skills : freshSkillRanks();
+      const legacySkills = Array.isArray(d.p?.skills) ? d.p.skills : [];
+      const savedLearned = Array.isArray(d.p?.learnedSkills) ? d.p.learnedSkills : legacySkills;
+      this.p.learnedSkills = savedLearned.filter((id: unknown): id is string => typeof id === "string" && !!SKILL_BY_ID[id]);
+      this.p.skills = normalizeSkillRanks(d.p?.skills);
+      const savedSpirits = this.stringList(d.p?.spirits).filter((id) => SPIRIT_IDS.includes(id));
+      this.p.spirits = savedSpirits.length ? savedSpirits as SpiritId[] : ["salamando", "dryad"];
+      this.p.spell = SPIRIT_IDS.includes(this.p.spell) ? this.p.spell : this.p.spirits[0]!;
       this.farlandsActive = d.farlandsActive === true;
       if (d.farlandsReturnPos && Number.isFinite(d.farlandsReturnPos.x) && Number.isFinite(d.farlandsReturnPos.y)) this.farlandsReturnPos = d.farlandsReturnPos;
       this.settlement = { ...freshSettlement(), ...(d.settlement ?? {}) }; this.settlement.home ??= freshHome(); this.terrainEdits = d.terrainEdits ?? {};
       for (const [key,value] of Object.entries(this.terrainEdits)) {const [x,y]=key.split(',').map(Number); if(x>=0&&y>=0&&x<W&&y<H)this.overworld.tiles[y*W+x]=value;}
       applyStructures(this);
-      this.discoveries = new Set(d.discoveries ?? []); this.openedChests = new Set(d.openedChests ?? []);
+      this.discoveries = new Set(this.stringList(d.discoveries)); this.openedChests = new Set(this.stringList(d.openedChests));
       this.echoSystems = sanitizeEchoSystems(d.echoSystems);
       this.mercenaries = sanitizeMercenaryState(d.mercenaries);
       this.inventory = this.sanitizeInventory(d.inventory); this.ensureEquipmentSlots(); this.questStatus = d.questStatus && typeof d.questStatus === "object" ? d.questStatus : {}; this.questProg = d.questProg && typeof d.questProg === "object" ? d.questProg : {};
@@ -2211,10 +2224,11 @@ export class Game {
       this.routeSelection = savedRoute && (savedRoute.kind === "quest" || savedRoute.kind === "secret") && typeof savedRoute.id === "string"
         ? { kind: savedRoute.kind, id: savedRoute.id } : null;
       this.dottedRouteCache = null;
-      this.statues = new Set(d.statues); this.bossesDone = new Set(d.bosses); this.time = d.time ?? 0.3;
+      this.statues = new Set(this.stringList(d.statues)); if (!this.statues.size) this.statues.add("village");
+      this.bossesDone = new Set(this.stringList(d.bosses)); this.time = typeof d.time === "number" && Number.isFinite(d.time) ? d.time : 0.3;
       this.twinRolls = new Map(Object.entries(d.twinRolls ?? {}).map(([id, value]) => [id, !!value]));
       this.abyssBest = d.abyssBest ?? 0;
-      this.cycle = d.cycle ?? 0; this.seenBeats = new Set(d.seenBeats ?? []);
+      this.cycle = typeof d.cycle === "number" && Number.isFinite(d.cycle) ? Math.max(0, Math.floor(d.cycle)) : 0; this.seenBeats = new Set(this.stringList(d.seenBeats));
       // Saves anteriores à primeira jornada guiada não interrompem uma campanha já iniciada.
       this.tutorialDone = d.tutorialDone ?? true;
       this.tutorialModalPending = d.tutorialModalPending ?? false;

@@ -12,12 +12,13 @@ const TS = 16;
 export type Buffs = Record<BuffId, number>;
 export const freshBuffs = (): Buffs => ({ shield: 0, stone: 0, regen: 0, might: 0, focus: 0, luck: 0, haste: 0 });
 
-type SkillPlayer = { skills?: string[]; loadout?: string[]; spirits: string[] };
+type SkillPlayer = { skills?: string[] | Record<string, number>; learnedSkills?: string[]; loadout?: string[]; spirits: string[] };
 const pl = (g: Game) => g.p as unknown as SkillPlayer;
 
 export function knownSkills(g: Game): string[] {
   const p = pl(g);
-  return [...p.spirits, ...(p.skills ?? []).filter((id) => !SPIRIT_IDS.includes(id))];
+  const learned = Array.isArray(p.learnedSkills) ? p.learnedSkills : Array.isArray(p.skills) ? p.skills : [];
+  return [...p.spirits, ...learned.filter((id) => !SPIRIT_IDS.includes(id))];
 }
 export const knows = (g: Game, id: string) => knownSkills(g).includes(id);
 export function loadout(g: Game): string[] {
@@ -27,7 +28,7 @@ export function loadout(g: Game): string[] {
 }
 export function learn(g: Game, id: string, from: string): boolean {
   const s = SKILL_BY_ID[id]; if (!s || knows(g, id)) return false;
-  const p = pl(g); p.skills = [...(p.skills ?? []), id];
+  const p = pl(g); p.learnedSkills = [...(Array.isArray(p.learnedSkills) ? p.learnedSkills : []), id];
   const lo = loadout(g); const free = lo.indexOf(''); if (free >= 0) lo[free] = id;
   g.toast(`Livro lido: ${s.book} — você aprendeu ${s.name}! (V abre o Grimório)`, s.color);
   if (from) g.toast(from, '#e0d8c8');

@@ -12,6 +12,15 @@ export const SKILL_NODES: SkillNode[] = [
 ];
 export type SkillRanks = Partial<Record<SkillId, number>>;
 export const freshSkillRanks = (): SkillRanks => ({});
+export function normalizeSkillRanks(value: unknown): SkillRanks {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return freshSkillRanks();
+  const result = freshSkillRanks();
+  for (const node of SKILL_NODES) {
+    const raw = (value as Record<string, unknown>)[node.id];
+    if (typeof raw === "number" && Number.isFinite(raw) && raw > 0) result[node.id] = Math.min(node.maxRank, Math.floor(raw));
+  }
+  return result;
+}
 export const skillNode = (id: SkillId) => SKILL_NODES.find((node) => node.id === id)!;
 export function skillRank(ranks: SkillRanks | undefined, id: SkillId) { return Math.max(0, Math.floor(ranks?.[id] ?? 0)); }
 export function skillAvailable(level: number, ranks: SkillRanks | undefined, node: SkillNode) { return level >= node.minLevel && (!node.requires || skillRank(ranks, node.requires) > 0); }
