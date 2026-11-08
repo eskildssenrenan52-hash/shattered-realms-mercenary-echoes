@@ -103,3 +103,12 @@
 - [x] **Árvore refinada:** evoluir de 8 para 18 nós em seis escolas, com fundamentos, sinergias, ápices, pré-requisitos, ranks máximos, custos progressivos, progresso total e bônus de combate/equipamento.
 - [x] **Modais únicos:** aplicar temas semânticos a inventário, habilidades, atlas, lore, arcano, mercenários, pets e crafting; redesenhar cabeçalhos, paletas, slots, cards, filtros, mobile layout e hierarquia visual.
 - [x] **Validação final:** typecheck aprovado, build web aprovado, servidor multiplayer 5/5, multiplayer room/ws aprovado e suíte focada 59/59, incluindo engine 31/31, tutorial, mercenários e progressão.
+
+## Rodada de hardening sistêmico — 8 de novembro de 2026
+
+- [x] **Entrada e controles:** atalhos respeitam os gates de nível; Canvas usa Pointer Events com `touch-action: none`; salvamento ocorre ao pausar, perder foco e desmontar a rota.
+- [x] **Inventário e economia:** itens desconhecidos são ignorados com segurança; equipamentos, loja e venda salvam imediatamente; crafting verifica capacidade, valida receita e faz rollback seguro.
+- [x] **Saves:** slots de equipamento e inventário são sanitizados durante a migração, removendo IDs inválidos e quantidades impossíveis sem apagar o arquivo original.
+- [x] **Modais:** foco inicial no fechamento, foco preso por Tab, retorno ao acionador, heading semântico e `aria-labelledby`.
+- [x] **Multiplayer:** cadência WSS elevada para 72 ms para absorver jitter acima do limite de 50 ms do servidor, reduzindo rate-limit falso em celulares.
+- [x] **Validação:** typecheck, build web, testes focados 17/17, servidor multiplayer 5/5 e suíte do engine 31/31 aprovados.

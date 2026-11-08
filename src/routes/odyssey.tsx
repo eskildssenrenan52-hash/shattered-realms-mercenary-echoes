@@ -262,7 +262,14 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
         else if (e.code === "Escape") g.advanceCutscene(true);
         return;
       }
-      const toggle = (p: Panel) => setPanel((cur) => (cur === p ? null : p));
+      const toggle = (next: Panel) => {
+        const gated = next !== null && ["inv", "char", "quest", "map", "secrets", "bestiary", "grimoire", "chronicle", "epic", "echoes", "pets", "mercenaries"].includes(next);
+        if (gated && !panelUnlocked(g.p.level, next as ProgressPanel)) {
+          g.toast(`${panelLabel(next as ProgressPanel)} libera no nível ${panelUnlockLevel(next as ProgressPanel)}.`, "#ffcf70");
+          return;
+        }
+        setPanel((cur) => (cur === next ? null : next));
+      };
       if (e.code === "Escape") { setPanel(null); g.dialog = null; g.openStation = null; return; }
       if (e.code === "KeyI") return toggle("inv");
       if (e.code === "KeyC") return toggle("char");
@@ -284,10 +291,12 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
       g.keys.add(e.code);
     };
     const up = (e: KeyboardEvent) => g.keys.delete(e.code);
-    const vis = () => { if (document.hidden) { g.keys.clear(); g.save(); } }; document.addEventListener("visibilitychange", vis); window.addEventListener("pointerup", () => { for (const k of ["KeyW","KeyA","KeyS","KeyD"]) g.keys.delete(k); });
+    const vis = () => { if (document.hidden) { g.keys.clear(); g.save(); } };
+    const pointerUp = () => { for (const k of ["KeyW","KeyA","KeyS","KeyD"]) g.keys.delete(k); };
+    document.addEventListener("visibilitychange", vis); window.addEventListener("pointerup", pointerUp);
     const blur = () => g.keys.clear(); window.addEventListener("blur",blur);
     window.addEventListener("keydown", down); window.addEventListener("keyup", up);
-    return () => { roomRef.current?.leave(); roomRef.current=null; g.setCoopPlayers([]); observer.disconnect();document.removeEventListener('fullscreenchange',fullChange);cancelAnimationFrame(raf); clearTimeout(mapT); document.removeEventListener("visibilitychange", onVis); clearInterval(iv); window.removeEventListener("keydown", down); window.removeEventListener("keyup", up); g.audio.destroy(); window.removeEventListener("blur",blur); };
+    return () => { roomRef.current?.leave(); roomRef.current=null; g.setCoopPlayers([]); g.keys.clear(); g.save(); observer.disconnect();document.removeEventListener('fullscreenchange',fullChange);cancelAnimationFrame(raf); clearTimeout(mapT); document.removeEventListener("visibilitychange", onVis); document.removeEventListener("visibilitychange", vis); window.removeEventListener("pointerup", pointerUp); clearInterval(iv); window.removeEventListener("keydown", down); window.removeEventListener("keyup", up); g.audio.destroy(); window.removeEventListener("blur",blur); };
   }, []);
 
   const g = gameRef.current;
@@ -411,7 +420,7 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
     const timer = window.setTimeout(() => startRef.current(Game.hasSave()), 0);
     return () => window.clearTimeout(timer);
   }, [startImmediately]);
-  const onMouse = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const onPointer = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!g || !g.started || g.tutorialPauseInput) return;
     e.preventDefault();
     if (g.live || g.bossCard) { skipBossCard(g); return; }
@@ -453,7 +462,7 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
       <div className={`game-layout ${title ? "at-title" : "playing"}`}>
         <div className={`game-location${liveOn ? " invisible" : ""}`}><span className="flex items-center gap-2"><Compass size={15} className="text-primary"/>{title ? 'Vila de Potos' : g?.areaName}<ChevronRight size={12}/><span className="text-muted-foreground">{title ? 'O início de tudo' : 'Terras de Mana'}</span></span><span className="flex items-center gap-2 text-muted-foreground"><Sun size={15}/>{title ? 'Primavera · Dia 1' : `${g?.timeLabel()} · ${g?.raining ? 'Chuva' : 'Céu aberto'}`}</span></div>
       <div className="relative w-full aspect-video game-viewport overflow-hidden">
-        <canvas ref={canvasRef} aria-label="Mundo de Mana" onMouseMove={(e)=>{if(!g)return;const r=e.currentTarget.getBoundingClientRect();g.cursor={x:Math.floor(((e.clientX-r.left)/r.width*g.viewWidth+g.cam.x)/16),y:Math.floor(((e.clientY-r.top)/r.height*g.viewHeight+g.cam.y)/16)};}} onMouseDown={onMouse} onContextMenu={(e) => e.preventDefault()} className="w-full h-full block" style={{ imageRendering: "pixelated" }} />
+          <canvas ref={canvasRef} aria-label="Mundo de Mana" onMouseMove={(e)=>{if(!g)return;const r=e.currentTarget.getBoundingClientRect();g.cursor={x:Math.floor(((e.clientX-r.left)/r.width*g.viewWidth+g.cam.x)/16),y:Math.floor(((e.clientY-r.top)/r.height*g.viewHeight+g.cam.y)/16)};}} onPointerDown={onPointer} onContextMenu={(e) => e.preventDefault()} className="w-full h-full block" style={{ imageRendering: "pixelated", touchAction: "none" }} />
 
         {g && p && stats && !title && !liveOn && (
           <>

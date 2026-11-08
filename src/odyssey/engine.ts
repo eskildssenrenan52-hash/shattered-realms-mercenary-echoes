@@ -343,11 +343,22 @@ export class Game {
   readonly INV_MAX = 48;
 
   private ensureEquipmentSlots() {
-    const equip = this.p.equip as Partial<Record<Slot, string | null>>;
+    const raw = this.p.equip && typeof this.p.equip === "object" ? this.p.equip as Partial<Record<Slot, string | null>> : {};
     for (const slot of ["weapon", "armor", "helmet", "gloves", "boots", "shield", "ring", "amulet"] as Slot[]) {
-      if (!(slot in equip)) equip[slot] = null;
+      const id = raw[slot];
+      raw[slot] = typeof id === "string" && ITEMS[id]?.type === slot ? id : null;
     }
-    this.p.equip = equip as Record<Slot, string | null>;
+    this.p.equip = raw as Record<Slot, string | null>;
+  }
+
+  private sanitizeInventory(value: unknown): InvSlot[] {
+    if (!Array.isArray(value)) return [];
+    return value.flatMap((entry) => {
+      if (!entry || typeof entry !== "object") return [];
+      const id = (entry as { id?: unknown }).id;
+      const qty = Math.floor(Number((entry as { qty?: unknown }).qty));
+      return typeof id === "string" && ITEMS[id] && Number.isFinite(qty) && qty > 0 ? [{ id, qty }] : [];
+    }).slice(0, this.INV_MAX);
   }
 
   constructor(public canvas: HTMLCanvasElement) {
@@ -533,7 +544,9 @@ export class Game {
     return TEMPLES.some((p) => Math.abs(p.tx - tx) <= 4 && Math.abs(p.ty - ty) <= 4);
   }
   addItem(id: string, qty = 1): boolean {
-    const stack = ITEMS[id].type === "potion" || ITEMS[id].type === "material";
+    const item = ITEMS[id];
+    if (!item || !Number.isFinite(qty) || qty <= 0) { this.toast("Item inválido ignorado.", "#ff8080"); return false; }
+    const stack = item.type === "potion" || item.type === "material";
     if (stack) {
       const s = this.inventory.find((i) => i.id === id);
       if (s) { s.qty += qty; return true; }
@@ -878,6 +891,7 @@ export class Game {
   equip(idx: number) {
     const s = this.inventory[idx]; if (!s) return;
     const it = ITEMS[s.id];
+    if (!it) { this.inventory.splice(idx, 1); this.toast("Item antigo removido do inventário.", "#ffcf70"); this.save(); return; }
     if (it.type === "potion") { this.usePotion(s.id); return; }
     if (it.type === "material") return;
     const slot = it.type as Slot;
@@ -887,6 +901,7 @@ export class Game {
     this.p.equip[slot] = s.id;
     this.p.hp = Math.min(this.p.hp, this.maxHp()); this.p.mp = Math.min(this.p.mp, this.maxMp());
     this.audio.sfx("pickup");
+    this.save();
   }
   unequip(slot: Slot) {
     const id = this.p.equip[slot]; if (!id || slot === "weapon") return;
@@ -895,15 +910,24 @@ export class Game {
     this.p.equip[slot] = null;
     this.p.hp = Math.min(this.p.hp, this.maxHp()); this.p.mp = Math.min(this.p.mp, this.maxMp());
     this.audio.sfx("ui");
+    this.save();
   }
   allocate(k: keyof Stats) { if (this.p.points > 0) { this.p.points--; this.p.base[k]++; this.audio.sfx("ui"); this.save(); } }
   canCraft(r: Recipe) { return this.p.gold >= r.gold && Object.entries(r.cost).every(([id, n]) => this.count(id) >= n); }
   craft(r: Recipe) {
-    if (this.inventory.length >= this.INV_MAX && !this.inventory.some(s=>s.id===r.out && ITEMS[r.out].type==="material")) { this.toast("Inventário cheio!"); return; }
     if (!this.canCraft(r)) { this.audio.sfx("hurt"); return; }
+    const out = ITEMS[r.out];
+    if (!out) { this.toast("Receita inválida.", "#ff8080"); return; }
+    const stackable = out.type === "potion" || out.type === "material";
+    const slotsNeeded = stackable && this.inventory.some((s) => s.id === r.out) ? 0 : stackable ? 1 : r.qty;
+    if (this.inventory.length + slotsNeeded > this.INV_MAX) { this.toast("Inventário cheio!", "#ff8080"); return; }
     for (const [id, n] of Object.entries(r.cost)) this.removeItem(id, n);
     this.p.gold -= r.gold;
-    this.addItem(r.out, r.qty);
+    if (!this.addItem(r.out, r.qty)) {
+      for (const [id, n] of Object.entries(r.cost)) this.addItem(id, n);
+      this.p.gold += r.gold;
+      return;
+    }
     onBoatCraft(this, r.out);
     if (r.station === "carpenter") this.settlement.carpentry++;
     this.save();
@@ -913,16 +937,20 @@ export class Game {
   recipes(station: "smith" | "alchemist" | "carpenter") { return [...RECIPES, ...CARPENTRY_RECIPES, ...BOAT_RECIPES].filter((r) => r.station === station); }
   buy(id: string) {
     const it = ITEMS[id];
+    if (!it) { this.toast("Item indisponível.", "#ff8080"); return; }
     const price = Math.max(1, Math.round(it.price * this.priceMult()));
     if (this.p.gold < price) { this.audio.sfx("hurt"); return; }
     if (this.addItem(id)) { this.p.gold -= price; this.audio.sfx("coin"); }
+    this.save();
   }
   sell(idx: number) {
     const s = this.inventory[idx]; if (!s) return;
+    if (!ITEMS[s.id]) { this.inventory.splice(idx, 1); this.save(); return; }
     const price = Math.max(1, Math.floor(ITEMS[s.id].price * Math.max(0.65, Math.min(1.25, 2 - this.priceMult())) / 2));
     this.removeItem(s.id, 1);
     this.p.gold += price;
     this.audio.sfx("coin");
+    this.save();
   }
   travel(id: string): boolean {
     if (this.depth || this.island || this.sea) { this.toast("O mapa não dobra aqui dentro.", "#ff8080"); return false; }
@@ -2178,7 +2206,7 @@ export class Game {
       this.discoveries = new Set(d.discoveries ?? []); this.openedChests = new Set(d.openedChests ?? []);
       this.echoSystems = sanitizeEchoSystems(d.echoSystems);
       this.mercenaries = sanitizeMercenaryState(d.mercenaries);
-      this.inventory = d.inventory; this.questStatus = d.questStatus; this.questProg = d.questProg;
+      this.inventory = this.sanitizeInventory(d.inventory); this.ensureEquipmentSlots(); this.questStatus = d.questStatus && typeof d.questStatus === "object" ? d.questStatus : {}; this.questProg = d.questProg && typeof d.questProg === "object" ? d.questProg : {};
       const savedRoute = d.routeSelection as Partial<RouteSelection> | null | undefined;
       this.routeSelection = savedRoute && (savedRoute.kind === "quest" || savedRoute.kind === "secret") && typeof savedRoute.id === "string"
         ? { kind: savedRoute.kind, id: savedRoute.id } : null;

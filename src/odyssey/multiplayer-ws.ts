@@ -14,7 +14,8 @@ type RoomRole = "host" | "guest";
 type WireMessage = Record<string, unknown>;
 type WebSocketFactory = (url: string) => WebSocket;
 
-const SEND_INTERVAL_MS = 50;
+// Margem acima do limite do servidor para absorver jitter do relógio e do WebView.
+const SEND_INTERVAL_MS = 72;
 const UI_INTERVAL_MS = 350;
 const EMPTY_POSE: MultiplayerPose = {
   x: 0,
