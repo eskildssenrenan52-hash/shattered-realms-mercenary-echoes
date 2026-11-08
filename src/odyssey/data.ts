@@ -3,7 +3,7 @@ import { FRONTIER, type FrontierBiome } from './frontier';
 import { SENHOR_BOSSES } from './senhores';
 import { STORY_BOSSES, STORY_NPCS, STORY_QUESTS, STORY_ITEMS, STORY_RECIPES } from './story';
 import { SIDE_NPCS, SIDE_QUESTS } from './sidequests';
-export type Slot = "weapon" | "armor" | "ring" | "amulet";
+export type Slot = "weapon" | "armor" | "helmet" | "gloves" | "boots" | "shield" | "ring" | "amulet";
 export type WeaponKind = "sword" | "spear" | "bow" | "staff";
 export type ItemType = Slot | "potion" | "material";
 
@@ -42,6 +42,10 @@ export const ITEMS: Record<string, ItemDef> = Object.fromEntries(
     I({ id: "iron_armor", name: "Armadura de Ferro", type: "armor", def: 9, desc: "Forjada por Brunhild.", color: "#9aa4b0", price: 250 }),
     I({ id: "frost_mail", name: "Cota Glacial", type: "armor", def: 15, bonus: { vit: 3 }, desc: "Fria ao toque, quente por dentro.", color: "#a8e0ff", price: 500 }),
     I({ id: "crystal_plate", name: "Placa de Cristal", type: "armor", def: 22, bonus: { vit: 5, wis: 3 }, desc: "Brilha suavemente no escuro.", color: "#d49cff", price: 900 }),
+    I({ id: "kae_iron_helmet", name: "Elmo de Ferro Kaetram", type: "helmet", def: 3, bonus: { vit: 1 }, desc: "Um elmo clássico das forjas antigas.", color: "#b9c4d4", sprite: "ironhelmet", price: 180 }),
+    I({ id: "kae_gold_bracer", name: "Braçadeira Rubra", type: "gloves", def: 2, bonus: { str: 1, dex: 1 }, desc: "Bracelete de batalha reaproveitado como manopla.", color: "#e5a04f", sprite: "braceletgoldruby", price: 220 }),
+    I({ id: "kae_steel_boots", name: "Botas de Aço Kaetram", type: "boots", def: 2, bonus: { dex: 2 }, desc: "Botas pesadas, mas surpreendentemente ágeis.", color: "#a9b7c8", sprite: "steelboots", price: 240 }),
+    I({ id: "kae_iron_shield", name: "Escudo Redondo de Ferro", type: "shield", def: 5, bonus: { vit: 2 }, desc: "Proteção frontal de uma guarda esquecida.", color: "#c8d0da", sprite: "ironroundshield", price: 300 }),
     I({ id: "copper_ring", name: "Anel de Cobre", type: "ring", bonus: { str: 2 }, desc: "+2 Força", color: "#d08040", price: 60 }),
     I({ id: "mana_ring", name: "Anel de Mana", type: "ring", bonus: { int: 4, mp: 20 }, desc: "+4 Int, +20 MP", color: "#60c0ff", price: 300 }),
     I({ id: "wolf_ring", name: "Anel do Lobo", type: "ring", bonus: { dex: 4, str: 2 }, desc: "+4 Des, +2 For", color: "#e0e0f0", price: 280 }),

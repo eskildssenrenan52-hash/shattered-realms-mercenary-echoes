@@ -95,3 +95,11 @@
 - [ ] **APK final:** bundle offline pronto, mas `assembleDebug` não pôde rodar nesta sandbox porque não há Gradle nem Android SDK; workflow GitHub Actions existente é o caminho para gerar o APK após o push.
 - [x] **APK offline 0.3.3:** compilado com versionCode 6, assinatura debug, 71 MB e SHA-256 `7dc9da88fb8cad226038d24a0948046710ee9866d469af64a23c275972fd9bef`; o pacote local validou 1.838 arquivos, HTML de entrada, JavaScript offline e FX.
 - [x] **Validação das rotas:** 39/39 testes focais de motor/waypoint/rota passaram; TypeScript e builds web/Android offline aprovados. Seleção e segredo descoberto têm testes de persistência/ocultação.
+
+## Refinamento de 8 de novembro de 2026 — arsenal, árvore e modais
+
+- [x] **Inventário complexo:** expandir o equipamento de 4 para 8 slots persistentes — arma, torso, elmo, manoplas, botas, escudo, anel e amuleto — mantendo saves legados e migração automática para campos ausentes.
+- [x] **Equipamentos Kaetram:** adicionar Elmo de Ferro, Braçadeira Rubra, Botas de Aço e Escudo Redondo de Ferro com sprites Kaetram locais, bônus próprios, filtros por categoria e entrega inicial para permitir testar o novo arsenal.
+- [x] **Árvore refinada:** evoluir de 8 para 18 nós em seis escolas, com fundamentos, sinergias, ápices, pré-requisitos, ranks máximos, custos progressivos, progresso total e bônus de combate/equipamento.
+- [x] **Modais únicos:** aplicar temas semânticos a inventário, habilidades, atlas, lore, arcano, mercenários, pets e crafting; redesenhar cabeçalhos, paletas, slots, cards, filtros, mobile layout e hierarquia visual.
+- [x] **Validação final:** typecheck aprovado, build web aprovado, servidor multiplayer 5/5, multiplayer room/ws aprovado e suíte focada 59/59, incluindo engine 31/31, tutorial, mercenários e progressão.

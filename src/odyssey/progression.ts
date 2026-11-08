@@ -1,59 +1,24 @@
 export type ProgressPanel = "inv" | "char" | "quest" | "map" | "secrets" | "bestiary" | "grimoire" | "chronicle" | "epic" | "echoes" | "pets" | "mercenaries";
-
-export type SkillId = "vigor" | "iron_skin" | "swift_step" | "focus" | "mana_well" | "scavenger" | "battle_rhythm" | "echo_ward";
-
-export interface SkillNode {
-  id: SkillId;
-  name: string;
-  branch: "vanguarda" | "arcano" | "exploracao";
-  desc: string;
-  maxRank: number;
-  cost: (rank: number) => number;
-  minLevel: number;
-  requires?: SkillId;
-}
-
+export type SkillId = "vigor" | "iron_skin" | "battle_rhythm" | "weapon_mastery" | "focus" | "mana_well" | "echo_ward" | "spellweave" | "swift_step" | "scavenger" | "trailblazer" | "lucky_find" | "second_wind" | "counterweight" | "field_medic" | "resonance" | "overcharge" | "apotheosis";
+export type SkillBranch = "vanguarda" | "arcano" | "exploracao" | "disciplina" | "sobrevivencia" | "convergencia";
+export interface SkillNode { id: SkillId; name: string; branch: SkillBranch; desc: string; maxRank: number; cost: (rank: number) => number; minLevel: number; requires?: SkillId; tag: "core" | "synergy" | "capstone" }
+const n = (id: SkillId, name: string, branch: SkillBranch, desc: string, maxRank: number, minLevel: number, tag: SkillNode["tag"], requires?: SkillId): SkillNode => ({ id, name, branch, desc, maxRank, minLevel, tag, ...(requires ? { requires } : {}), cost: (rank) => tag === "capstone" ? 4 + rank * 2 : tag === "synergy" ? 2 + rank : 1 + rank });
 export const SKILL_NODES: SkillNode[] = [
-  { id: "vigor", name: "Vigor", branch: "vanguarda", desc: "+6 HP máximo por rank", maxRank: 3, cost: (r) => 1 + r, minLevel: 2 },
-  { id: "iron_skin", name: "Pele de Ferro", branch: "vanguarda", desc: "+2 defesa por rank", maxRank: 3, cost: (r) => 1 + r, minLevel: 5, requires: "vigor" },
-  { id: "battle_rhythm", name: "Ritmo de Batalha", branch: "vanguarda", desc: "+4% dano de arma por rank", maxRank: 3, cost: (r) => 2 + r, minLevel: 10, requires: "iron_skin" },
-  { id: "focus", name: "Foco", branch: "arcano", desc: "+4 MP máximo por rank", maxRank: 3, cost: (r) => 1 + r, minLevel: 2 },
-  { id: "mana_well", name: "Poço de Mana", branch: "arcano", desc: "+5% regeneração de MP por rank", maxRank: 3, cost: (r) => 1 + r, minLevel: 5, requires: "focus" },
-  { id: "echo_ward", name: "Égide do Eco", branch: "arcano", desc: "-3% dano recebido por rank", maxRank: 3, cost: (r) => 2 + r, minLevel: 10, requires: "mana_well" },
-  { id: "swift_step", name: "Passo Ligeiro", branch: "exploracao", desc: "+3% velocidade por rank", maxRank: 3, cost: (r) => 1 + r, minLevel: 3 },
-  { id: "scavenger", name: "Catador de Relíquias", branch: "exploracao", desc: "+5% ouro encontrado por rank", maxRank: 3, cost: (r) => 1 + r, minLevel: 7, requires: "swift_step" },
+  n("vigor", "Vigor", "vanguarda", "+6 HP máximo por rank", 3, 2, "core"), n("iron_skin", "Pele de Ferro", "vanguarda", "+2 defesa por rank", 3, 5, "core", "vigor"), n("battle_rhythm", "Ritmo de Batalha", "vanguarda", "+4% dano de arma por rank", 3, 10, "synergy", "iron_skin"), n("weapon_mastery", "Maestria de Arsenal", "vanguarda", "+1 ATQ efetivo por rank", 2, 18, "capstone", "battle_rhythm"),
+  n("focus", "Foco", "arcano", "+4 MP máximo por rank", 3, 2, "core"), n("mana_well", "Poço de Mana", "arcano", "+5% regeneração de MP por rank", 3, 5, "core", "focus"), n("echo_ward", "Égide do Eco", "arcano", "-3% dano recebido por rank", 3, 10, "synergy", "mana_well"), n("spellweave", "Trama Arcana", "arcano", "+3% dano mágico por rank", 2, 18, "capstone", "echo_ward"),
+  n("swift_step", "Passo Ligeiro", "exploracao", "+3% velocidade por rank", 3, 3, "core"), n("scavenger", "Catador de Relíquias", "exploracao", "+5% ouro encontrado por rank", 3, 7, "core", "swift_step"), n("trailblazer", "Pioneiro", "exploracao", "+1 espaço útil de mochila por rank", 3, 12, "synergy", "scavenger"), n("lucky_find", "Achado Impossível", "exploracao", "+2% chance de drop raro por rank", 2, 20, "capstone", "trailblazer"),
+  n("second_wind", "Segundo Fôlego", "disciplina", "+2% regeneração de HP por rank", 3, 4, "core"), n("counterweight", "Contrapeso", "disciplina", "+2% velocidade de ataque por rank", 3, 9, "core", "second_wind"), n("field_medic", "Médico de Campo", "disciplina", "+8% cura de poções por rank", 3, 15, "synergy", "counterweight"),
+  n("resonance", "Ressonância", "convergencia", "+2% efeito dos equipamentos por rank", 3, 8, "core"), n("overcharge", "Sobrecarga", "convergencia", "+2 MP por inimigo em sequência", 3, 16, "synergy", "resonance"), n("apotheosis", "Apoteose do Eco", "sobrevivencia", "+1% a todos os bônus por rank", 2, 25, "capstone", "resonance"),
 ];
-
 export type SkillRanks = Partial<Record<SkillId, number>>;
 export const freshSkillRanks = (): SkillRanks => ({});
 export const skillNode = (id: SkillId) => SKILL_NODES.find((node) => node.id === id)!;
 export function skillRank(ranks: SkillRanks | undefined, id: SkillId) { return Math.max(0, Math.floor(ranks?.[id] ?? 0)); }
-export function skillAvailable(level: number, ranks: SkillRanks | undefined, node: SkillNode) {
-  return level >= node.minLevel && (!node.requires || skillRank(ranks, node.requires) > 0);
-}
+export function skillAvailable(level: number, ranks: SkillRanks | undefined, node: SkillNode) { return level >= node.minLevel && (!node.requires || skillRank(ranks, node.requires) > 0); }
 export function skillCost(node: SkillNode, ranks: SkillRanks | undefined) { return node.cost(skillRank(ranks, node.id)); }
-export function canBuySkill(level: number, points: number, ranks: SkillRanks | undefined, id: SkillId) {
-  const node = skillNode(id), rank = skillRank(ranks, id);
-  return rank < node.maxRank && skillAvailable(level, ranks, node) && points >= skillCost(node, ranks);
-}
-export function buySkill(level: number, points: number, ranks: SkillRanks, id: SkillId) {
-  if (!canBuySkill(level, points, ranks, id)) return { ok: false, points, ranks };
-  return { ok: true, points: points - skillCost(skillNode(id), ranks), ranks: { ...ranks, [id]: skillRank(ranks, id) + 1 } };
-}
-
-export function panelUnlockLevel(panel: ProgressPanel): number {
-  return ({ inv: 1, char: 1, quest: 3, map: 3, secrets: 5, bestiary: 6, grimoire: 7, chronicle: 8, pets: 10, mercenaries: 12, epic: 15, echoes: 20 } as Record<ProgressPanel, number>)[panel];
-}
+export function canBuySkill(level: number, points: number, ranks: SkillRanks | undefined, id: SkillId) { const node = skillNode(id), rank = skillRank(ranks, id); return rank < node.maxRank && skillAvailable(level, ranks, node) && points >= skillCost(node, ranks); }
+export function buySkill(level: number, points: number, ranks: SkillRanks, id: SkillId) { if (!canBuySkill(level, points, ranks, id)) return { ok: false, points, ranks }; return { ok: true, points: points - skillCost(skillNode(id), ranks), ranks: { ...ranks, [id]: skillRank(ranks, id) + 1 } }; }
+export function panelUnlockLevel(panel: ProgressPanel): number { return ({ inv: 1, char: 1, quest: 3, map: 3, secrets: 5, bestiary: 6, grimoire: 7, chronicle: 8, pets: 10, mercenaries: 12, epic: 15, echoes: 20 } as Record<ProgressPanel, number>)[panel]; }
 export function panelUnlocked(level: number, panel: ProgressPanel) { return level >= panelUnlockLevel(panel); }
 export function panelLabel(panel: ProgressPanel) { return ({ inv: "Mochila", char: "Herói", quest: "Missões", map: "Mapa", secrets: "Descobertas", bestiary: "Bestiário", grimoire: "Grimório", chronicle: "Crônica", epic: "Grande Crônica", echoes: "Ecos Além", pets: "Pets", mercenaries: "Mercenários" } as Record<ProgressPanel, string>)[panel]; }
-export function skillBonuses(ranks: SkillRanks | undefined) {
-  return {
-    hp: skillRank(ranks, "vigor") * 6,
-    mp: skillRank(ranks, "focus") * 4,
-    defense: skillRank(ranks, "iron_skin") * 2,
-    weaponDamage: skillRank(ranks, "battle_rhythm") * 0.04,
-    damageTaken: 1 - skillRank(ranks, "echo_ward") * 0.03,
-    speed: 1 + skillRank(ranks, "swift_step") * 0.03,
-    mpRegen: 1 + skillRank(ranks, "mana_well") * 0.05,
-  };
-}
+export function skillBonuses(ranks: SkillRanks | undefined) { return { hp: skillRank(ranks, "vigor") * 6, mp: skillRank(ranks, "focus") * 4, defense: skillRank(ranks, "iron_skin") * 2, weaponDamage: skillRank(ranks, "battle_rhythm") * 0.04, damageTaken: 1 - skillRank(ranks, "echo_ward") * 0.03, speed: 1 + skillRank(ranks, "swift_step") * 0.03, mpRegen: 1 + skillRank(ranks, "mana_well") * 0.05, attack: skillRank(ranks, "weapon_mastery"), potionPower: 1 + skillRank(ranks, "field_medic") * 0.08, attackSpeed: 1 + skillRank(ranks, "counterweight") * 0.02, gearPower: 1 + skillRank(ranks, "resonance") * 0.02, backpack: skillRank(ranks, "trailblazer"), gold: 1 + skillRank(ranks, "scavenger") * 0.05 }; }

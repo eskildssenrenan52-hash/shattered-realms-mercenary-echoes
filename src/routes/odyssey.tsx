@@ -162,7 +162,7 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
   const [fullscreen,setFullscreen]=useState(false);
   const [menuOpen,setMenuOpen]=useState(false);
   const [heroTab,setHeroTab]=useState<"stats"|"look">("stats");
-  const [inventoryFilter,setInventoryFilter]=useState<"all"|"weapon"|"armor"|"ring"|"amulet"|"potion"|"material">("all");
+  const [inventoryFilter,setInventoryFilter]=useState<"all"|"weapon"|"armor"|"helmet"|"gloves"|"boots"|"shield"|"ring"|"amulet"|"potion"|"material">("all");
   const [tutorialMode,setTutorialMode]=useState<"none"|"dungeon"|"modals">("none");
   const [multiplayerOpen,setMultiplayerOpen]=useState(false);
   const [multiplayerName,setMultiplayerName]=useState("Aventureiro");
@@ -523,15 +523,16 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
             {panel === "inv" && (
               <Modal title={`Inventário · ${g.inventory.length}/${g.INV_MAX} espaços`} onClose={() => setPanel(null)}>
                 <div className="inv-layout">
-                  <Section title="Equipamento" aside={`ATQ ${g.attackPower()} · DEF ${g.defense()}`}>
-                    <div className="equip-summary"><span>Arma</span><b>{g.weapon().name}</b><span>Defesa</span><b>{g.defense()}</b><span>HP/MP</span><b>{g.maxHp()}/{g.maxMp()}</b></div>
-                    <div className="equip-list">{(["weapon", "armor", "ring", "amulet"] as Slot[]).map((s) => {
+                  <Section title="Arsenal Kaetram" aside={`ATQ ${g.attackPower()} · DEF ${g.defense()}`}>
+                    <div className="equip-summary"><span>Arma</span><b>{g.weapon().name}</b><span>Defesa total</span><b>{g.defense()}</b><span>HP/MP</span><b>{g.maxHp()}/{g.maxMp()}</b><span>Slots ativos</span><b>8/8</b></div>
+                    <div className="equip-slots-grid">{([['weapon','Arma','player/weapon/oldonesblade'],['helmet','Elmo','items/ironhelmet'],['armor','Torso','items/ironchestplate'],['gloves','Manoplas','items/braceletgoldruby'],['boots','Botas','items/steelboots'],['shield','Escudo','items/ironroundshield'],['ring','Anel','items/ringgoldruby'],['amulet','Amuleto','items/stellarcluster']] as [Slot,string,string][]).map(([s,label]) => {
                       const id = p.equip[s];
-                      return <Button variant="game" key={s} onClick={() => g.unequip(s)} className="equip-slot equip-row">{id ? <Icon id={id} /> : <div className="w-8 h-8 equip-empty" />}<div><div className="row-label">{{ weapon: "Arma", armor: "Armadura", ring: "Anel", amulet: "Amuleto" }[s]}</div><div className="row-name">{id ? ITEMS[id].name : "Vazio"}</div></div></Button>;
+                      return <Button variant="game" key={s} onClick={() => g.unequip(s)} className={`equip-slot equip-card equip-${s}`} title={id ? `${ITEMS[id].name} · clique para remover` : `${label} vazio`}><span className="equip-slot-mark">{label.slice(0,1)}</span>{id ? <Icon id={id} size={38} /> : <div className="equip-empty"><span>+</span></div>}<div><div className="row-label">{label}</div><div className="row-name">{id ? ITEMS[id].name : "Vazio"}</div></div></Button>;
                     })}</div>
+                    <div className="equip-set-note"><span>◆ Conjunto Kaetram</span><small>Use 4 peças Kaetram para ativar a leitura visual do arsenal.</small></div>
                   </Section>
                   <Section title="Mochila" aside={<Meter value={g.inventory.length} max={g.INV_MAX} />}>
-                    <div className="inventory-filters" role="tablist">{([['all','Tudo'],['weapon','Armas'],['armor','Defesa'],['ring','Anéis'],['amulet','Amuletos'],['potion','Poções'],['material','Materiais']] as const).map(([id,label])=><button key={id} className={inventoryFilter===id?'on':''} onClick={()=>setInventoryFilter(id)}>{label}</button>)}</div>
+                    <div className="inventory-filters" role="tablist">{([['all','Tudo'],['weapon','Armas'],['armor','Torso'],['helmet','Elmos'],['gloves','Manoplas'],['boots','Botas'],['shield','Escudos'],['ring','Anéis'],['amulet','Amuletos'],['potion','Poções'],['material','Materiais']] as const).map(([id,label])=><button key={id} className={inventoryFilter===id?'on':''} onClick={()=>setInventoryFilter(id)}>{label}</button>)}</div>
                     <div className="inv-grid">
                       {Array.from({ length: g.INV_MAX }).map((_, i) => {
                         const s = g.inventory[i];

@@ -327,13 +327,13 @@ export class Game {
     x: 122 * TS + 8, y: 128 * TS + 8, vx: 0, vy: 0, dir: 0, frame: 0, frameT: 0, attackT: 0, atkCd: 0, spellCd: 0, inv: 0,
     hp: 100, mp: 30, level: 1, xp: 0, points: 0, skillPoints: 0, skills: freshSkillRanks(), gold: 50,
     base: { str: 5, dex: 5, vit: 5, int: 5, wis: 5 } as Stats,
-    equip: { weapon: "wood_sword", armor: "cloth", ring: null, amulet: null } as Record<Slot, string | null>,
+    equip: { weapon: "wood_sword", armor: "cloth", helmet: null, gloves: null, boots: null, shield: null, ring: null, amulet: null } as Record<Slot, string | null>,
     spirits: ["salamando", "dryad"] as SpiritId[],
     spell: "salamando" as SpiritId,
     respawnStatue: "village",
     dead: 0,
   };
-  inventory: InvSlot[] = [{ id: "potion", qty: 3 }, { id: "ether", qty: 1 }, {id:"carrot_seed",qty:6}, {id:"wheat_seed",qty:4}, {id:"moon_seed",qty:2}, {id:"wood",qty:18}, {id:"stone",qty:16}, {id:"coal",qty:3}];
+  inventory: InvSlot[] = [{ id: "potion", qty: 3 }, { id: "ether", qty: 1 }, { id: "kae_iron_helmet", qty: 1 }, { id: "kae_gold_bracer", qty: 1 }, { id: "kae_steel_boots", qty: 1 }, { id: "kae_iron_shield", qty: 1 }, {id:"carrot_seed",qty:6}, {id:"wheat_seed",qty:4}, {id:"moon_seed",qty:2}, {id:"wood",qty:18}, {id:"stone",qty:16}, {id:"coal",qty:3}];
   questStatus: Record<string, "active" | "done"> = {};
   questProg: Record<string, number> = {};
   routeSelection: RouteSelection | null = null;
@@ -341,6 +341,14 @@ export class Game {
   statues = new Set<string>(["village"]);
   bossesDone = new Set<string>();
   readonly INV_MAX = 48;
+
+  private ensureEquipmentSlots() {
+    const equip = this.p.equip as Partial<Record<Slot, string | null>>;
+    for (const slot of ["weapon", "armor", "helmet", "gloves", "boots", "shield", "ring", "amulet"] as Slot[]) {
+      if (!(slot in equip)) equip[slot] = null;
+    }
+    this.p.equip = equip as Record<Slot, string | null>;
+  }
 
   constructor(public canvas: HTMLCanvasElement) {
     preloadFx();
@@ -381,15 +389,16 @@ export class Game {
   bonus(k: "hp" | "mp") { let v = 0; for (const id of Object.values(this.p.equip)) if (id) v += ITEMS[id].bonus?.[k] ?? 0; const b = skillBonuses(this.skillRanks()); return v + (k === "hp" ? b.hp : b.mp); }
   maxHp() { return 50 + this.stats().vit * 10 + this.p.level * 6 + this.bonus("hp"); }
   maxMp() { const s = this.stats(); return 20 + s.wis * 5 + s.int * 2 + this.bonus("mp"); }
-  defense() { const a = this.p.equip.armor; return (a ? ITEMS[a].def ?? 0 : 0) + Math.floor(this.stats().vit / 2) + skillBonuses(this.skillRanks()).defense; }
+  defense() { const gear = Object.values(this.p.equip).reduce((sum, id) => sum + (id ? ITEMS[id].def ?? 0 : 0), 0); const b = skillBonuses(this.skillRanks()); return Math.round((gear + Math.floor(this.stats().vit / 2) + b.defense) * b.gearPower); }
   weapon() { return ITEMS[this.p.equip.weapon ?? "wood_sword"]; }
   attackPower() {
     const w = this.weapon(), s = this.stats();
     const atk = w.atk ?? 0;
-    if (w.weapon === "bow") return s.dex * 2 + atk + s.str * 0.5;
-    if (w.weapon === "staff") return s.int * 2 + atk;
-    if (w.weapon === "spear") return Math.round((s.str * 2 + atk) * 1.15);
-    return Math.round((s.str * 2 + atk) * (1 + skillBonuses(this.skillRanks()).weaponDamage));
+    const b = skillBonuses(this.skillRanks());
+    if (w.weapon === "bow") return Math.round((s.dex * 2 + atk + s.str * 0.5 + b.attack) * (1 + b.weaponDamage));
+    if (w.weapon === "staff") return Math.round((s.int * 2 + atk + b.attack) * (1 + b.weaponDamage));
+    if (w.weapon === "spear") return Math.round((s.str * 2 + atk + b.attack) * 1.15 * (1 + b.weaponDamage));
+    return Math.round((s.str * 2 + atk + b.attack) * (1 + b.weaponDamage));
   }
   xpNeed() { return Math.floor(25 * Math.pow(this.p.level, 1.6)); }
 
@@ -2150,6 +2159,7 @@ export class Game {
       const raw = localStorage.getItem("golden-arrow-save"); if (!raw) return;
       const d = JSON.parse(raw);
       Object.assign(this.p, d.p);
+      this.ensureEquipmentSlots();
       this.p.skillPoints = Number.isFinite(this.p.skillPoints) ? Math.max(0, this.p.skillPoints) : Math.max(0, (this.p.level ?? 1) - 1);
       this.p.skills = d.p?.skills && typeof d.p.skills === "object" ? d.p.skills : freshSkillRanks();
       this.farlandsActive = d.farlandsActive === true;

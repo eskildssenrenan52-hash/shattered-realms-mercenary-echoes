@@ -6,6 +6,8 @@ import { GameIcon } from "@/components/GameIcon";
 export function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
   const m = title.match(/^(.*?)\s+[—·]\s+(.*)$/);
   const main = m ? m[1] : title, sub = m ? m[2] : "";
+  const lower = title.toLocaleLowerCase();
+  const theme = lower.includes("inventário") || lower.includes("arsenal") ? "inventory" : lower.includes("habilidades") ? "skills" : lower.includes("mapa") || lower.includes("atlas") ? "atlas" : lower.includes("missões") || lower.includes("crônica") ? "lore" : lower.includes("grimório") || lower.includes("mana") ? "arcane" : lower.includes("mercen") || lower.includes("companhia") ? "mercenary" : lower.includes("pet") ? "nature" : lower.includes("forja") || lower.includes("alquimia") || lower.includes("mercado") ? "craft" : "default";
   useEffect(() => {
     const k = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); onClose(); } };
     window.addEventListener("keydown", k, true);
@@ -13,7 +15,7 @@ export function Modal({ title, onClose, children, wide }: { title: string; onClo
   }, [onClose]);
   return (
     <div className="modal-overlay absolute inset-0 flex items-center justify-center p-4" onMouseDown={onClose}>
-      <div role="dialog" aria-modal="true" aria-label={title} className={`game-panel modal-content modal-shell w-full ${wide ? "max-w-4xl" : "max-w-3xl"} text-[12px]`} onMouseDown={(e) => e.stopPropagation()}>
+      <div role="dialog" aria-modal="true" aria-label={title} data-modal-theme={theme} className={`game-panel modal-content modal-shell w-full ${wide ? "max-w-4xl" : "max-w-3xl"} text-[12px]`} onMouseDown={(e) => e.stopPropagation()}>
         <header className="modal-head">
           <span className="modal-gem" aria-hidden="true" />
           <div className="modal-titles"><span className="modal-title">{main}</span>{sub && <span className="modal-sub">{sub}</span>}</div>
