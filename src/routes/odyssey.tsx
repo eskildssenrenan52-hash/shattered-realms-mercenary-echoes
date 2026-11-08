@@ -149,7 +149,9 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameRef = useRef<Game | null>(null);
   const startRef = useRef<(load: boolean) => void>(() => {});
+  const pendingStartRef = useRef<boolean | null>(null);
   const [, setTick] = useState(0);
+  const [bootError, setBootError] = useState<string | null>(null);
   const [panel, setPanel] = useState<Panel>(null);
   const [title, setTitle] = useState(true);
   const [hasSave, setHasSave] = useState(false);
@@ -179,8 +181,20 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
   useEffect(() => {
     const cv = canvasRef.current;
     if (!cv) return;
-    const g = new Game(cv);
+    let g: Game;
+    try {
+      g = new Game(cv);
+    } catch (error) {
+      setBootError(error instanceof Error ? error.message : "Falha desconhecida ao preparar o motor.");
+      return;
+    }
     gameRef.current = g;
+    setBootError(null);
+    if (pendingStartRef.current !== null) {
+      const load = pendingStartRef.current;
+      pendingStartRef.current = null;
+      window.setTimeout(() => startRef.current(load), 0);
+    }
     const resize=()=>{
       // Resolução interna: lado curto fixo em 270 px (mesma escala de pixel em pé ou deitado)
       // e lado longo limitado — em pé no celular isso desenha ~3× menos pixels por quadro.
@@ -332,7 +346,7 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
   };
   const start = (load: boolean) => {
     const game = gameRef.current;
-    if (!game) return;
+    if (!game) { pendingStartRef.current = load; return; }
     if (load) game.load();
     game.started = true; game.audio.init(); setTitle(false); setDailyOpen(false); applyDailyReceipts(game);
     if (!load) {
@@ -421,6 +435,18 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
   const trackedQuestProgress = (quest: typeof QUESTS[number]) => !g ? "" : g.questStatus[quest.id] === "active"
     ? g.questReady(quest) ? "✔ Retorne ao NPC" : g.questProgressText(quest)
     : `Fale com ${NPCS.find((npc) => npc.id === quest.giver)?.name ?? "o NPC"} para aceitar`;
+
+  if (bootError) return (
+    <main className="game-shell boot-error-screen">
+      <section className="boot-error-card" role="alert">
+        <div className="title-studio-mark">REMULU GAMES · RECUPERAÇÃO</div>
+        <h1>Não conseguimos abrir a jornada</h1>
+        <p>O motor encontrou um problema ao preparar os arquivos locais. Seus saves continuam preservados.</p>
+        <code>{bootError}</code>
+        <Button variant="game" onClick={() => window.location.reload()}>Recarregar o jogo</Button>
+      </section>
+    </main>
+  );
 
   return (
     <main className="game-shell min-h-screen bg-background text-foreground select-none">
