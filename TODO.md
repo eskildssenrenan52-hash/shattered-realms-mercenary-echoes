@@ -77,3 +77,12 @@
 - [x] **APK compatível:** reduzido `minSdk` de 26 para API 21, corrigido `getColor()` por `ContextCompat`, incrementada versão para 0.2.0 e publicado/verificado o `android-apk-7`; arquivo íntegro, 70.046.658 bytes, SHA-256 `c68784267b8c21026d4e730a476cfd6ea10592e28426e884c0153cfe73c79357`.
 - [x] **Designs visuais únicos:** 200 skins e 200 mercenários agora usam composição pixel-art procedural individual (silhueta, cabeça, cabelo, roupa, armadura, acessórios e arma), com 200 assinaturas distintas por catálogo; suíte completa e build aprovadas. APK publicado/verificado no `android-apk-8`, SHA-256 `39ea8ba062057dc372b22df347996882760c8d6ed9d8278d9e2b283eace170e9`.
 - [x] **Validação e publicação do código:** TypeScript, build e suíte completa passaram (45 arquivos/234 testes); a melhoria multiplayer foi enviada ao `origin/main` no commit `5e48fb8` e o APK atualizado foi publicado/verificado no release `android-apk-6` (SHA-256 `ea81d71f3b8ef47f09fe4e9c3ad31117bec507db39659fa1361d21b97b6a7ee9`).
+
+
+## Pedido de 8 de novembro de 2026 — missões, segredos e rotas pontilhadas
+
+- [x] **Escolha de missão e rota:** no Livro de Missões, permitir selecionar qualquer missão ativa ou disponível e manter a missão principal como padrão automático sem seleção manual; mostrar alvo/progresso atuais, priorizar a missão selecionada no HUD desktop e em um resumo mobile e permitir limpar a rota.
+- [x] **Segredos rastreáveis sem spoilers:** no Diário de Descobertas, listar as cadeias de enigmas já iniciadas, exibir a pista e a etapa atual e permitir selecionar uma delas; não revelar nome, pista ou posição de cadeias que ainda não foram descobertas.
+- [x] **Trajeto visual seguro e persistente:** desenhar caminho pontilhado até o objetivo escolhido no mundo e no minimapa, calculado sobre tiles caminháveis para contornar paredes; atualizar após mudanças de objetivo/área e salvar a seleção sem quebrar saves anteriores.
+- [x] **APK offline 0.3.3:** compilado com versionCode 6, assinatura debug, 71 MB e SHA-256 `7dc9da88fb8cad226038d24a0948046710ee9866d469af64a23c275972fd9bef`; o pacote local validou 1.838 arquivos, HTML de entrada, JavaScript offline e FX.
+- [x] **Validação das rotas:** 39/39 testes focais de motor/waypoint/rota passaram; TypeScript e builds web/Android offline aprovados. Seleção e segredo descoberto têm testes de persistência/ocultação.

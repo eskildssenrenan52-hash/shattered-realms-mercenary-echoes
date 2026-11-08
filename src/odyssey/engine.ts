@@ -12,7 +12,7 @@ import { freshEchoSystems, sanitizeEchoSystems, type EchoSystemsState } from './
 import { recordStormBossVictory, recordNemesisBossVictory, recordNemesisHitStyle } from './echoes-play';
 import { ECHOES_BEYOND_REALMS } from './echoes-beyond';
 import { drawDepthProps } from './depth-props';
-import { drawSecrets, secretLights, isRealm } from './secret-play';
+import { drawSecrets, secretLights, isRealm, hasSecretRoute, secretRouteOptions, secretRouteWaypoint } from './secret-play';
 import { MANOPLA_ITEM } from './manopla-lore';
 import { SAGA_BOSS_LOOK, sagaOnBoss, sagaOnKill, sagaModeTick, drawSaga, sagaLights, sagaPosOf, sagaWeather, sagaPlaza } from './saga-play';
 import { softHole, softGlow, Quality } from './perf';
@@ -47,6 +47,7 @@ import { carveEntrances, depthAction, surfaceEntrance, drawSurfaceEntrances, dra
 import { BOAT_RECIPES } from "./archipelago";
 import { archipelagoInteract, archipelagoPrompt, archipelagoArea, onBoatCraft, updateSea, renderSea, islandTick, islandOnKill, leaveArchipelago, drawIslandProps, drawIslandAtmosphere, ISLAND_BOSS_RESPAWN_SECONDS, type SeaRun, type IslandRun } from "./sailing";
 import { objectiveWaypoint, type Waypoint } from "./waypoint";
+import { findWalkableRoute, type RouteTile } from "./quest-routing";
 import { waterLife, windLife, biomeLife, bossArenaLife } from './biome-anim';
 import { SENHOR_LOOK } from "./senhores";
 import { STORY_BOSS_LOOK, STORY_QUESTS, ALL_ECO_BOSSES, beatsFor, depthBonus, cycleBonus, cycleBossMult, endgameDrop, actChainQuests, type Beat } from "./story";
@@ -117,6 +118,7 @@ interface FText { x: number; y: number; text: string; color: string; life: numbe
 export interface InvSlot { id: string; qty: number }
 export interface DialogChoice { label: string; act: () => void }
 export interface Dialog { npc: NpcDef; text: string; choices: DialogChoice[] }
+export interface RouteSelection { kind: "quest" | "secret"; id: string }
 
 export class Game {
   get viewWidth() { return this.canvas.width; }
@@ -137,7 +139,7 @@ export class Game {
   cursor = {x:0,y:0};
   actionCooldown = 0;
   lastDelta = 1/60;
-  useTool(wx:number,wy:number) { return applyWorldTool(this,wx,wy); }
+  useTool(wx:number,wy:number) { this.dottedRouteCache = null; return applyWorldTool(this,wx,wy); }
 
   world: World;
   overworld: World;
@@ -333,6 +335,8 @@ export class Game {
   inventory: InvSlot[] = [{ id: "potion", qty: 3 }, { id: "ether", qty: 1 }, {id:"carrot_seed",qty:6}, {id:"wheat_seed",qty:4}, {id:"moon_seed",qty:2}, {id:"wood",qty:18}, {id:"stone",qty:16}, {id:"coal",qty:3}];
   questStatus: Record<string, "active" | "done"> = {};
   questProg: Record<string, number> = {};
+  routeSelection: RouteSelection | null = null;
+  private dottedRouteCache: { world: World; key: string; startId: number; points: RouteTile[]; index: number } | null = null;
   statues = new Set<string>(["village"]);
   bossesDone = new Set<string>();
   readonly INV_MAX = 48;
@@ -946,6 +950,27 @@ export class Game {
   questUnlocked(q: QuestDef) {
     return (!q.requires || this.questStatus[q.requires] === "done") && (q.requiresAll ?? []).every((id) => this.questStatus[id] === "done");
   }
+  selectQuestRoute(id: string) {
+    const q = QUESTS.find((entry) => entry.id === id);
+    if (!q || this.questStatus[id] === "done" || (this.questStatus[id] !== "active" && !this.questUnlocked(q))) return false;
+    this.routeSelection = { kind: "quest", id };
+    this.dottedRouteCache = null;
+    this.save();
+    return true;
+  }
+  selectSecretRoute(id: string) {
+    if (!secretRouteOptions(this).some((entry) => entry.id === id)) return false;
+    this.routeSelection = { kind: "secret", id };
+    this.dottedRouteCache = null;
+    this.save();
+    return true;
+  }
+  clearRouteSelection() {
+    if (!this.routeSelection) return;
+    this.routeSelection = null;
+    this.dottedRouteCache = null;
+    this.save();
+  }
   availableQuest(npc: string) {
     return QUESTS.find((q) => q.giver === npc && !this.questStatus[q.id] && this.questUnlocked(q));
   }
@@ -1037,12 +1062,68 @@ export class Game {
   }
   /** Para onde ir agora: NPC, chefe ou criatura mais próxima do objetivo principal. */
   waypoint(): Waypoint | null {
+    const selected = this.routeSelection;
+    if (selected?.kind === "quest") {
+      const q = QUESTS.find((entry) => entry.id === selected.id);
+      const status = q && this.questStatus[q.id];
+      if (q && status !== "done" && (status === "active" || this.questUnlocked(q))) {
+        return objectiveWaypoint(q, status === "active" ? "active" : "available", this.questReady(q), { x: this.p.x / TS, y: this.p.y / TS },
+          this.enemies.filter((e) => e.alive && !e.boss).map((e) => ({ kind: e.kind, tx: e.x / TS, ty: e.y / TS })), this.world);
+      }
+      this.routeSelection = null;
+      this.dottedRouteCache = null;
+    } else if (selected?.kind === "secret") {
+      if (!hasSecretRoute(this, selected.id)) {
+        this.routeSelection = null;
+        this.dottedRouteCache = null;
+      } else return secretRouteWaypoint(this, selected.id);
+    }
     const o = this.currentObjective(); if (!o) return null;
     return objectiveWaypoint(o.q, o.state, this.questReady(o.q), { x: this.p.x / TS, y: this.p.y / TS },
       this.enemies.filter((e) => e.alive && !e.boss).map((e) => ({ kind: e.kind, tx: e.x / TS, ty: e.y / TS })), this.world);
   }
-  renderWaypoint(c: CanvasRenderingContext2D) {
-    const w = this.waypoint(); if (!w) return;
+  private dottedRoute(w: Waypoint): RouteTile[] {
+    const tx = Math.max(0, Math.min(W - 1, Math.floor(w.tx)));
+    const ty = Math.max(0, Math.min(H - 1, Math.floor(w.ty)));
+    const key = `${this.routeSelection ? `${this.routeSelection.kind}:${this.routeSelection.id}` : "auto"}:${tx},${ty}`;
+    const startTx = Math.floor(this.p.x / TS), startTy = Math.floor(this.p.y / TS), startId = startTy * W + startTx;
+    const replan = () => {
+      this.dottedRouteCache = {
+        world: this.world,
+        key,
+        startId,
+        points: findWalkableRoute(this.world, { tx: startTx, ty: startTy }, { tx, ty }),
+        index: 0,
+      };
+    };
+    if (!this.dottedRouteCache || this.dottedRouteCache.world !== this.world || this.dottedRouteCache.key !== key ||
+      (!this.dottedRouteCache.points.length && this.dottedRouteCache.startId !== startId)) replan();
+    let cache = this.dottedRouteCache!;
+    if (cache.points.length) {
+      const distance = (point: RouteTile) => Math.hypot(this.p.x - (point.tx * TS + TS / 2), this.p.y - (point.ty * TS + TS / 2));
+      while (cache.index < cache.points.length - 1 && distance(cache.points[cache.index + 1]!) <= distance(cache.points[cache.index]!) + 1)
+        cache.index++;
+      let nearest = Infinity;
+      for (let i = cache.index; i < Math.min(cache.points.length, cache.index + 5); i++) nearest = Math.min(nearest, distance(cache.points[i]!));
+      if (nearest > TS * 3) { replan(); cache = this.dottedRouteCache!; }
+    }
+    return cache.points.slice(cache.index);
+  }
+  renderQuestRoute(c: CanvasRenderingContext2D, w: Waypoint) {
+    const route = this.dottedRoute(w); if (!route.length) return;
+    c.save(); c.beginPath(); c.rect(0, 0, this.viewWidth, this.viewHeight); c.clip();
+    c.lineCap = "round"; c.lineJoin = "round"; c.lineDashOffset = -this.clock * 4;
+    const draw = () => {
+      c.beginPath(); c.moveTo(this.p.x - this.cam.x, this.p.y - this.cam.y);
+      for (const tile of route) c.lineTo(tile.tx * TS + TS / 2 - this.cam.x, tile.ty * TS + TS / 2 - this.cam.y);
+      c.stroke();
+    };
+    c.setLineDash([1, 6]); c.strokeStyle = "rgba(8,10,20,0.9)"; c.lineWidth = 5; draw();
+    c.strokeStyle = w.color; c.lineWidth = 2; draw();
+    c.setLineDash([]); c.restore();
+  }
+  renderWaypoint(c: CanvasRenderingContext2D, w: Waypoint | null = this.waypoint()) {
+    if (!w) return;
     const vw = this.viewWidth, vh = this.viewHeight, sx = w.tx * TS + 8 - this.cam.x, sy = w.ty * TS - this.cam.y;
     const dist = Math.round(Math.hypot(w.tx - this.p.x / TS, w.ty - this.p.y / TS)), pulse = Math.sin(this.clock * 5);
     c.font = "6px 'Press Start 2P', monospace"; c.textAlign = "center";
@@ -1830,7 +1911,11 @@ export class Game {
     liveDrawWorld(this, c);
     c.setTransform(1, 0, 0, 1, 0, 0);
     this.renderNpcIndicators(c, cx, cy);
-    if (!this.interior && !this.depth && !this.island) { this.renderWaypoint(c); this.renderMinimap(); }
+    if (!this.interior && !this.island && !this.sea && (!this.depth || this.routeSelection?.kind === "secret")) {
+      const waypoint = this.waypoint();
+      if (waypoint) { this.renderQuestRoute(c, waypoint); this.renderWaypoint(c, waypoint); }
+      if (!this.depth) this.renderMinimap(waypoint);
+    }
     liveDrawScreen(this, c);
     drawSiegeHud(this, c);
     if (!this.live && !this.bossCard) this.renderInteractionPrompt(c);
@@ -2009,7 +2094,7 @@ export class Game {
       }
     } else this.ambientParticles();
   }
-  renderMinimap() {
+  renderMinimap(waypoint: Waypoint | null) {
     const c = this.ctx, p = this.p;
     const mw = 72, mh = 52, mx = this.viewWidth - mw - 4, my = 4;
     c.fillStyle = "#1a1030"; c.fillRect(mx - 2, my - 2, mw + 4, mh + 4);
@@ -2017,6 +2102,18 @@ export class Game {
     const ptx = p.x / TS, pty = p.y / TS;
     const sx = Math.max(0, Math.min(W - mw, ptx - mw / 2)), sy = Math.max(0, Math.min(H - mh, pty - mh / 2));
     { const k = this.mmScale; c.drawImage(this.minimap, sx / k, sy / k, mw / k, mh / k, mx, my, mw, mh); }
+    if (waypoint) {
+      const route = this.dottedRoute(waypoint);
+      if (route.length) {
+        c.save(); c.beginPath(); c.rect(mx, my, mw, mh); c.clip();
+        c.beginPath(); c.moveTo(mx + ptx - sx, my + pty - sy);
+        for (const tile of route) c.lineTo(mx + tile.tx - sx + 0.5, my + tile.ty - sy + 0.5);
+        c.lineCap = "round"; c.lineJoin = "round"; c.setLineDash([1, 2]); c.lineDashOffset = -this.clock * 2;
+        c.strokeStyle = "rgba(5,8,20,0.9)"; c.lineWidth = 3; c.stroke();
+        c.strokeStyle = waypoint.color; c.lineWidth = 1.4; c.stroke();
+        c.setLineDash([]); c.restore();
+      }
+    }
     for (const s of STATUES) { const x = s.tx - sx, y = s.ty - sy; if (x >= 0 && y >= 0 && x < mw && y < mh) { c.fillStyle = this.statues.has(s.id) ? "#60f0ff" : "#507080"; c.fillRect(mx + x - 1, my + y - 1, 3, 3); } }
     for (const e of this.enemies) if (e.boss && e.alive) { const x = e.hx / TS - sx, y = e.hy / TS - sy; if (x >= 0 && y >= 0 && x < mw && y < mh) { c.fillStyle = "#ff3030"; c.fillRect(mx + x - 1, my + y - 1, 3, 3); } }
     for (const n of this.localNpcs) { const x = n.tx - sx, y = n.ty - sy; if (x >= 0 && y >= 0 && x < mw && y < mh) { c.fillStyle = "#ffd040"; c.fillRect(mx + x, my + y, 1, 1); } }
@@ -2033,7 +2130,7 @@ export class Game {
   save() {
     try {
       const data = {
-        p: { ...this.p, ...(this.interior ? this.returnPosition : {}), ...(this.depth ? this.depthReturn : {}), ...(this.sea || this.island ? this.seaReturn : {}), dead: 0 }, abyssBest: this.abyssBest, inventory: this.inventory, questStatus: this.questStatus, questProg: this.questProg,
+        p: { ...this.p, ...(this.interior ? this.returnPosition : {}), ...(this.depth ? this.depthReturn : {}), ...(this.sea || this.island ? this.seaReturn : {}), dead: 0 }, abyssBest: this.abyssBest, inventory: this.inventory, questStatus: this.questStatus, questProg: this.questProg, routeSelection: this.routeSelection,
         discoveries: [...this.discoveries], openedChests: [...this.openedChests], echoSystems: this.echoSystems, mercenaries: this.mercenaries,
         farlandsActive: this.farlandsActive, farlandsReturnPos: this.farlandsReturnPos,
         settlement: this.settlement, terrainEdits:this.terrainEdits, statues: [...this.statues], bosses: [...this.bossesDone], twinRolls: Object.fromEntries(this.twinRolls), time: this.time, cycle: this.cycle, seenBeats: [...this.seenBeats], tutorialDone: this.tutorialDone, tutorialModalPending: this.tutorialModalPending, tutorialModalDone: this.tutorialModalDone,
@@ -2058,6 +2155,10 @@ export class Game {
       this.echoSystems = sanitizeEchoSystems(d.echoSystems);
       this.mercenaries = sanitizeMercenaryState(d.mercenaries);
       this.inventory = d.inventory; this.questStatus = d.questStatus; this.questProg = d.questProg;
+      const savedRoute = d.routeSelection as Partial<RouteSelection> | null | undefined;
+      this.routeSelection = savedRoute && (savedRoute.kind === "quest" || savedRoute.kind === "secret") && typeof savedRoute.id === "string"
+        ? { kind: savedRoute.kind, id: savedRoute.id } : null;
+      this.dottedRouteCache = null;
       this.statues = new Set(d.statues); this.bossesDone = new Set(d.bosses); this.time = d.time ?? 0.3;
       this.twinRolls = new Map(Object.entries(d.twinRolls ?? {}).map(([id, value]) => [id, !!value]));
       this.abyssBest = d.abyssBest ?? 0;
@@ -2072,6 +2173,7 @@ export class Game {
       if (this.cycle > 0) this.rebuildEnemies(); else { if (this.farlandsActive) this.spawnEnemies(); this.retireDefeatedBosses(); }
       this.biome = biomeOf(this.world, this.p.x, this.p.y); this.audio.biome = this.biome;
       this.buildMinimap(); this.onWorldChanged?.();
+      if (this.routeSelection) this.waypoint();
       if (this.questStatus["m6"] === "done" && !this.count(MANOPLA_ITEM) && !this.seenBeats.has("manopla_vesper")) this.addItem(MANOPLA_ITEM);
       if (this.questStatus["m6"] === "done") this.fireBeats("quest:m6"); // quem já salvou a Árvore ouve a revelação dos Ecos
     } catch { /* ignore */ }

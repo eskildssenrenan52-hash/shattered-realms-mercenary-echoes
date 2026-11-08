@@ -2,9 +2,10 @@
 import type { Game } from './engine';
 import { ITEMS, BIOME_NAMES, type NpcDef } from './data';
 import { TEMPLES, type Temple } from './depths';
-import { generateFloor, type DungeonFloor } from './dungeon';
+import { ABYSS_DOOR, generateFloor, type DungeonFloor } from './dungeon';
 import { TS, W, H, solidAt, type World } from './world';
 import { MAP_SECRET_TOTAL, mapSecretsInRect, type MapSecret } from './map-secrets';
+import type { Waypoint } from './waypoint';
 import {
   SECRETS, REALMS, HEART_REALM, ALL_REALMS, stepKey, stepOf, chainDone, circleDone, realmOpen, clueFor,
   type SecretChain, type SecretStep, type RealmDef,
@@ -34,9 +35,9 @@ export const realmPortalPos = (world: World, r: RealmDef) => r === HEART_REALM ?
 
 /* ───────────── Etapas ativas (recalculadas só quando o progresso muda) ───────────── */
 interface Active { chain: SecretChain; step: number; tx: number; ty: number; floor?: number | undefined }
-let activeCache: { size: number; list: Active[] } | null = null;
+let activeCache: { game: Game; discoveries: Set<string>; size: number; list: Active[] } | null = null;
 function actives(g: Game): Active[] {
-  if (activeCache && activeCache.size === g.discoveries.size) return activeCache.list;
+  if (activeCache?.game === g && activeCache.discoveries === g.discoveries && activeCache.size === g.discoveries.size) return activeCache.list;
   const has = (k: string) => g.discoveries.has(k), list: Active[] = [];
   for (const c of SECRETS) {
     const s = stepOf(c, has); if (s >= c.steps.length) continue;
@@ -44,9 +45,48 @@ function actives(g: Game): Active[] {
     if (st.kind === 'depth') list.push({ chain: c, step: s, tx: 0, ty: 0, floor: st.floor });
     else { const p = resolve(g.overworld, st.anchor!, st.dx!, st.dy!); list.push({ chain: c, step: s, ...p }); }
   }
-  activeCache = { size: g.discoveries.size, list }; return list;
+  activeCache = { game: g, discoveries: g.discoveries, size: g.discoveries.size, list }; return list;
 }
 const depthRune = (d: DungeonFloor) => { const r = d.rooms[Math.min(1, d.rooms.length - 1)]!; return { tx: r.x + Math.floor(r.w / 2), ty: r.y + Math.floor(r.h / 2) + 1 }; };
+export interface SecretRouteOption { id: string; name: string; stage: number; total: number; clue: string; color: string }
+/** Só apresenta cadeias que já avançaram além da primeira runa ainda oculta. */
+export function hasSecretRoute(g: Game, id: string) {
+  return actives(g).some((a) => a.chain.id === id && a.step > 0);
+}
+export function secretRouteOptions(g: Game): SecretRouteOption[] {
+  return actives(g).filter((a) => a.step > 0).map((a) => ({
+    id: a.chain.id,
+    name: a.chain.name,
+    stage: a.step + 1,
+    total: a.chain.steps.length,
+    clue: secretClue(a.chain.steps[a.step]!),
+    color: REALMS[a.chain.circle]?.color ?? '#c0d0ff',
+  }));
+}
+/** Resolve a posição da pista atual, sem devolver coordenadas de um segredo não iniciado. */
+export function secretRouteWaypoint(g: Game, id: string): Waypoint | null {
+  const a = actives(g).find((entry) => entry.chain.id === id && entry.step > 0);
+  if (!a) return null;
+  let target: { tx: number; ty: number };
+  if (a.floor !== undefined) {
+    if (g.depth?.kind === 'abyss') {
+      if (g.depth.floor !== a.floor) return null;
+      target = depthRune(g.depth.data);
+    } else {
+      if (g.depth || g.interior || g.island || g.sea || g.farlandsActive) return null;
+      target = { tx: ABYSS_DOOR.tx, ty: ABYSS_DOOR.ty };
+    }
+  } else {
+    if (g.depth || g.interior || g.island || g.sea || g.farlandsActive) return null;
+    target = { tx: a.tx, ty: a.ty };
+  }
+  return {
+    ...target,
+    label: a.chain.name,
+    hint: `Segredo · etapa ${a.step + 1}/${a.chain.steps.length}: ${a.chain.name}`,
+    color: REALMS[a.chain.circle]?.color ?? '#c0d0ff',
+  };
+}
 const near = (g: Game, tx: number, ty: number, r = 20) => Math.hypot(g.p.x - tx * TS - 8, g.p.y - ty * TS - 8) < r;
 const isNight = (g: Game) => g.time < 0.22 || g.time > 0.8;
 const isDay = (g: Game) => g.time >= 0.375 && g.time <= 0.67;

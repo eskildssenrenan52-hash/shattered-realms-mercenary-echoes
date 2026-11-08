@@ -21,6 +21,7 @@ RPG de ação 2D em Canvas com campanha, Saga, arquipélago, combate procedural,
 - Oito cidades de fronteira acrescentam 24 construções acessíveis, distritos com paletas próprias, moradores inéditos e 48 missões secundárias em cadeias de seis etapas. O Atlas permite viajar diretamente aos novos destinos.
 - Potos conserva suas quatro construções antigas e todos os IDs de progresso/save existentes; as novas cidades e descobertas usam chaves separadas.
 - A expansão de arquitetura acrescenta 1.000 construções exploráveis determinísticas nos setores Frontier: casas, pousadas, laboratórios, observatórios, forjas, arquivos, minas, ruínas e dungeons. Cada instância recebe ID/assinatura, paleta, planta, objetivo/recompensa e 1–12 andares; interiores são gerados ao entrar e as fachadas são culladas pela câmera.
+- O Livro de Missões permite escolher qualquer missão ativa/disponível e exibe uma trilha pontilhada no mundo e no minimapa, calculada para contornar paredes. O Diário de Descobertas permite seguir pistas de cadeias já iniciadas sem revelar segredos ainda ocultos; a escolha fica salva.
 
 
 ## Multiplayer online
@@ -65,7 +66,7 @@ O APK de depuração aparece em `android/app/build/outputs/apk/debug/app-debug.a
 
 ## APK Android publicado
 
-O APK de depuração desta revisão é a versão 0.3.2 (versionCode 5) e fica em `android/apk/shattered-realms-mercenary-echoes-0.3.2-debug.apk`. Ele inclui as 48 missões secundárias das cidades de fronteira, além das artes Kaetram offline e das correções de dano, navegação, colisão e cenas; é assinado com chave debug e não é uma build de loja.
+O APK de depuração desta revisão é a versão 0.3.3 (versionCode 6) e fica em `android/apk/shattered-realms-mercenary-echoes-0.3.3-debug.apk` (71 MB). Ele inclui as 48 missões secundárias das cidades de fronteira, as rotas pontilhadas selecionáveis para missões e pistas descobertas, as artes Kaetram offline e as correções anteriores; é assinado com chave debug e não é uma build de loja. SHA-256: `7dc9da88fb8cad226038d24a0948046710ee9866d469af64a23c275972fd9bef`. O APK está versionado no repositório — não foi criada uma GitHub Release.
 
 ## Expansão de novembro de 2026
 

@@ -146,3 +146,11 @@ Usar Cloudflare Workers + um Durable Object SQLite por sala, com API WebSocket H
 - Mundo/geração: `src/odyssey/frontier.ts`, `world.ts`, `landmass.ts`, `engine.ts`, `biome-tiles.ts`, `biome-anim.ts`, `scenery.ts` e testes existentes de mundo/bioma.
 - Conteúdo: módulos de dados de mercenários/skins, `mercenaries.ts`, `hero-sprite.ts`, `AppearancePanel.tsx`, eventualmente `MercenariesPanel.tsx` e testes de save/catálogos.
 - Serviço novo isolado: `server/cloudflare/` para Worker/DO/wrangler, testes, configuração e guia de deploy/limites.
+
+
+## Pedido de 8 de novembro de 2026 — diário de missão e rota de segredos
+
+- Ampliar o Livro de Missões com ação explícita para selecionar qualquer missão ativa ou disponível e liberar o trajeto até o objetivo atual; manter a missão principal como seleção automática quando o jogador não escolher outra.
+- Ampliar o Diário de Descobertas para listar cadeias de segredos já iniciadas, exibir a pista/etapa atual e permitir escolher qual cadeia seguir. Segredos ainda não encontrados não aparecem com nome ou coordenadas no diário.
+- Mostrar uma trilha pontilhada contornando tiles sólidos no mundo e no minimapa; atualizar o alvo conforme o objetivo/progresso muda, permitir limpar a seleção e persistir a escolha de forma aditiva e compatível com saves antigos.
+- Manter o Canvas/React, os controles táteis e a paleta pixel-art existentes; não alterar colisão, recompensas ou regras de descoberta dos segredos.

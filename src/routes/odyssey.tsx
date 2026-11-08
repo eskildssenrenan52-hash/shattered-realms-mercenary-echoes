@@ -38,7 +38,7 @@ import { skipTutorial, startTutorial, TUTORIAL_FLOORS } from "@/odyssey/depthpla
 import { skipBossCard } from "@/odyssey/live-scenes";
 import { ISLANDS, bestBoat } from "@/odyssey/archipelago";
 import { ALL_REALMS, realmOpen } from "@/odyssey/secrets";
-import { secretStats } from "@/odyssey/secret-play";
+import { secretRouteOptions, secretStats } from "@/odyssey/secret-play";
 import { SAGA_REALMS, actRealmUnlocked, sagaBossId } from "@/odyssey/saga";
 import { sagaModeStatus, sagaPlaza, travelToActMap } from "@/odyssey/saga-play";
 import { ECHOES_BEYOND_CHRONICLES } from "@/odyssey/echoes-beyond";
@@ -400,6 +400,16 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
   const mode = g ? sagaModeStatus(g) : null;
   const dailyToday = new Date().toISOString().slice(0, 10);
   const dailySnapshot = dailyLoginSnapshot(dailyState, dailyToday);
+  const pinnedQuest = g?.routeSelection?.kind === "quest" ? QUESTS.find((quest) => quest.id === g.routeSelection?.id) : undefined;
+  const activeQuests = g ? QUESTS.filter((quest) => g.questStatus[quest.id] === "active") : [];
+  const journeyQuests = g ? (pinnedQuest && g.questStatus[pinnedQuest.id] !== "done"
+    ? [pinnedQuest, ...activeQuests.filter((quest) => quest.id !== pinnedQuest.id).slice(0, 3)]
+    : activeQuests.slice(0, 4)) : [];
+  const selectedSecret = g?.routeSelection?.kind === "secret"
+    ? secretRouteOptions(g).find((route) => route.id === g.routeSelection?.id) : undefined;
+  const trackedQuestProgress = (quest: typeof QUESTS[number]) => !g ? "" : g.questStatus[quest.id] === "active"
+    ? g.questReady(quest) ? "✔ Retorne ao NPC" : g.questProgressText(quest)
+    : `Fale com ${NPCS.find((npc) => npc.id === quest.giver)?.name ?? "o NPC"} para aceitar`;
 
   return (
     <main className="game-shell min-h-screen bg-background text-foreground select-none">
@@ -419,11 +429,16 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
             </div>
             <div className="quest-tracker absolute top-[24%] right-2 game-panel p-2 w-48 text-[11px] space-y-1">
               <div className="text-primary">SUA JORNADA</div>
-              {QUESTS.filter((q) => g.questStatus[q.id] === "active").slice(0, 4).map((q) => (
-                <div key={q.id}><span className={q.main ? "text-primary" : "text-accent"}>{q.main ? "★" : "!"} {q.title}</span><div className="opacity-80">{g.questReady(q) ? "✔ Retorne ao NPC" : g.questProgressText(q)}</div></div>
+              {selectedSecret && <div><span style={{ color: selectedSecret.color }}>◆ {selectedSecret.name} · {selectedSecret.stage}/{selectedSecret.total}</span><div className="opacity-80">{selectedSecret.clue}</div></div>}
+              {journeyQuests.map((q) => (
+                <div key={q.id}><span className={q.main ? "text-primary" : "text-accent"}>{g.routeSelection?.kind === "quest" && g.routeSelection.id === q.id ? "➤" : q.main ? "★" : "!"} {q.title}</span><div className="opacity-80">{trackedQuestProgress(q)}</div></div>
               ))}
-              {!QUESTS.some((q) => g.questStatus[q.id] === "active") && <div className="opacity-70">Procure NPCs com "!"</div>}
+              {!journeyQuests.length && !selectedSecret && <div className="opacity-70">Procure NPCs com "!"</div>}
             </div>
+            {(selectedSecret || (pinnedQuest && g.questStatus[pinnedQuest.id] !== "done")) && <div className="mobile-route-chip absolute top-[24%] right-2 game-panel p-2 max-w-[48%] text-[10px] space-y-1">
+              {selectedSecret ? <><div style={{ color: selectedSecret.color }}>SEGREDO · Etapa {selectedSecret.stage}/{selectedSecret.total}</div><b>{selectedSecret.name}</b><div className="opacity-80">{selectedSecret.clue}</div></>
+                : pinnedQuest ? <><div className="text-primary">MISSÃO RASTREADA</div><b>{pinnedQuest.title}</b><div className="opacity-80">{trackedQuestProgress(pinnedQuest)}</div></> : null}
+            </div>}
             <div className="spell-dock absolute left-1/2 -translate-x-1/2 flex gap-1">
               {loadout(g).map((id, i) => {
                 const s = SKILL_BY_ID[id] ?? { id: `empty${i}`, name: "—", mp: 0, color: "#555", desc: "Espaço vazio", spell: "" } as unknown as { id: string; name: string; mp: number; color: string; desc: string; spell: string };
@@ -597,8 +612,16 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
           </>
         )}
 
-        {panel === 'secrets' && g && (()=>{const progress=secretStats(g),places=BUILDINGS.filter((b)=>g.discoveries.has(b.id)).length;return <Modal title="Diário de Descobertas" onClose={()=>setPanel(null)}>
+        {panel === 'secrets' && g && (()=>{const progress=secretStats(g),places=BUILDINGS.filter((b)=>g.discoveries.has(b.id)).length,routes=secretRouteOptions(g),selectedName=g.routeSelection?.kind==='secret'?routes.find((route)=>route.id===g.routeSelection?.id)?.name:g.routeSelection?.kind==='quest'?QUESTS.find((quest)=>quest.id===g.routeSelection?.id)?.title:null;return <Modal title="Diário de Descobertas" onClose={()=>setPanel(null)}>
           <div className="stat-tiles"><div className="stat-tile">{progress.done.toLocaleString('pt-BR')}/{progress.total.toLocaleString('pt-BR')}<small>Segredos totais</small></div><div className="stat-tile">{progress.chainsDone}/{progress.chainsTotal}<small>Cadeias de enigmas</small></div><div className="stat-tile">{progress.mapFound.toLocaleString('pt-BR')}/{progress.mapTotal.toLocaleString('pt-BR')}<small>Segredos pelo mapa</small></div><div className="stat-tile">{places}/{BUILDINGS.length}<small>Lugares visitados</small></div><div className="stat-tile">{progress.realms}/{progress.totalRealms}<small>Relíquias de reinos</small></div><div className="stat-tile">{g.openedChests.size}/{TREASURES.length+BUILDINGS.length}<small>Tesouros encontrados</small></div></div>
+          <Section title="Pistas em andamento" aside={`${routes.length} cadeias descobertas`}>
+            <div className="quest-route-status"><span>{selectedName ? <>Rota pontilhada: <b>{selectedName}</b></> : "Escolha uma pista para traçar no mapa"}</span>{g.routeSelection&&<button type="button" onClick={()=>g.clearRouteSelection()}>Limpar rota</button>}</div>
+            {routes.length ? <div className="row-list max-h-56 overflow-y-auto pr-1">{routes.map((route)=><div key={route.id} className="game-panel p-2 text-[11px]" style={{borderColor:route.color}}>
+              <div className="quest-entry-title" style={{color:route.color}}>{route.name}<span>Etapa {route.stage}/{route.total}</span></div>
+              <div className="font-body text-sm opacity-80">{route.clue}</div>
+              <button type="button" className={`quest-route-button ${g.routeSelection?.kind==='secret'&&g.routeSelection.id===route.id?'on':''}`} onClick={()=>{if(g.selectSecretRoute(route.id)){g.toast(`Rota secreta traçada: ${route.name}`,route.color);setPanel(null);}}}><Compass size={13}/>{g.routeSelection?.kind==='secret'&&g.routeSelection.id===route.id?'Rota selecionada':'Seguir esta pista'}</button>
+            </div>)}</div> : <p className="font-body text-sm opacity-70">Nenhuma cadeia foi iniciada. Toque em uma runa encontrada para registrar a primeira pista; os enigmas ainda ocultos não são revelados aqui.</p>}
+          </Section>
           <Section title="Lugares"><div className="row-list">{BUILDINGS.map(b=><div key={b.id} className="place-row"><span className={g.discoveries.has(b.id)?'text-accent':'text-muted-foreground'}>{g.discoveries.has(b.id)?b.name:b.secret?'??? — Lugar esquecido':b.name}</span><span>{g.discoveries.has(b.id)?'◆':'◇'}</span></div>)}</div></Section>
         </Modal>;})()}
         {g && !title && !liveOn && g.cutscene && (
@@ -734,12 +757,12 @@ const GUIDE_STEPS = [
   ["13 · Pontos de atributo", "Abra Herói com C. Força favorece golpes físicos; Destreza ajuda precisão e velocidade; Vitalidade melhora sobrevivência; Inteligência e Sabedoria favorecem recursos e magia. Os bônus concretos aparecem nos painéis do personagem. Distribua pontos conforme seu estilo e guarde uma poção se entrar numa região acima do seu nível."],
   ["14 · Grimório e barra de habilidades", "Abra V para consultar habilidades conhecidas, custos de MP e opções equipadas. Os atalhos 1–5 usam os espaços da barra e R lança a magia selecionada; no celular, toque no ícone correspondente. Se nada acontecer, confira se a habilidade foi aprendida, está na barra, não está recarregando e há mana suficiente."],
   ["15 · Poções, éter e preparação", "Poções restauram vida e éter restaura mana; use H e G no teclado ou os botões móveis. Estoque itens antes de aceitar chefes, expedições ou áreas remotas. Baús, missões e lojas dão suprimentos. Se gastar toda a cura no caminho, retorne a Potos — não é necessário insistir numa batalha mal preparada."],
-  ["16 · Livro de missões", "Q ou L abre o livro de Missões. Leia o objetivo atual, a região, o NPC e o contador. Missões de conversa, coleta, caça, chefe e escolha têm passos diferentes; concluir um contador nem sempre encerra a missão — muitas vezes é preciso voltar ao personagem que a iniciou."],
+  ["16 · Livro de missões e rotas", "Q ou L abre o Livro de Missões. Leia o objetivo, a região, o NPC e o contador. Toque em Traçar rota em uma missão ativa ou disponível para escolher qual seguir; pontos animados mostram o caminho no mundo e no minimapa, contornando paredes. A rota muda conforme o objetivo avança e pode ser limpa no próprio livro."],
   ["17 · Diálogos e decisões", "Converse com NPCs marcados e leia as falas até o fim. Escolhas podem alterar reputação, confiança, aliados ou finais; o jogo registra as decisões na Crônica. Se uma resposta for definitiva, pare um instante, leia as duas alternativas e pense no que deseja que aquele reino se lembre."],
   ["18 · Mapa dos Atos e lacres", "O Mapa dos Atos fica em Potos, perto do Oráculo. Ele lista regiões principais e indica quais estão liberadas pela campanha. Ato I abre após a etapa da Árvore; os atos seguintes pedem a cadeia principal correspondente. Não tente contornar um lacre: avance a missão e volte ao mapa quando o jogo registrar a conclusão."],
   ["19 · Saga, cidades e modos especiais", "Zonas da Saga podem ter cidades, baús secretos, ondas de inimigos ou travessias contra o tempo. Em ondas, sobreviva até o contador zerar; numa corrida, siga o objetivo antes do limite. A entrada é identificada pelo nome da região. As vitórias usam IDs próprios, registram progresso e liberam a zona seguinte."],
   ["20 · Grande Crônica e reputação", "O painel Grande Crônica (O) reúne facções, missões, reputação e finais. Reputação muda preços, acesso a algumas histórias e a pontuação dos desfechos. Leia o painel após escolhas importantes. A expansão do Conselho dos Reinos acrescenta três votações pós-Ato V que se somam a essa mesma reputação, em vez de criar uma moeda paralela."],
-  ["21 · Descobertas e reinos secretos", "O painel Descobertas acompanha chaves, biomas, baús, ilhas e segredos. Alguns reinos ocultos abrem por sequências de pistas; outros exigem relíquias. Procure interações e pistas ambientais, e confira o registro após encontrá-las. Uma porta secreta não significa que toda a região estará liberada sem cumprir os demais requisitos."],
+  ["21 · Descobertas e reinos secretos", "O painel Descobertas acompanha chaves, biomas, baús, ilhas e segredos. Cadeias de enigmas já iniciadas aparecem com a pista e a etapa atual; escolha Seguir esta pista para ver o trajeto pontilhado. O diário não revela a localização de cadeias que você ainda não descobriu. Reinos secretos continuam exigindo seus requisitos e relíquias."],
   ["22 · Recursos e ferramentas", "Explore, minere, corte madeira, prepare a terra e regue com a ferramenta correspondente no dock. Recolha materiais ao caminhar pela superfície e verifique a mochila. Cada recurso tem usos em construção, receita, missão ou comércio. A ferramenta errada pode não produzir nada; troque para a ação adequada antes de repetir."],
   ["23 · Oficina, receitas e mercado", "Carpintaria, forja e alquimia transformam recursos em itens. A receita informa materiais e quantidade; confirme que tem espaço na mochila antes de fabricar. O mercado compra e vende itens por preços que podem variar com a reputação e a reconstrução de Potos. Compare o valor exibido antes de confirmar cada transação."],
   ["24 · Cultivo e colheita", "Prepare um canteiro, plante uma semente e regue. As culturas levam tempo de jogo para amadurecer; voltar a regar e colher no momento correto rende materiais. Confira se a ferramenta de cultivo está selecionada e se a célula está livre. Cultivo é uma forma tranquila de obter itens, não um requisito para toda missão."],
@@ -810,6 +833,10 @@ function QuestBook({ g, onClose }: { g: Game; onClose: () => void }) {
   const [cat, setCat] = useState<"all" | "main" | "folk" | "seal">("all");
   const [q, setQ] = useState("");
   const [limit, setLimit] = useState(40);
+  const secretRoutes = g.routeSelection?.kind === "secret" ? secretRouteOptions(g) : [];
+  const routeName = g.routeSelection?.kind === "quest"
+    ? QUESTS.find((entry) => entry.id === g.routeSelection?.id)?.title
+    : g.routeSelection?.kind === "secret" ? secretRoutes.find((entry) => entry.id === g.routeSelection?.id)?.name : null;
   const npcName = (id: string) => NPCS.find((n) => n.id === id)?.name ?? "";
   const list = QUESTS.filter((x) => {
     const st = g.questStatus[x.id];
@@ -825,6 +852,10 @@ function QuestBook({ g, onClose }: { g: Game; onClose: () => void }) {
   return (
     <Modal title={`Livro de Missões · ${Object.values(g.questStatus).filter((v) => v === "done").length}/${QUESTS.length} concluídas`} onClose={onClose}>
       <div className="quest-book">
+        <div className="quest-route-status">
+          <span>{routeName ? <>Rota pontilhada: <b>{routeName}</b></> : "Rota automática: objetivo principal"}</span>
+          {g.routeSelection && <button type="button" onClick={() => { g.clearRouteSelection(); onClose(); }}>Limpar rota</button>}
+        </div>
         <div className="quest-tabs">{([["active", "Ativas"], ["available", "Disponíveis"], ["done", "Concluídas"]] as const).map(([id, l]) => <button key={id} className={tab === id ? "on" : ""} onClick={() => { setTab(id); setLimit(40); }}>{l}</button>)}</div>
         <div className="quest-filters">{([["all", "Todas"], ["main", "Principais"], ["folk", "Moradores"], ["seal", "Selos e Coro"]] as const).map(([id, l]) => <button key={id} className={cat === id ? "on" : ""} onClick={() => setCat(id)}>{l}</button>)}
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar missão ou morador…" /></div>
@@ -834,6 +865,9 @@ function QuestBook({ g, onClose }: { g: Game; onClose: () => void }) {
             <div className="quest-entry-desc">{x.desc}</div>
             {g.questStatus[x.id] === "active" && <div className="quest-entry-prog">{g.questReady(x) ? "✔ Retorne a quem pediu" : g.questProgressText(x)}</div>}
             {tab === "available" && x.main && x.act && !g.questUnlocked(x) && <div className="quest-entry-prog text-muted-foreground">🔒 Apresentada agora · será ativada quando a campanha alcançar este ato</div>}
+            {(g.questStatus[x.id] === "active" || (!g.questStatus[x.id] && g.questUnlocked(x))) && <button type="button" className={`quest-route-button ${g.routeSelection?.kind === "quest" && g.routeSelection.id === x.id ? "on" : ""}`} onClick={() => {
+              if (g.selectQuestRoute(x.id)) { g.toast(`Rota traçada: ${x.title}`, "#a0d0ff"); onClose(); }
+            }}><Compass size={13}/>{g.routeSelection?.kind === "quest" && g.routeSelection.id === x.id ? "Rota selecionada" : "Traçar rota"}</button>}
           </div>
         ))}
         {list.length > limit && <button className="quest-more" onClick={() => setLimit(limit + 40)}>Mostrar mais</button>}

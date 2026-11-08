@@ -14,6 +14,8 @@ import { CITADEL_FINAL_BEAT_ID, CITADEL_FINAL_BOSS_ID, CITADEL_UNLOCK_BOSS_ID } 
 import { startNemesisHunt } from './echoes-play';
 import { nemesisBossId } from './nemesis';
 import { BUILDINGS, FRONTIER_CITIES, createInterior, doorOf, ROOM } from './exploration';
+import { SECRETS, stepKey } from './secrets';
+import { secretRouteOptions } from './secret-play';
 
 // Canvas 2D falso: qualquer método é um no-op, gradientes aceitam addColorStop.
 function fakeCtx(canvas: unknown) {
@@ -296,6 +298,22 @@ describe('Engine — campanha integrada', { timeout: 90000 }, () => {
       expect(k.depth?.floor).toBe(floor + 1);
     }
     expect(k.questReady(quest)).toBe(true);
+  });
+  it('permite escolher uma missão e restaura essa escolha ao carregar o save', () => {
+    const k = make(), quest = QUESTS.find((entry) => entry.id === 'deep_route_01_4')!;
+    k.questStatus[quest.id] = 'active';
+    expect(k.selectQuestRoute(quest.id)).toBe(true);
+    expect(k.waypoint()).not.toBeNull();
+    const resumed = make(false); resumed.load();
+    expect(resumed.routeSelection).toEqual({ kind: 'quest', id: quest.id });
+  });
+  it('só lista e rastreia a cadeia de segredo depois da primeira descoberta', () => {
+    const k = make(), chain = SECRETS[0]!;
+    expect(secretRouteOptions(k).some((route) => route.id === chain.id)).toBe(false);
+    k.discoveries.add(stepKey(chain, 0));
+    expect(secretRouteOptions(k).some((route) => route.id === chain.id)).toBe(true);
+    expect(k.selectSecretRoute(chain.id)).toBe(true);
+    expect(k.waypoint()?.label).toBe(chain.name);
   });
   it('cria o chefe no décimo andar e mantém a saída fechada até a vitória', () => {
     const k = make(); enterBiomeMine(k, 'plains', 10);
