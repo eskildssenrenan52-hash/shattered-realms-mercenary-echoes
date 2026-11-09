@@ -62,6 +62,7 @@ import { carveBiomeMineEntrances, drawBiomeMineEntrances } from "./biome-mine-si
 import { biomeMineBestFloor, BIOME_MINE_FLOORS } from "./biome-mines";
 import type { MultiplayerPlayer, MultiplayerPose } from "./multiplayer-room";
 import { buySkill, freshSkillRanks, normalizeSkillRanks, skillBonuses, type SkillId, type SkillRanks } from "./progression";
+import { castUltimate, normalizeUltimate, type UltimateBuild } from "./ultimate-creator";
 
 registerForgeExpansion();
 
@@ -325,7 +326,7 @@ export class Game {
 
   p = {
     x: 122 * TS + 8, y: 128 * TS + 8, vx: 0, vy: 0, dir: 0, frame: 0, frameT: 0, attackT: 0, atkCd: 0, spellCd: 0, inv: 0,
-    hp: 100, mp: 30, level: 1, xp: 0, points: 0, skillPoints: 0, skills: freshSkillRanks(), learnedSkills: [] as string[], gold: 50,
+    hp: 100, mp: 30, level: 1, xp: 0, points: 0, skillPoints: 0, skills: freshSkillRanks(), learnedSkills: [] as string[], ultimate: null as UltimateBuild | null, gold: 50,
     base: { str: 5, dex: 5, vit: 5, int: 5, wis: 5 } as Stats,
     equip: { weapon: "wood_sword", armor: "cloth", helmet: null, gloves: null, boots: null, shield: null, ring: null, amulet: null } as Record<Slot, string | null>,
     spirits: ["salamando", "dryad"] as SpiritId[],
@@ -404,6 +405,7 @@ export class Game {
     return normalized;
   }
   buySkill(id: SkillId) { const result = buySkill(this.p.level, this.p.skillPoints ?? 0, this.skillRanks(), id); if (!result.ok) return false; this.p.skillPoints = result.points; this.p.skills = result.ranks; this.p.hp = Math.min(this.maxHp(), this.p.hp); this.p.mp = Math.min(this.maxMp(), this.p.mp); this.audio.sfx("level"); this.toast("Habilidade aprendida.", "#ffd040"); this.save(); return true; }
+  castUltimate() { return castUltimate(this); }
   bonus(k: "hp" | "mp") { let v = 0; for (const id of Object.values(this.p.equip)) if (id) v += ITEMS[id].bonus?.[k] ?? 0; const b = skillBonuses(this.skillRanks()); return v + (k === "hp" ? b.hp : b.mp); }
   maxHp() { return 50 + this.stats().vit * 10 + this.p.level * 6 + this.bonus("hp"); }
   maxMp() { const s = this.stats(); return 20 + s.wis * 5 + s.int * 2 + this.bonus("mp"); }
@@ -2204,6 +2206,7 @@ export class Game {
       if (d.p && typeof d.p === "object" && !Array.isArray(d.p)) Object.assign(this.p, d.p);
       this.ensureEquipmentSlots();
       this.p.skillPoints = Number.isFinite(this.p.skillPoints) ? Math.max(0, this.p.skillPoints) : Math.max(0, (this.p.level ?? 1) - 1);
+      this.p.ultimate = normalizeUltimate(d.p?.ultimate);
       const legacySkills = Array.isArray(d.p?.skills) ? d.p.skills : [];
       const savedLearned = Array.isArray(d.p?.learnedSkills) ? d.p.learnedSkills : legacySkills;
       this.p.learnedSkills = savedLearned.filter((id: unknown): id is string => typeof id === "string" && !!SKILL_BY_ID[id]);

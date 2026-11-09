@@ -33,6 +33,7 @@ import { PetsPanel } from "@/components/PetsPanel";
 import { EchoesBeyondPanel } from "@/components/EchoesBeyondPanel";
 import { MercenariesPanel } from "@/components/MercenariesPanel";
 import { SkillTreePanel } from "@/components/SkillTreePanel";
+import { UltimateCreatorPanel } from "@/components/UltimateCreatorPanel";
 import { drawKIcon, kImage } from "@/odyssey/kaetram";
 import { PawPrint } from "lucide-react";
 import { skipTutorial, startTutorial, TUTORIAL_FLOORS } from "@/odyssey/depthplay";
@@ -66,7 +67,7 @@ export const Route = createFileRoute("/odyssey")({
   component: OdysseyScreen,
 });
 
-type Panel = null | ProgressPanel | "skills" | "workshop" | "build" | "farm" | "home";
+type Panel = null | ProgressPanel | "skills" | "ultimate" | "workshop" | "build" | "farm" | "home";
 
 const DAILY_STATE_KEY = "shattered-realms:daily-login:v1";
 const DAILY_RECEIPTS_KEY = "shattered-realms:daily-receipts:v1";
@@ -264,6 +265,7 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
       }
       const toggle = (next: Panel) => {
         const gated = next !== null && ["inv", "char", "quest", "map", "secrets", "bestiary", "grimoire", "chronicle", "epic", "echoes", "pets", "mercenaries"].includes(next);
+        if (next === "ultimate" && g.p.level < 8) { g.toast("A Forja de Ultimates libera no nível 8.", "#ffcf70"); return; }
         if (gated && !panelUnlocked(g.p.level, next as ProgressPanel)) {
           g.toast(`${panelLabel(next as ProgressPanel)} libera no nível ${panelUnlockLevel(next as ProgressPanel)}.`, "#ffcf70");
           return;
@@ -279,6 +281,7 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
       if (e.code === "KeyB") return toggle("bestiary");
       if (e.code === "KeyV") return toggle("grimoire");
       if (e.code === "KeyO") return toggle("epic");
+      if (e.code === "KeyU") return toggle("ultimate");
       if (e.code === "KeyP") return toggle("pets");
       if (g.dialog || g.openStation || panelRef.current) return;
       if (e.code.startsWith("Digit")) { const i = Number(e.code.slice(5)) - 1; const id = loadout(g)[i]; if (id) g.cast(id); }
@@ -302,6 +305,7 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
   const g = gameRef.current;
   const openProgressPanel = (next: Panel) => {
     const game = gameRef.current;
+    if (game && next === "ultimate" && game.p.level < 8) { game.toast("A Forja de Ultimates libera no nível 8.", "#ffcf70"); setMenuOpen(false); return; }
     if (game && next && ["inv", "char", "quest", "map", "secrets", "bestiary", "grimoire", "chronicle", "epic", "echoes", "pets", "mercenaries"].includes(next)) {
       const required = panelUnlockLevel(next as ProgressPanel);
       if (!panelUnlocked(game.p.level, next as ProgressPanel)) { game.toast(`${panelLabel(next as ProgressPanel)} libera no nível ${required}.`, "#ffcf70"); setMenuOpen(false); return; }
@@ -597,6 +601,7 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
               </Modal>
             )}
             {panel === "skills" && g && <SkillTreePanel g={g} onClose={() => setPanel(null)} />}
+            {panel === "ultimate" && g && <UltimateCreatorPanel g={g} onClose={() => setPanel(null)} />}
             {panel === "chronicle" && (
               <Modal title={`A Crônica do Cântico Partido — Ciclo ${g.cycle + 1}`} onClose={() => setPanel(null)}>
                 <div className="chronicle-top"><span>Ecos restaurados <b>{g.ecosRestored()}/{ECOS.length}</b></span><span>Nível dos inimigos do ciclo <b>+{g.cycle * 20}</b></span></div>
@@ -752,6 +757,7 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
                   {p:'inv',label:'Mochila',icon:'inv'},{p:'char',label:'Herói',icon:'char'},{p:'quest',label:'Missões',icon:'quest'},{p:'map',label:'Mapa',icon:'map'},
                   {p:'chronicle',label:'Crônica',icon:'chronicle'},{p:'epic',label:'Grande Crônica',icon:'chronicle'},{p:'echoes',label:'Ecos Além',icon:'secrets'},{p:'bestiary',label:'Bestiário',icon:'bestiary'},{p:'grimoire',label:'Grimório',icon:'secrets'},{p:'secrets',label:'Descobertas',icon:'secrets'},
                 ] as const).map(it=><button key={it.p} onClick={()=>{setMenuOpen(false);openProgressPanel(it.p);}}><GameIcon name={it.icon as never} size={30}/><span>{it.label}</span></button>)}
+                <button className="ultimate-menu-entry" onClick={()=>{setMenuOpen(false);openProgressPanel('ultimate');}}><img src="/assets/ultimate/icon-crown.png" alt=""/><span>Ultimate Creator<small>Nível 8 · tecla U</small></span></button>
                 <Button variant="game" onClick={()=>{setMenuOpen(false);openProgressPanel('pets');}}><PawPrint size={28}/><span>Pets</span></Button><Button variant="game" onClick={()=>{setMenuOpen(false);openProgressPanel('mercenaries');}}><Swords size={28}/><span>Mercenários</span></Button><button onClick={()=>{setMenuOpen(false);setHeroTab('look');openProgressPanel('char');}}><span className="menu-emoji" aria-hidden>🎭</span><span>Aparência</span></button></div>
                 <div className="menu-group">Ferramenta · {g.tool==='explore'?'Explorar':g.tool}</div>
                 <div className="menu-grid menu-grid-5">{([{id:'explore',label:'Explorar',icon:'explore'},{id:'mine',label:'Minerar',icon:'mine'},{id:'axe',label:'Lenhar',icon:'axe'},{id:'till',label:'Terra',icon:'till'},{id:'water',label:'Regar',icon:'water'}] as const).map(t=><button key={t.id} className={g.tool===t.id?'on':''} onClick={()=>{g.tool=t.id;setMenuOpen(false);}}><GameIcon name={t.icon as never} size={28}/><span>{t.label}</span></button>)}</div>
@@ -778,7 +784,7 @@ export function OdysseyScreen({ startImmediately = false }: { startImmediately?:
         <Button variant="ghost" size="icon" disabled={title} aria-label="Mercenários" title="Mercenários · contratos e companhia" onClick={()=>openProgressPanel(panel==='mercenaries'?null:'mercenaries')}><Swords size={20}/></Button>
         <Button variant="ghost" size="icon" disabled={title} aria-label="Ecos Além" title="Ecos Além · sistemas da expansão" onClick={()=>setPanel(panel==='echoes'?null:'echoes')}><Sparkles size={20}/></Button>
         <Button variant="ghost" size="icon" disabled={title} aria-label="Multijogador" title="Sala multijogador · até cinco pessoas" onClick={()=>{setPanel(null);setMultiplayerMessage("");setMultiplayerOpen(true);}} className={multiplayerState.status==="connected"?"text-primary":"text-muted-foreground"}><Users size={20}/></Button>
-        <div className="toolbar-actions">{([{p:'inv',icon:Backpack,label:'Inventário'},{p:'char',icon:UserRound,label:'Herói'},{p:'quest',icon:ScrollText,label:'Missões'},{p:'chronicle',icon:BookOpen,label:'Crônica (J)'},{p:'map',icon:Map,label:'Mapa'},{p:'secrets',icon:Compass,label:'Descobertas'},{p:'bestiary',icon:Skull,label:'Bestiário (B)'},{p:'grimoire',icon:Sparkles,label:'Grimório (V)'},{p:'epic',icon:ScrollText,label:'Grande Crônica (O)'}] as const).map(({p:tab,icon:ToolIcon,label})=><Button key={tab} variant="ghost" size="icon" disabled={title} title={label} aria-label={label} onClick={()=>openProgressPanel(panel===tab?null:tab)} className={panel===tab?'text-primary':'text-muted-foreground'}><GameIcon name={tab}/><ToolIcon size={18}/></Button>)}<span className="toolbar-divider"/>{([{id:'explore',icon:Swords,label:'Explorar'},{id:'mine',icon:Pickaxe,label:'Minerar'},{id:'axe',icon:Axe,label:'Cortar madeira'},{id:'till',icon:Shovel,label:'Preparar terra'},{id:'water',icon:Droplets,label:'Regar'}] as const).map(({id,icon:ToolIcon,label})=><Button key={id} variant="ghost" size="icon" aria-label={label} title={label} disabled={title} onClick={()=>{if(g)g.tool=id;}} className={g?.tool===id&&!title?'tool-active':'text-muted-foreground'}><GameIcon name={id}/><ToolIcon size={18}/></Button>)}</div>
+        <div className="toolbar-actions">{([{p:'inv',icon:Backpack,label:'Inventário'},{p:'char',icon:UserRound,label:'Herói'},{p:'quest',icon:ScrollText,label:'Missões'},{p:'chronicle',icon:BookOpen,label:'Crônica (J)'},{p:'map',icon:Map,label:'Mapa'},{p:'secrets',icon:Compass,label:'Descobertas'},{p:'bestiary',icon:Skull,label:'Bestiário (B)'},{p:'grimoire',icon:Sparkles,label:'Grimório (V)'},{p:'epic',icon:ScrollText,label:'Grande Crônica (O)'}] as const).map(({p:tab,icon:ToolIcon,label})=><Button key={tab} variant="ghost" size="icon" disabled={title} title={label} aria-label={label} onClick={()=>openProgressPanel(panel===tab?null:tab)} className={panel===tab?'text-primary':'text-muted-foreground'}><GameIcon name={tab}/><ToolIcon size={18}/></Button>)}<Button variant="ghost" size="icon" disabled={title} title="Ultimate Creator (U)" aria-label="Ultimate Creator" onClick={()=>openProgressPanel(panel==='ultimate'?null:'ultimate')} className={panel==='ultimate'?'text-primary':'text-muted-foreground'}><img src="/assets/ultimate/icon-crown.png" alt="" className="toolbar-ai-icon"/></Button><span className="toolbar-divider"/>{([{id:'explore',icon:Swords,label:'Explorar'},{id:'mine',icon:Pickaxe,label:'Minerar'},{id:'axe',icon:Axe,label:'Cortar madeira'},{id:'till',icon:Shovel,label:'Preparar terra'},{id:'water',icon:Droplets,label:'Regar'}] as const).map(({id,icon:ToolIcon,label})=><Button key={id} variant="ghost" size="icon" aria-label={label} title={label} disabled={title} onClick={()=>{if(g)g.tool=id;}} className={g?.tool===id&&!title?'tool-active':'text-muted-foreground'}><GameIcon name={id}/><ToolIcon size={18}/></Button>)}</div>
         {g && !title && panel === 'home' && <Modal title={`Minha casa · ${HOME_LEVELS[g.settlement.home.level - 1].name}`} onClose={()=>setPanel(null)}>
           {g.settlement.home.level < HOME_LEVELS.length ? <Button variant="secondary" className="mb-4" onClick={()=>{upgradeHome(g);setPanel(null);}}><Hammer/>Reformar para {HOME_LEVELS[g.settlement.home.level].name}<small className="ml-2 opacity-80">{Object.entries(HOME_LEVELS[g.settlement.home.level].cost).map(([key,n])=>`${ITEMS[key].name} ${g.count(key)}/${n}`).join(' · ')}</small></Button> : <div className="progress-line mb-4">Sua mansão está completa.</div>}
           <div className="choice-grid">{(Object.entries(FURNITURE) as [FurnitureKind,typeof FURNITURE.bed][]).map(([id,def])=><Button variant="outline" className="choice-item" key={id} disabled={g.settlement.home.level < def.minLevel} onClick={()=>{g.furniture=id;g.tool='furnish';setPanel(null);}}><House/><span>{def.name}<small>{g.settlement.home.level < def.minLevel ? `Requer ${HOME_LEVELS[def.minLevel-1].name}` : Object.entries(def.cost).map(([key,n])=>`${ITEMS[key].name} ${g.count(key)}/${n}`).join(' · ')}</small></span></Button>)}</div>
