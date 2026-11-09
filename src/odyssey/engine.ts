@@ -326,7 +326,7 @@ export class Game {
 
   p = {
     x: 122 * TS + 8, y: 128 * TS + 8, vx: 0, vy: 0, dir: 0, frame: 0, frameT: 0, attackT: 0, atkCd: 0, spellCd: 0, inv: 0,
-    hp: 100, mp: 30, level: 1, xp: 0, points: 0, skillPoints: 0, skills: freshSkillRanks(), learnedSkills: [] as string[], ultimate: null as UltimateBuild | null, gold: 50,
+    hp: 100, mp: 30, level: 1, xp: 0, points: 0, skillPoints: 0, skills: freshSkillRanks(), learnedSkills: [] as string[], ultimate: null as UltimateBuild | null, ultimateMastery: 0, ultimateBlueprints: [] as string[], gold: 50,
     base: { str: 5, dex: 5, vit: 5, int: 5, wis: 5 } as Stats,
     equip: { weapon: "wood_sword", armor: "cloth", helmet: null, gloves: null, boots: null, shield: null, ring: null, amulet: null } as Record<Slot, string | null>,
     spirits: ["salamando", "dryad"] as SpiritId[],
@@ -2207,6 +2207,8 @@ export class Game {
       this.ensureEquipmentSlots();
       this.p.skillPoints = Number.isFinite(this.p.skillPoints) ? Math.max(0, this.p.skillPoints) : Math.max(0, (this.p.level ?? 1) - 1);
       this.p.ultimate = normalizeUltimate(d.p?.ultimate);
+      this.p.ultimateMastery = Number.isFinite(d.p?.ultimateMastery) ? Math.max(0, Math.floor(d.p.ultimateMastery)) : 0;
+      this.p.ultimateBlueprints = this.stringList(d.p?.ultimateBlueprints).slice(-24);
       const legacySkills = Array.isArray(d.p?.skills) ? d.p.skills : [];
       const savedLearned = Array.isArray(d.p?.learnedSkills) ? d.p.learnedSkills : legacySkills;
       this.p.learnedSkills = savedLearned.filter((id: unknown): id is string => typeof id === "string" && !!SKILL_BY_ID[id]);
